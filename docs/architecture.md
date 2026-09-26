@@ -2,14 +2,18 @@
 
 ## Current milestone
 
-The first milestone proves the basic OpenGL rendering pipeline:
+The Monza centerline milestone extends the basic OpenGL rendering pipeline:
 
 1. GLFW creates a window and OpenGL context.
 2. GLAD loads the OpenGL functions provided by the graphics driver.
-3. C++ uploads vertex positions and colours to a vertex buffer.
-4. A vertex shader positions the vertices and passes their colours forward.
-5. A fragment shader calculates the final colour of each visible pixel.
-6. OpenGL rasterizes the triangle and presents the completed frame.
+3. C++ uploads an ordered set of two-dimensional track points to a vertex buffer.
+4. A vertex shader corrects the coordinates for the current viewport aspect ratio.
+5. `GL_LINE_LOOP` connects consecutive points and closes the circuit.
+6. A second draw call displays the same vertices as red control points.
+7. A fragment shader applies a uniform colour to each draw call.
+8. OpenGL rasterizes the primitives and presents the completed frame.
+
+The current coordinates are intentionally hand-authored. They isolate the graphics pipeline from telemetry parsing so the team can verify one subsystem at a time.
 
 ## Planned modules
 
@@ -21,4 +25,4 @@ The first milestone proves the basic OpenGL rendering pipeline:
 - **Playback:** time control, scrubbing, marker position, and live statistics.
 - **Interface:** telemetry layers, legend, playback controls, and errors.
 
-These modules will be separated gradually. The first milestone intentionally keeps the rendering code together so every team member can trace the complete pipeline in one file.
+These modules will be separated gradually. The early milestones intentionally keep the rendering code together so every team member can trace the complete pipeline in one file.
