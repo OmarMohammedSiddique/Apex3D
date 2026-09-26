@@ -13,7 +13,7 @@ The Monza centerline milestone extends the basic OpenGL rendering pipeline:
 7. A fragment shader applies a uniform colour to each draw call.
 8. OpenGL rasterizes the primitives and presents the completed frame.
 
-The current coordinates are intentionally hand-authored. They isolate the graphics pipeline from telemetry parsing so the team can verify one subsystem at a time.
+The current coordinates are hand-authored from the official Formula 1 Monza circuit-map reference. They preserve the recognizable layout and isolate the graphics pipeline from telemetry parsing so the team can verify one subsystem at a time.
 
 ## Planned modules
 

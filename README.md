@@ -4,7 +4,9 @@ Interactive C++ and OpenGL application that transforms offline Formula 1 telemet
 
 ## Current milestone
 
-The repository currently renders a stylized Monza centerline from a small set of hand-authored points. It uses a vertex buffer, `GL_LINE_LOOP`, shaders, and aspect-ratio correction. Red control points make the underlying geometry visible. Real telemetry coordinates and curve smoothing will replace this prototype data in later milestones.
+The repository currently renders a reference-derived Monza centerline from a small set of hand-authored points. Its major landmarks follow the official Formula 1 circuit map while keeping the geometry easy to inspect and explain. It uses a vertex buffer, `GL_LINE_LOOP`, shaders, and aspect-ratio correction. Red control points make the underlying geometry visible. Real telemetry coordinates and curve smoothing will replace this prototype data in later milestones.
+
+Shape reference: [Formula 1 — Italy, Autodromo Nazionale Monza](https://www.formula1.com/en/information/italy-autodromo-nazionale-monza.FiJN1jnQlRLeHqOxIt13m)
 
 ## Requirements
 
