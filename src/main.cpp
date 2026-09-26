@@ -20,14 +20,14 @@ struct TrackPoint {
 // They remain deliberately hand-authored; telemetry will replace them later.
 constexpr TrackPoint kMonzaCenterline[] = {
     // Start/finish straight and Rettifilo chicane (turns 1-2).
-    { 1.16F, -0.68F}, { 0.82F, -0.69F}, { 0.45F, -0.69F},
-    { 0.08F, -0.68F}, {-0.25F, -0.68F}, {-0.48F, -0.67F},
-    {-0.50F, -0.64F}, {-0.50F, -0.58F}, {-0.53F, -0.55F},
-    {-0.59F, -0.56F}, {-0.68F, -0.61F},
+    { 1.16F, -0.87F}, { 0.82F, -0.87F}, { 0.45F, -0.87F},
+    { 0.08F, -0.87F}, {-0.25F, -0.87F}, {-0.46F, -0.87F},
+    {-0.49F, -0.84F}, {-0.49F, -0.78F}, {-0.52F, -0.75F},
+    {-0.58F, -0.76F}, {-0.67F, -0.81F},
 
     // Curva Grande and the run toward the Roggia chicane (turns 3-5).
-    {-0.80F, -0.65F}, {-0.94F, -0.63F}, {-1.07F, -0.57F},
-    {-1.18F, -0.47F}, {-1.25F, -0.34F}, {-1.30F, -0.18F},
+    {-0.80F, -0.84F}, {-0.94F, -0.83F}, {-1.07F, -0.77F},
+    {-1.18F, -0.67F}, {-1.25F, -0.54F}, {-1.30F, -0.38F},
     {-1.33F,  0.00F}, {-1.35F,  0.18F}, {-1.39F,  0.23F},
     {-1.46F,  0.24F}, {-1.49F,  0.28F}, {-1.50F,  0.35F},
 
