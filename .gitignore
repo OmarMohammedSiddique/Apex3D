@@ -1,0 +1,8 @@
+# CMake build output
+build/
+cmake-build-*/
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.DS_Store
