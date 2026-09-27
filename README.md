@@ -4,7 +4,9 @@ Interactive C++ and OpenGL application that transforms offline Formula 1 telemet
 
 ## Current milestone
 
-The repository currently contains the rendering-pipeline foundation: a GLFW window, an OpenGL 3.3 Core context, GLAD function loading, vertex data, and simple vertex and fragment shaders. Running it displays a coloured triangle and proves that the development environment is working.
+The repository currently renders a reference-derived Monza centerline from a small set of hand-authored points. Its major landmarks follow the official Formula 1 circuit map while keeping the geometry easy to inspect and explain. It uses a vertex buffer, `GL_LINE_LOOP`, shaders, and aspect-ratio correction. Red control points make the underlying geometry visible. Real telemetry coordinates and curve smoothing will replace this prototype data in later milestones.
+
+Shape reference: [Formula 1 — Italy, Autodromo Nazionale Monza](https://www.formula1.com/en/information/italy-autodromo-nazionale-monza.FiJN1jnQlRLeHqOxIt13m)
 
 ## Requirements
 
@@ -27,7 +29,7 @@ cmake --build build
 
 On Windows, the executable may be located under a configuration directory such as `build/Debug/Apex3D.exe`.
 
-Press `Escape` to close the application.
+Press `P` to show or hide the raw control points. Press `Escape` to close the application.
 
 ## Learning goals
 

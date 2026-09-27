@@ -1,6 +1,7 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 
@@ -9,30 +10,74 @@ namespace {
 constexpr int kWindowWidth = 1280;
 constexpr int kWindowHeight = 720;
 
+struct TrackPoint {
+    float x;
+    float y;
+};
+
+// A reference-derived Monza centerline for the geometry milestone. The points
+// are ordered around the lap so GL_LINE_LOOP can join and close the circuit.
+// They remain deliberately hand-authored; telemetry will replace them later.
+constexpr TrackPoint kMonzaCenterline[] = {
+    // Start/finish straight and Rettifilo chicane (turns 1-2).
+    { 1.16F, -0.87F}, { 0.82F, -0.87F}, { 0.45F, -0.87F},
+    { 0.08F, -0.87F}, {-0.25F, -0.87F}, {-0.46F, -0.87F},
+    {-0.49F, -0.84F}, {-0.49F, -0.78F}, {-0.52F, -0.75F},
+    {-0.58F, -0.76F}, {-0.67F, -0.81F},
+
+    // Curva Grande and the run toward the Roggia chicane (turns 3-5).
+    {-0.80F, -0.84F}, {-0.94F, -0.83F}, {-1.07F, -0.77F},
+    {-1.18F, -0.67F}, {-1.25F, -0.54F}, {-1.30F, -0.38F},
+    {-1.33F,  0.00F}, {-1.35F,  0.18F}, {-1.39F,  0.23F},
+    {-1.46F,  0.24F}, {-1.49F,  0.28F}, {-1.50F,  0.35F},
+
+    // Lesmo curves (turns 6-7).
+    {-1.54F,  0.49F}, {-1.58F,  0.63F}, {-1.58F,  0.70F},
+    {-1.55F,  0.76F}, {-1.49F,  0.80F}, {-1.39F,  0.83F},
+    {-1.25F,  0.85F}, {-1.10F,  0.88F}, {-0.95F,  0.90F},
+    {-0.87F,  0.88F}, {-0.81F,  0.81F},
+
+    // Long descending run from Lesmo 2 to Variante Ascari (turns 8-10).
+    {-0.72F,  0.68F}, {-0.61F,  0.51F}, {-0.51F,  0.35F},
+    {-0.39F,  0.20F}, {-0.25F,  0.06F}, {-0.10F, -0.08F},
+    { 0.05F, -0.21F}, { 0.18F, -0.32F}, { 0.26F, -0.38F},
+    { 0.33F, -0.39F}, { 0.40F, -0.36F}, { 0.48F, -0.35F},
+    { 0.56F, -0.37F}, { 0.63F, -0.42F}, { 0.70F, -0.44F},
+
+    // Back straight and Curva Alboreto/Parabolica (turn 11).
+    { 0.91F, -0.45F}, { 1.14F, -0.46F}, { 1.36F, -0.46F},
+    { 1.51F, -0.47F}, { 1.59F, -0.50F}, { 1.64F, -0.56F},
+    { 1.66F, -0.63F}, { 1.65F, -0.69F}, { 1.61F, -0.75F},
+    { 1.54F, -0.80F}, { 1.43F, -0.84F}, { 1.30F, -0.86F},
+    { 1.17F, -0.87F},
+};
+
+constexpr GLsizei kTrackPointCount =
+    static_cast<GLsizei>(sizeof(kMonzaCenterline) / sizeof(kMonzaCenterline[0]));
+
+bool gShowControlPoints = true;
+
 constexpr char kVertexShaderSource[] = R"(
     #version 330 core
 
     layout (location = 0) in vec2 position;
-    layout (location = 1) in vec3 color;
-
-    out vec3 vertexColor;
+    uniform vec2 viewportScale;
 
     void main()
     {
-        gl_Position = vec4(position, 0.0, 1.0);
-        vertexColor = color;
+        gl_Position = vec4(position * viewportScale, 0.0, 1.0);
     }
 )";
 
 constexpr char kFragmentShaderSource[] = R"(
     #version 330 core
 
-    in vec3 vertexColor;
+    uniform vec3 drawColor;
     out vec4 fragmentColor;
 
     void main()
     {
-        fragmentColor = vec4(vertexColor, 1.0);
+        fragmentColor = vec4(drawColor, 1.0);
     }
 )";
 
@@ -46,6 +91,13 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
+
+    static bool pWasPressed = false;
+    const bool pIsPressed = glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS;
+    if (pIsPressed && !pWasPressed) {
+        gShowControlPoints = !gShowControlPoints;
+    }
+    pWasPressed = pIsPressed;
 }
 
 GLuint compileShader(GLenum type, const char* source)
@@ -119,7 +171,7 @@ int main()
     GLFWwindow* window = glfwCreateWindow(
         kWindowWidth,
         kWindowHeight,
-        "Apex3D - Rendering Pipeline Milestone",
+        "Apex3D - Monza Centerline Milestone",
         nullptr,
         nullptr
     );
@@ -151,14 +203,6 @@ int main()
         return EXIT_FAILURE;
     }
 
-    // Each vertex stores a 2D position followed by an RGB colour.
-    constexpr float vertices[] = {
-        // Position     // Colour
-         0.0F,  0.65F, 0.95F, 0.08F, 0.08F,
-        -0.6F, -0.45F, 0.12F, 0.85F, 0.28F,
-         0.6F, -0.45F, 0.95F, 0.72F, 0.10F,
-    };
-
     GLuint vertexArray = 0;
     GLuint vertexBuffer = 0;
     glGenVertexArrays(1, &vertexArray);
@@ -166,25 +210,27 @@ int main()
 
     glBindVertexArray(vertexArray);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    constexpr GLsizei stride = 5 * sizeof(float);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, nullptr);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-        1,
-        3,
-        GL_FLOAT,
-        GL_FALSE,
-        stride,
-        reinterpret_cast<void*>(2 * sizeof(float))
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        sizeof(kMonzaCenterline),
+        kMonzaCenterline,
+        GL_STATIC_DRAW
     );
-    glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(TrackPoint), nullptr);
+    glEnableVertexAttribArray(0);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    const GLint viewportScaleLocation = glGetUniformLocation(shaderProgram, "viewportScale");
+    const GLint drawColorLocation = glGetUniformLocation(shaderProgram, "drawColor");
+
     glEnable(GL_DEPTH_TEST);
+    GLfloat supportedLineWidths[2]{};
+    glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, supportedLineWidths);
+    glLineWidth(std::min(2.0F, supportedLineWidths[1]));
+    glPointSize(6.0F);
 
     while (glfwWindowShouldClose(window) == GLFW_FALSE) {
         processInput(window);
@@ -194,7 +240,31 @@ int main()
 
         glUseProgram(shaderProgram);
         glBindVertexArray(vertexArray);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        int framebufferWidth = 0;
+        int framebufferHeight = 0;
+        glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+
+        float xScale = 1.0F;
+        float yScale = 1.0F;
+        if (framebufferWidth > framebufferHeight && framebufferWidth > 0) {
+            xScale = static_cast<float>(framebufferHeight) /
+                static_cast<float>(framebufferWidth);
+        } else if (framebufferHeight > 0) {
+            yScale = static_cast<float>(framebufferWidth) /
+                static_cast<float>(framebufferHeight);
+        }
+        glUniform2f(viewportScaleLocation, xScale, yScale);
+
+        // LINE_LOOP joins every point and closes the final segment automatically.
+        glUniform3f(drawColorLocation, 0.94F, 0.94F, 0.96F);
+        glDrawArrays(GL_LINE_LOOP, 0, kTrackPointCount);
+
+        // The red control points reveal the raw geometry used to build the line.
+        if (gShowControlPoints) {
+            glUniform3f(drawColorLocation, 0.95F, 0.05F, 0.03F);
+            glDrawArrays(GL_POINTS, 0, kTrackPointCount);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
