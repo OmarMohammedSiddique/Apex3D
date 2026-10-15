@@ -2,6 +2,8 @@
 
 A self-contained C++20 program that draws Apex3D's Monza circuit and a set of test segments into an in-memory RGB canvas, using only hand-written algorithms. It does not use OpenGL, GLFW or any other drawing library. Every pixel goes through `Canvas::setPixel`, and the finished canvas is saved as `output/lines_demo.ppm`.
 
+![Line algorithms demo](output/lines_demo.png)
+
 ## Build and run
 
 From the repository root:
@@ -87,4 +89,4 @@ Apex3D draws Formula 1 circuits from ordered centerline points. This checkpoint 
 - The clipped endpoints are computed in `double` and rounded to pixels, so a clipped line can differ by one pixel from the original line where they overlap.
 - The circuit coordinates are hand-authored, not real telemetry. The pit lane is approximate.
 - Labels use a minimal 3×5 bitmap font that contains only the characters needed for this image.
-- The output is PPM, which some viewers (for example GitHub's file preview) do not display. Convert it to PNG when you share it.
+- The program writes PPM, which some viewers (for example GitHub's file preview) do not display. `output/lines_demo.png` is a PNG conversion of the same image, made with ImageMagick.
