@@ -7,11 +7,11 @@ The Monza centerline milestone extends the basic OpenGL rendering pipeline:
 1. GLFW creates a window and OpenGL context.
 2. GLAD loads the OpenGL functions provided by the graphics driver.
 3. C++ uploads an ordered set of two-dimensional track points to a vertex buffer.
-4. A vertex shader corrects the coordinates for the current viewport aspect ratio.
-5. `GL_LINE_LOOP` connects consecutive points and closes the circuit.
-6. A second draw call displays the same vertices as red control points.
-7. A fragment shader applies a uniform colour to each draw call.
-8. OpenGL rasterizes the primitives and presents the completed frame.
+4. The CPU applies Bresenham's line algorithm to each consecutive pair, including the closing segment.
+5. The generated raster points are uploaded to a second vertex buffer and drawn with `GL_POINTS`.
+6. A vertex shader corrects the coordinates for the current viewport aspect ratio.
+7. A second draw call displays the original vertices as red control points.
+8. A fragment shader applies a uniform colour to each draw call before presentation.
 
 The current coordinates are hand-authored from the official Formula 1 Monza circuit-map reference. They preserve the recognizable layout and isolate the graphics pipeline from telemetry parsing so the team can verify one subsystem at a time.
 

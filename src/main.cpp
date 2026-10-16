@@ -1,18 +1,25 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
-#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 namespace {
 
 constexpr int kWindowWidth = 1280;
 constexpr int kWindowHeight = 720;
+constexpr int kRasterScale = 500;
 
 struct TrackPoint {
     float x;
     float y;
+};
+
+struct RasterPoint {
+    int x;
+    int y;
 };
 
 // A reference-derived Monza centerline for the geometry milestone. The points
@@ -54,6 +61,75 @@ constexpr TrackPoint kMonzaCenterline[] = {
 
 constexpr GLsizei kTrackPointCount =
     static_cast<GLsizei>(sizeof(kMonzaCenterline) / sizeof(kMonzaCenterline[0]));
+
+RasterPoint toRasterPoint(const TrackPoint& point)
+{
+    return {
+        static_cast<int>(std::lround(point.x * kRasterScale)),
+        static_cast<int>(std::lround(point.y * kRasterScale)),
+    };
+}
+
+void appendBresenhamLine(
+    const TrackPoint& start,
+    const TrackPoint& end,
+    std::vector<TrackPoint>& output
+)
+{
+    RasterPoint current = toRasterPoint(start);
+    const RasterPoint target = toRasterPoint(end);
+
+    const int deltaX = std::abs(target.x - current.x);
+    const int stepX = current.x < target.x ? 1 : -1;
+    const int deltaY = -std::abs(target.y - current.y);
+    const int stepY = current.y < target.y ? 1 : -1;
+    int error = deltaX + deltaY;
+
+    while (true) {
+        const TrackPoint plottedPoint {
+            static_cast<float>(current.x) / kRasterScale,
+            static_cast<float>(current.y) / kRasterScale,
+        };
+
+        // Adjacent segments share an endpoint, so avoid storing it twice.
+        if (output.empty()
+            || output.back().x != plottedPoint.x
+            || output.back().y != plottedPoint.y) {
+            output.push_back(plottedPoint);
+        }
+
+        if (current.x == target.x && current.y == target.y) {
+            break;
+        }
+
+        const int doubledError = 2 * error;
+        if (doubledError >= deltaY) {
+            error += deltaY;
+            current.x += stepX;
+        }
+        if (doubledError <= deltaX) {
+            error += deltaX;
+            current.y += stepY;
+        }
+    }
+}
+
+std::vector<TrackPoint> rasterizeTrackWithBresenham()
+{
+    std::vector<TrackPoint> rasterizedTrack;
+    rasterizedTrack.reserve(4096);
+
+    for (GLsizei index = 0; index < kTrackPointCount; ++index) {
+        const GLsizei nextIndex = (index + 1) % kTrackPointCount;
+        appendBresenhamLine(
+            kMonzaCenterline[index],
+            kMonzaCenterline[nextIndex],
+            rasterizedTrack
+        );
+    }
+
+    return rasterizedTrack;
+}
 
 bool gShowControlPoints = true;
 
@@ -203,13 +279,33 @@ int main()
         return EXIT_FAILURE;
     }
 
-    GLuint vertexArray = 0;
-    GLuint vertexBuffer = 0;
-    glGenVertexArrays(1, &vertexArray);
-    glGenBuffers(1, &vertexBuffer);
+    const std::vector<TrackPoint> rasterizedTrack = rasterizeTrackWithBresenham();
+    std::cout << "Bresenham raster points: " << rasterizedTrack.size() << '\n';
 
-    glBindVertexArray(vertexArray);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+    GLuint trackVertexArray = 0;
+    GLuint trackVertexBuffer = 0;
+    glGenVertexArrays(1, &trackVertexArray);
+    glGenBuffers(1, &trackVertexBuffer);
+
+    glBindVertexArray(trackVertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, trackVertexBuffer);
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        static_cast<GLsizeiptr>(rasterizedTrack.size() * sizeof(TrackPoint)),
+        rasterizedTrack.data(),
+        GL_STATIC_DRAW
+    );
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(TrackPoint), nullptr);
+    glEnableVertexAttribArray(0);
+
+    GLuint controlPointVertexArray = 0;
+    GLuint controlPointVertexBuffer = 0;
+    glGenVertexArrays(1, &controlPointVertexArray);
+    glGenBuffers(1, &controlPointVertexBuffer);
+
+    glBindVertexArray(controlPointVertexArray);
+    glBindBuffer(GL_ARRAY_BUFFER, controlPointVertexBuffer);
     glBufferData(
         GL_ARRAY_BUFFER,
         sizeof(kMonzaCenterline),
@@ -227,11 +323,6 @@ int main()
     const GLint drawColorLocation = glGetUniformLocation(shaderProgram, "drawColor");
 
     glEnable(GL_DEPTH_TEST);
-    GLfloat supportedLineWidths[2]{};
-    glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, supportedLineWidths);
-    glLineWidth(std::min(2.0F, supportedLineWidths[1]));
-    glPointSize(6.0F);
-
     while (glfwWindowShouldClose(window) == GLFW_FALSE) {
         processInput(window);
 
@@ -239,7 +330,6 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shaderProgram);
-        glBindVertexArray(vertexArray);
 
         int framebufferWidth = 0;
         int framebufferHeight = 0;
@@ -256,12 +346,20 @@ int main()
         }
         glUniform2f(viewportScaleLocation, xScale, yScale);
 
-        // LINE_LOOP joins every point and closes the final segment automatically.
+        // Bresenham produces the individual raster points for every track segment.
+        glBindVertexArray(trackVertexArray);
+        glPointSize(2.0F);
         glUniform3f(drawColorLocation, 0.94F, 0.94F, 0.96F);
-        glDrawArrays(GL_LINE_LOOP, 0, kTrackPointCount);
+        glDrawArrays(
+            GL_POINTS,
+            0,
+            static_cast<GLsizei>(rasterizedTrack.size())
+        );
 
         // The red control points reveal the raw geometry used to build the line.
         if (gShowControlPoints) {
+            glBindVertexArray(controlPointVertexArray);
+            glPointSize(6.0F);
             glUniform3f(drawColorLocation, 0.95F, 0.05F, 0.03F);
             glDrawArrays(GL_POINTS, 0, kTrackPointCount);
         }
@@ -270,8 +368,10 @@ int main()
         glfwPollEvents();
     }
 
-    glDeleteBuffers(1, &vertexBuffer);
-    glDeleteVertexArrays(1, &vertexArray);
+    glDeleteBuffers(1, &controlPointVertexBuffer);
+    glDeleteVertexArrays(1, &controlPointVertexArray);
+    glDeleteBuffers(1, &trackVertexBuffer);
+    glDeleteVertexArrays(1, &trackVertexArray);
     glDeleteProgram(shaderProgram);
     glfwDestroyWindow(window);
     glfwTerminate();
