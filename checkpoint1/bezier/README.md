@@ -19,9 +19,16 @@ c++ -std=c++20 -Wall -Wextra -Wpedantic checkpoint1/bezier/main.cpp -o /tmp/apex
 /tmp/apex3d-bezier
 ```
 
-Expected terminal output:
+Expected terminal output (pixel count may vary slightly by platform/compiler):
 
 ```
+Apex3D Bezier self-checks:
+  [self-check] B(0) == P0  : PASS
+  [self-check] B(1) == P3  : PASS
+  [self-check] degenerate  : PASS
+  [self-check] collinear   : PASS
+  All self-checks passed.
+
 Apex3D Checkpoint 1 - Cubic Bezier Curves
   Canvas             : 1200 x 700 RGB
   Curves drawn       : 11
@@ -81,8 +88,11 @@ strengthens the initial tangent. P2 works the same way at the end.
 *t* is a normalised value that travels from 0 (the start) to 1 (the end).
 At t = 0 the formula evaluates to P0; at t = 1 it evaluates to P3.
 At t = 0.5 the curve is roughly halfway between the endpoints.
-Because the Bernstein weights are smooth polynomial functions of *t*, the
-resulting path is infinitely differentiable — it has no kinks.
+A single cubic Bézier polynomial is infinitely differentiable inside its own
+interval [0, 1] — it has no kinks within one segment. When multiple segments
+are chained together, smoothness at the joins depends on the continuity
+conditions between adjacent segments, not on the polynomial degree alone
+(see *How Bézier curves smooth the Monza circuit* below).
 
 ---
 
@@ -112,9 +122,21 @@ corner with a cubic segment:
 * **P0** and **P3** are placed at the waypoints (join nodes).
 * **P1** and **P2** are placed along the *incoming* and *outgoing tangent*
   directions respectively.
-* When P2_i, P3_i = P0_{i+1}, and P1_{i+1} are collinear, the join has
-  **C1 continuity** — a smooth tangent with no kink — giving the driver a
-  predictable arc-like path through every corner.
+* Adjacent segments share their endpoint (**C0 positional continuity** is
+  guaranteed). The handles are manually arranged so that P2_i, P3_i and
+  P1_{i+1} are collinear in the same direction, which gives **G1 geometric
+  continuity** — a visually smooth tangent with no kink — at most joins.
+* **C1 parametric continuity** is *not* enforced. Exact C1 for
+  equally-parameterised cubic segments requires:
+
+  ```
+  P3_i - P2_i  =  P1_{i+1} - P0_{i+1}
+  ```
+
+  (equal tangent *vectors*, not just collinearity). There is no automatic
+  tangent solver here.
+* The closed **start/finish join** (last segment back to first) is not
+  guaranteed to be tangent-continuous.
 
 The centre panel shows seven chained segments approximating a full Monza lap,
 with the orange control polygon visible behind the smooth green racing line.
@@ -148,10 +170,11 @@ The 1200×700 canvas is divided into three equal panels:
 * Sampling uses **uniform spacing in t**, not arc-length parameterisation.
   Dense curvature regions may receive fewer samples, though 500 steps
   mitigates this for this canvas size.
-* **C1 continuity** is maintained by manually aligning handles; there is no
-  automatic tangent solver (Catmull–Rom, etc.).
+* **C1 continuity** is *not* automatically enforced. Handles are manually
+  aligned to give G1 geometric continuity (collinearity in the same direction)
+  at most joins; there is no automatic tangent solver (Catmull–Rom, etc.).
+  The closed start/finish join is not guaranteed to be tangent-continuous.
 * Monza coordinates are **hand-authored** approximations, not real GPS data.
 * The bitmap font supports only **uppercase ASCII** (A–Z, 0–9, punctuation).
 * The PPM is not natively viewable in most browsers. The committed PNG was
   generated with a pure-Python stdlib converter (`zlib` + `struct`).
-
