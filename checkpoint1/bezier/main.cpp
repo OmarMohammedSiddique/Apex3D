@@ -275,6 +275,13 @@ static void drawText(Canvas& canvas, int x, int y, std::string_view text,
 // They sum to 1 for all t, so B(t) is always a convex combination of P0..P3.
 // Consequence: B(0)=P0 exactly and B(1)=P3 exactly; the curve lies inside
 // the convex hull of the four control points.
+//
+// Smoothness note:
+//   A single cubic Bezier polynomial is infinitely differentiable inside its
+//   own interval [0, 1].  When multiple segments are chained together,
+//   smoothness at the joins depends on the continuity conditions between
+//   adjacent segments, NOT on the polynomial degree alone (see the Monza
+//   panel comment for details).
 // ============================================================================
 
 /// Evaluates one scalar component of the cubic Bezier at parameter t in [0,1].
@@ -430,9 +437,18 @@ static void drawIsolatedPanel(Canvas& canvas, Stats& stats,
 // order: SF straight -> Variante del Rettifilo -> Curva Grande ->
 // Variante della Roggia -> Lesmo 1+2 -> Ascari chicane -> Parabolica -> SF.
 //
-// C1 continuity: the last control point of segment i (P3_i), the first of
-// segment i+1 (P0_{i+1}), and its handle (P1_{i+1}) are collinear, giving a
-// smooth tangent at every join so the racing line has no kinks.
+// Continuity at joins:
+//   C0 (positional): guaranteed — each segment starts at the previous end point.
+//   G1 (geometric):  the handles are manually arranged so P2_i, P3_i and
+//                    P1_{i+1} are collinear in the same direction, giving a
+//                    visually smooth tangent with no kink at most joins.
+//   C1 (parametric): NOT enforced.  Exact C1 for equally-parameterised cubic
+//                    segments requires:
+//                      P3_i - P2_i  ==  P1_{i+1} - P0_{i+1}
+//                    (i.e. equal tangent vectors, not just collinearity).
+//                    There is no automatic tangent solver here.
+//   The closed start/finish join (Seg 6 -> Seg 0) is not guaranteed to be
+//   tangent-continuous.
 // ============================================================================
 
 static void drawMonzaPanel(Canvas& canvas, Stats& stats,
@@ -593,11 +609,103 @@ static void drawLegend(Canvas& canvas, int x, int y)
 }
 
 // ============================================================================
+// Deterministic self-checks
+//
+// These verify fundamental Bezier properties at compile-determined points and
+// exit with EXIT_FAILURE if any check fails, so CI and local runs both catch
+// regressions immediately.
+// ============================================================================
+
+/// Absolute tolerance for floating-point endpoint comparisons.
+static constexpr double kEps = 1e-9;
+
+[[nodiscard]] static bool selfChecks()
+{
+    bool ok = true;
+
+    // ------------------------------------------------------------------
+    // Check 1: B(0) == P0
+    // ------------------------------------------------------------------
+    {
+        const Point2D p0{10.0, 20.0}, p1{30.0, 80.0},
+                      p2{70.0, 80.0}, p3{90.0, 20.0};
+        const Point2D b0 = cubicBezier(p0, p1, p2, p3, 0.0);
+        const bool pass = (std::abs(b0.x - p0.x) < kEps) &&
+                          (std::abs(b0.y - p0.y) < kEps);
+        std::cout << "  [self-check] B(0) == P0  : " << (pass ? "PASS" : "FAIL") << '\n';
+        ok = ok && pass;
+    }
+
+    // ------------------------------------------------------------------
+    // Check 2: B(1) == P3
+    // ------------------------------------------------------------------
+    {
+        const Point2D p0{10.0, 20.0}, p1{30.0, 80.0},
+                      p2{70.0, 80.0}, p3{90.0, 20.0};
+        const Point2D b1 = cubicBezier(p0, p1, p2, p3, 1.0);
+        const bool pass = (std::abs(b1.x - p3.x) < kEps) &&
+                          (std::abs(b1.y - p3.y) < kEps);
+        std::cout << "  [self-check] B(1) == P3  : " << (pass ? "PASS" : "FAIL") << '\n';
+        ok = ok && pass;
+    }
+
+    // ------------------------------------------------------------------
+    // Check 3: degenerate curve — all four points coincide.
+    // Every B(t) must equal that single point.
+    // ------------------------------------------------------------------
+    {
+        const Point2D pt{42.0, 77.0};
+        bool pass = true;
+        for (int i = 0; i <= 10; ++i) {
+            const double t = static_cast<double>(i) / 10.0;
+            const Point2D b = cubicBezier(pt, pt, pt, pt, t);
+            if (std::abs(b.x - pt.x) >= kEps || std::abs(b.y - pt.y) >= kEps) {
+                pass = false;
+                break;
+            }
+        }
+        std::cout << "  [self-check] degenerate  : " << (pass ? "PASS" : "FAIL") << '\n';
+        ok = ok && pass;
+    }
+
+    // ------------------------------------------------------------------
+    // Check 4: collinear control points — the curve must stay on the line.
+    // P0=(0,0), P1=(1,1), P2=(2,2), P3=(3,3) all lie on y=x.
+    // ------------------------------------------------------------------
+    {
+        const Point2D p0{0.0, 0.0}, p1{1.0, 1.0},
+                      p2{2.0, 2.0}, p3{3.0, 3.0};
+        bool pass = true;
+        for (int i = 0; i <= 20; ++i) {
+            const double t = static_cast<double>(i) / 20.0;
+            const Point2D b = cubicBezier(p0, p1, p2, p3, t);
+            // On y=x the difference must be zero.
+            if (std::abs(b.x - b.y) >= kEps) {
+                pass = false;
+                break;
+            }
+        }
+        std::cout << "  [self-check] collinear   : " << (pass ? "PASS" : "FAIL") << '\n';
+        ok = ok && pass;
+    }
+
+    return ok;
+}
+
+// ============================================================================
 // main
 // ============================================================================
 
 int main(int argc, char* argv[])
 {
+    // Run self-checks before any rendering.
+    std::cout << "Apex3D Bezier self-checks:\n";
+    if (!selfChecks()) {
+        std::cerr << "ERROR: one or more self-checks FAILED\n";
+        return EXIT_FAILURE;
+    }
+    std::cout << "  All self-checks passed.\n\n";
+
     constexpr int kWidth  = 1200;
     constexpr int kHeight =  700;
     Canvas canvas(kWidth, kHeight, Palette::kBackground);
@@ -662,4 +770,3 @@ int main(int argc, char* argv[])
 
     return EXIT_SUCCESS;
 }
-
