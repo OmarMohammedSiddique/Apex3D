@@ -1,8 +1,11 @@
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -15,6 +18,14 @@ struct Color {
     std::uint8_t red;
     std::uint8_t green;
     std::uint8_t blue;
+
+    bool operator==(const Color& other) const {
+        return red == other.red && green == other.green && blue == other.blue;
+    }
+
+    bool operator!=(const Color& other) const {
+        return !(*this == other);
+    }
 };
 static_assert(sizeof(Color) == 3, "RGB24 requires three bytes per pixel");
 
@@ -40,6 +51,16 @@ public:
         }
         pixels_[static_cast<std::size_t>(y) * kWidth +
                 static_cast<std::size_t>(x)] = color;
+    }
+
+    Color pixelAt(int x, int y) const {
+        return pixels_.at(static_cast<std::size_t>(y) * kWidth +
+                          static_cast<std::size_t>(x));
+    }
+
+    std::size_t countPixels(Color color) const {
+        return static_cast<std::size_t>(
+            std::count(pixels_.begin(), pixels_.end(), color));
     }
 
     void savePpm(const std::filesystem::path& path) const {
@@ -270,10 +291,163 @@ void drawMotorsportScene(Canvas& canvas) {
     drawLine(canvas, 1010, 631, 1204, 631, kFrame);
 }
 
+template <typename Check>
+bool runCheck(const char* name, Check check) {
+    bool passed = false;
+    try {
+        passed = check();
+    } catch (const std::exception&) {
+        passed = false;
+    }
+    std::cout << (passed ? "PASS" : "FAIL") << ": " << name << '\n';
+    return passed;
+}
+
+bool runChecks() {
+    bool allPassed = true;
+    const auto record = [&](const char* name, auto check) {
+        if (!runCheck(name, check)) {
+            allPassed = false;
+        }
+    };
+
+    record("Circle radius zero", [] {
+        Canvas canvas;
+        drawCircle(canvas, 100, 100, 0, kCyan);
+        return canvas.pixelAt(100, 100) == kCyan &&
+               canvas.countPixels(kCyan) == 1;
+    });
+
+    record("Negative circle radius rejection", [] {
+        Canvas canvas;
+        try {
+            drawCircle(canvas, 100, 100, -1, kCyan);
+        } catch (const std::invalid_argument&) {
+            return canvas.countPixels(kCyan) == 0;
+        }
+        return false;
+    });
+
+    record("Eight-way circle symmetry", [] {
+        Canvas canvas;
+        constexpr int xc = 100;
+        constexpr int yc = 100;
+        constexpr int radius = 13;
+        drawCircle(canvas, xc, yc, radius, kCyan);
+        if (canvas.pixelAt(xc, yc + radius) != kCyan ||
+            canvas.countPixels(kCyan) <= 8) {
+            return false;
+        }
+        for (int x = 0; x <= radius; ++x) {
+            for (int y = 0; y <= radius; ++y) {
+                const Color expected = canvas.pixelAt(xc + x, yc + y);
+                if (canvas.pixelAt(xc - x, yc + y) != expected ||
+                    canvas.pixelAt(xc + x, yc - y) != expected ||
+                    canvas.pixelAt(xc - x, yc - y) != expected ||
+                    canvas.pixelAt(xc + y, yc + x) != expected ||
+                    canvas.pixelAt(xc - y, yc + x) != expected ||
+                    canvas.pixelAt(xc + y, yc - x) != expected ||
+                    canvas.pixelAt(xc - y, yc - x) != expected) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    });
+
+    record("Ellipse rx = 0", [] {
+        Canvas canvas;
+        constexpr int xc = 100;
+        constexpr int yc = 100;
+        constexpr int ry = 7;
+        drawEllipse(canvas, xc, yc, 0, ry, kGreen);
+        for (int y = yc - ry; y <= yc + ry; ++y) {
+            if (canvas.pixelAt(xc, y) != kGreen) {
+                return false;
+            }
+        }
+        return canvas.countPixels(kGreen) == 2 * ry + 1;
+    });
+
+    record("Ellipse ry = 0", [] {
+        Canvas canvas;
+        constexpr int xc = 100;
+        constexpr int yc = 100;
+        constexpr int rx = 11;
+        drawEllipse(canvas, xc, yc, rx, 0, kGreen);
+        for (int x = xc - rx; x <= xc + rx; ++x) {
+            if (canvas.pixelAt(x, yc) != kGreen) {
+                return false;
+            }
+        }
+        return canvas.countPixels(kGreen) == 2 * rx + 1;
+    });
+
+    record("Negative ellipse radius rejection", [] {
+        Canvas canvas;
+        for (const auto& [rx, ry] : {std::pair{-1, 5}, std::pair{5, -1}}) {
+            try {
+                drawEllipse(canvas, 100, 100, rx, ry, kGreen);
+            } catch (const std::invalid_argument&) {
+                continue;
+            }
+            return false;
+        }
+        return canvas.countPixels(kGreen) == 0;
+    });
+
+    record("Four-way ellipse symmetry", [] {
+        Canvas canvas;
+        constexpr int xc = 100;
+        constexpr int yc = 100;
+        constexpr int rx = 17;
+        constexpr int ry = 9;
+        drawEllipse(canvas, xc, yc, rx, ry, kGreen);
+        if (canvas.pixelAt(xc, yc + ry) != kGreen ||
+            canvas.countPixels(kGreen) <= 4) {
+            return false;
+        }
+        for (int x = 0; x <= rx; ++x) {
+            for (int y = 0; y <= ry; ++y) {
+                const Color expected = canvas.pixelAt(xc + x, yc + y);
+                if (canvas.pixelAt(xc - x, yc + y) != expected ||
+                    canvas.pixelAt(xc + x, yc - y) != expected ||
+                    canvas.pixelAt(xc - x, yc - y) != expected) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    });
+
+    record("Safe rejection of pixels outside the canvas", [] {
+        Canvas canvas;
+        canvas.setPixel(-1, 0, kRed);
+        canvas.setPixel(kWidth, 0, kRed);
+        canvas.setPixel(0, -1, kRed);
+        canvas.setPixel(0, kHeight, kRed);
+        canvas.setPixel(std::numeric_limits<int>::min(), 0, kRed);
+        canvas.setPixel(std::numeric_limits<int>::max(), 0, kRed);
+        if (canvas.countPixels(kRed) != 0) {
+            return false;
+        }
+        canvas.setPixel(0, 0, kRed);
+        canvas.setPixel(kWidth - 1, kHeight - 1, kRed);
+        return canvas.pixelAt(0, 0) == kRed &&
+               canvas.pixelAt(kWidth - 1, kHeight - 1) == kRed &&
+               canvas.countPixels(kRed) == 2;
+    });
+
+    return allPassed;
+}
+
 } // namespace
 
 int main() {
     try {
+        if (!runChecks()) {
+            return 1;
+        }
         Canvas canvas;
         drawBackdrop(canvas);
         drawTestBench(canvas);
