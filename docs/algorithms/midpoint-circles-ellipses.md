@@ -36,7 +36,7 @@ Using the conventional integer decision parameter $p_0 = 1 - r$ (substituting $1
 - **If $p \ge 0$:** Midpoint is outside or on the boundary; select **SE** $(x+1, y-1)$ and update:
   $$p \leftarrow p + 2(x - y) + 5$$
 
-All decisions and increments use pure integer additions and bit-shifts, requiring no floating-point arithmetic, square roots, or trigonometric evaluations.
+All decisions and increments use integer arithmetic and multiplication by small constants, requiring no floating-point arithmetic, square roots, or trigonometric evaluations.
 
 ---
 
@@ -125,4 +125,3 @@ In the context of Apex3D (Formula 1 telemetry and circuit visualizer):
 - Comprehensive Checkpoint 1 Guide: [`checkpoint1/circles/README.md`](../../checkpoint1/circles/README.md)
 - Checkpoint 1 Source Implementation: [`checkpoint1/circles/main.cpp`](../../checkpoint1/circles/main.cpp)
 - High-level Architecture: [`docs/architecture.md`](../architecture.md)
-
