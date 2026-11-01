@@ -191,16 +191,6 @@ ffmpeg -y -i checkpoint1/circles/output/circles_ellipses_demo.ppm -frames:v 1 -p
 magick checkpoint1/circles/output/circles_ellipses_demo.ppm -define png:color-type=2 checkpoint1/circles/output/circles_ellipses_demo.png
 ```
 
-After conversion, stage just the checkpoint files, inspect the staged diff,
-and commit when ready:
-
-```bash
-git add checkpoint1/circles/main.cpp checkpoint1/circles/README.md checkpoint1/circles/output/circles_ellipses_demo.ppm checkpoint1/circles/output/circles_ellipses_demo.png
-git diff --cached --check
-git diff --cached --stat
-git commit -m "Implement midpoint circle and ellipse checkpoint"
-```
-
 ## Known limitations
 
 - The outlines are aliased one-pixel wireframes. There is no sub-pixel
