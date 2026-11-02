@@ -1,25 +1,56 @@
-# Checkpoint 2 - Transformation and Animation
+# Checkpoint 2 — Transformation and Animation
 
 Checkpoint 2 builds on the Pure C++ graphical components from Checkpoint 1.
-The current foundation implements 2D homogeneous transformations and applies
-them to the polygon-based Formula 1 car. Timed animation and curve-following
-motion are the next milestones.
+It demonstrates transformations and animation directly in C++20 before the
+project moves to OpenGL integration.
 
-## Current progress
+## Implemented milestones
 
-- 3 x 3 homogeneous transformation matrices
-- Translation, rotation and non-uniform scaling
-- Rotation around a selected pivot
-- Matrix composition
-- Polygon transformation
-- Formula 1 transformation evidence image
-- Deterministic transformation tests
+| Milestone | Main techniques | Evidence |
+| --- | --- | --- |
+| `transformations/` | Homogeneous matrices, translation, rotation, scaling, pivot rotation and composition | Five-panel transformation comparison |
+| `animation/timeline/` | Frame clock, clamped/looping progress, position interpolation and shortest-arc angle interpolation | 13-frame motion sequence |
+| `animation/wheels/` | Hierarchical transforms, local wheel pivots and rolling without slipping | 17 wheel-animation frames |
+| `animation/car/` | Keyframes, whole-model translation, rotation, non-uniform scaling and combined transforms | 25 polygon-car frames |
+| `animation/splines/` | Closed Catmull–Rom interpolation, analytic tangent and tangent-oriented car pose | 33-frame circuit lap |
+| `animation/bezier/` | Chained cubic Bézier curves, analytic derivative and arc-length lookup | 25-frame approximately constant-speed lap |
 
-See [`transformations/README.md`](transformations/README.md) for build commands,
-mathematics, output interpretation and limitations.
+Every milestone contains source code, deterministic tests, build instructions,
+known limitations and generated graphical evidence.
 
-## Planned animation milestone
+## Complete verification
 
-The next Pure C++ program will evaluate a car pose over time, move it along a
-Bezier or Catmull-Rom path, orient it from the path tangent and export numbered
-PPM frames. OpenGL integration remains a Checkpoint 3 task.
+Run from the repository root:
+
+```bash
+checkpoint2/verify_all.sh
+```
+
+The script builds and runs every test and demonstration with strict C++20
+warning flags. Generated verification output is written to a temporary
+directory and removed automatically.
+
+## Shared transformation model
+
+The CP2 modules use `transformations/include/transform2d.hpp`, which provides:
+
+- `Vec2`
+- 3 × 3 `Mat3` homogeneous matrices
+- translation, rotation and scaling constructors
+- matrix composition
+- fixed-pivot transformation
+- polygon transformation
+
+Animation modules convert a frame or path parameter into a pose and then apply
+one shared matrix to the relevant object components.
+
+## Evidence
+
+The final evidence pack is available at
+[`../docs/evidence/Apex3D_Checkpoint2_Evidence.pdf`](../docs/evidence/Apex3D_Checkpoint2_Evidence.pdf).
+
+## Scope boundary
+
+Checkpoint 2 remains Pure C++ and CPU rasterised. OpenGL integration, camera
+control, perspective, lighting and the combined interactive prototype belong
+to the later course checkpoints.
