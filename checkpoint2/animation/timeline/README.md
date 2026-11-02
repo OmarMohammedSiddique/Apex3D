@@ -1,7 +1,7 @@
 # Animation Timeline and Interpolation
 
-**Author:** Azhar  
-**Branch:** `feature/cp2-animation-timeline-azhar`  
+**Author:** Azhar
+**Branch:** `feature/cp2-animation-timeline-azhar`
 **Module:** Apex3D Checkpoint 2 — Transformation and Animation
 
 ---

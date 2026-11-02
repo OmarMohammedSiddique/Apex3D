@@ -240,4 +240,3 @@ int main(int argc, char* argv[])
               << "  PNG : " << pngPath << "\n";
     return EXIT_SUCCESS;
 }
-
