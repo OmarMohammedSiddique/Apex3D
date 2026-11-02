@@ -1,4 +1,4 @@
-#include "include/bezier_motion.hpp"
+#include "include/render.hpp"
 
 #include <cmath>
 #include <cstdlib>
@@ -89,6 +89,7 @@ int main()
 
     bool matricesPlaceAndOrient = true;
     bool finitePoses = true;
+    bool renderedCentres = true;
     for (int frame = 0; frame < frameCount; ++frame) {
         const Pose pose = framePose(frame);
         const double tangentLength = std::hypot(pose.tangent.x, pose.tangent.y);
@@ -100,9 +101,14 @@ int main()
                   pose.centre.y + pose.tangent.y / tangentLength});
         finitePoses = finitePoses && std::isfinite(pose.centre.x) &&
             std::isfinite(pose.centre.y) && std::isfinite(pose.headingRadians);
+        const auto canvas = render(frame);
+        renderedCentres = renderedCentres &&
+            canvas.pixelAt(apex3d::raster::toPixel(pose.centre.x),
+                           apex3d::raster::toPixel(pose.centre.y)) == centreColor;
     }
     check("shared Mat3 places and orients every car pose", matricesPlaceAndOrient);
     check("every animation pose is finite", finitePoses);
+    check("rendered centre pixel agrees with every pose", renderedCentres);
 
     bool rejectsNonFinite = false;
     try {
