@@ -38,8 +38,8 @@ intentionally reserved for Checkpoint 3.
 - [x] Run the combined strict build and test script.
 - [x] Document algorithms, commands, responsibilities and limitations.
 - [x] Assemble a simple PDF evidence pack from the generated graphical output.
-- [ ] Merge the final documentation and evidence pull request.
-- [ ] Create the `cp2-submission` Git tag after that merge.
+- [x] Merge the final documentation and evidence pull request.
+- [x] Create the `cp2-submission` Git tag after that merge.
 - [ ] Submit the repository and evidence through the lecturer's CP2 submission
   channel when it is provided or opened.
 
