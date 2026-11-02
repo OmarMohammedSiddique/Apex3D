@@ -2,6 +2,9 @@
 build/
 cmake-build-*/
 
+# Locally rendered document previews
+tmp/
+
 # IDE and operating-system files
 .vscode/
 .idea/

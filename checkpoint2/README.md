@@ -47,7 +47,7 @@ one shared matrix to the relevant object components.
 ## Evidence
 
 The final evidence pack is available at
-[`../docs/evidence/Apex3D_Checkpoint2_Evidence.pdf`](../docs/evidence/Apex3D_Checkpoint2_Evidence.pdf).
+[`../output/pdf/Apex3D_Checkpoint2_Evidence.pdf`](../output/pdf/Apex3D_Checkpoint2_Evidence.pdf).
 
 ## Scope boundary
 
