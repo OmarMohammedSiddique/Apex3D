@@ -1,6 +1,6 @@
 # Animation Timeline and Interpolation
 
-**Checkpoint 2 — Apex3D**  
+**Checkpoint 2 — Apex3D**
 **Author:** Azhar
 
 ---
@@ -66,9 +66,9 @@ result = A + t × delta            -- interpolate along the short arc
 result = fmod(result, 360)        -- normalise to [0, 360)
 ```
 
-**Example:**  350° → 10°  
-- `delta = 10 − 350 = −340`  
-- after wrapping: `delta = −340 + 360 = +20`  
+**Example:**  350° → 10°
+- `delta = 10 − 350 = −340`
+- after wrapping: `delta = −340 + 360 = +20`
 - at `t = 0.5`: `350 + 0.5 × 20 = 360 ≡ 0°` ✓
 
 ---
