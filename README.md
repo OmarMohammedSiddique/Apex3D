@@ -89,7 +89,7 @@ On Windows, the executable may be under a configuration directory such as
 ## Evidence and documentation
 
 - [CP2 readiness checklist](docs/checkpoint2-readiness.md)
-- [CP2 evidence PDF](docs/evidence/Apex3D_Checkpoint2_Evidence.pdf)
+- [CP2 evidence PDF](output/pdf/Apex3D_Checkpoint2_Evidence.pdf)
 - [Architecture and rendering pipeline](docs/architecture.md)
 - [Contribution workflow](CONTRIBUTING.md)
 - [Algorithm notes](docs/algorithms/)
