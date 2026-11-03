@@ -46,8 +46,14 @@ target_link_libraries(Apex3D
 
 target_compile_definitions(Apex3D PRIVATE GLFW_INCLUDE_NONE)
 
+enable_testing()
+add_executable(Apex3DSceneTests tests/cp3_scene_tests.cpp)
+add_test(NAME cp3_scene COMMAND Apex3DSceneTests)
+
 if(MSVC)
     target_compile_options(Apex3D PRIVATE /W4 /permissive-)
+    target_compile_options(Apex3DSceneTests PRIVATE /W4 /permissive-)
 else()
     target_compile_options(Apex3D PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(Apex3DSceneTests PRIVATE -Wall -Wextra -Wpedantic)
 endif()
