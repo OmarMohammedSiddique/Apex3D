@@ -17,6 +17,12 @@ int main()
     using namespace apex3d;
     const auto controls = cp3::evenlySpacedControls();
     const auto path = cp3::makePath();
+    CHECK(cp3::monzaControls.size() == 62);
+    for (std::size_t i = 0; i < cp3::monzaControls.size(); ++i) {
+        const Vec2 a = cp3::monzaControls[i];
+        const Vec2 b = cp3::monzaControls[(i + 1) % cp3::monzaControls.size()];
+        CHECK(std::hypot(b.x - a.x, b.y - a.y) < 0.5);
+    }
     CHECK(controls.size() > cp3::monzaControls.size());
     CHECK(path.size() == controls.size() * cp3::samplesPerSegment + 1);
     CHECK(path.back().distance > 7.0);
