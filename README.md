@@ -1,12 +1,54 @@
 # Apex3D
 
 Apex3D is an ICS 3204 Computer Graphics semester project that turns Formula 1
-circuit geometry into a progressively richer visualisation. The current Pure
-C++20 implementation demonstrates the underlying line, polygon, circle, curve,
-transformation and animation algorithms directly. OpenGL integration belongs
-to a later checkpoint.
+circuit geometry into a progressively richer visualisation. Checkpoints 1 and 2
+demonstrate the underlying graphics algorithms in C++20. The Checkpoint 3
+prototype brings the track and an animated Formula 1 car together in OpenGL.
 
-## Current milestone: Checkpoint 2
+## Current milestone: Checkpoint 3 prototype
+
+The runnable OpenGL application now displays a filled Monza circuit and a
+polygon Formula 1 car moving around it. It reuses the CP2 Catmull-Rom curve,
+transformation matrix and polygon-car model. The path is resampled by distance
+so the car travels at approximately uniform speed and faces the tangent of the
+circuit. A small in-window display shows lap progress and controls.
+
+![Checkpoint 3 OpenGL prototype at a quarter lap](docs/evidence/cp3-opengl-prototype.png)
+
+### Build and run
+
+Requires CMake 3.24 or later, a C++20 compiler and an OpenGL 3.3 capable
+desktop. CMake fetches GLFW; GLAD is included in the repository.
+
+```bash
+cmake -S . -B build
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+./build/Apex3D
+```
+
+On Windows, the executable may be under `build/Debug/Apex3D.exe`.
+
+| Key | Action |
+| --- | --- |
+| `Space` | Play or pause the lap |
+| `R` | Restart from the start/finish line |
+| `+` / `-` | Increase or decrease playback speed |
+| `T` | Toggle the scaling demonstration |
+| `P` | Show or hide Monza control points |
+| `Esc` | Quit |
+
+To capture a real OpenGL frame as a PPM image:
+
+```bash
+./build/Apex3D --screenshot frame.ppm
+./build/Apex3D --screenshot-at 0.25 quarter_lap.ppm
+```
+
+The second command renders the car at 25% lap progress. The accepted progress
+range is 0 to 1.
+
+## Checkpoint 2 foundation
 
 Checkpoint 2 builds on the graphical components from Checkpoint 1 by applying
 2D transformations and frame-based animation to a simplified Formula 1 car.
@@ -28,7 +70,7 @@ library. The programs rasterise their own PPM evidence images on the CPU.
 
 | Member | Responsibilities demonstrated in the repository |
 | --- | --- |
-| Omar Siddique | Project coordination, transformation engine, CP2 Bézier animation, integration, verification and evidence |
+| Omar Siddique | Project coordination, transformation engine, CP2 Bézier animation, CP3 OpenGL integration, verification and evidence |
 | Hetvi Barot | Polygon representation and filling; keyframed polygon Formula 1 car animation |
 | Azhar Ahmed | Line algorithms; CP2 timeline verification, cleanup and documentation |
 | Nyariki | Midpoint circles and ellipses; hierarchical wheel animation |
@@ -41,7 +83,7 @@ library. The programs rasterise their own PPM evidence images on the CPU.
 - Handwritten CPU rasterisation and graphics algorithms
 - 3 × 3 homogeneous transformation matrices
 - PPM and PNG evidence outputs
-- CMake, GLFW, GLAD and OpenGL for the separate prototype foundation
+- CMake, GLFW, GLAD and OpenGL 3.3 for the integrated prototype
 - Git and GitHub pull-request workflow
 
 ## Verify Checkpoint 2
@@ -72,22 +114,10 @@ Each milestone also has its own README with individual build and run commands:
 - [Catmull–Rom motion](checkpoint2/animation/splines/README.md)
 - [Bézier motion](checkpoint2/animation/bezier/README.md)
 
-## OpenGL prototype
-
-The separate prototype can be configured with CMake:
-
-```bash
-cmake -S . -B build
-cmake --build build
-./build/Apex3D
-```
-
-On Windows, the executable may be under a configuration directory such as
-`build/Debug/Apex3D.exe`. Press `P` to show or hide raw control points and
-`Escape` to close the application.
-
 ## Evidence and documentation
 
+- [CP3 progress and remaining work](docs/checkpoint3-progress.md)
+- [CP3 OpenGL screenshot](docs/evidence/cp3-opengl-prototype.png)
 - [CP2 readiness checklist](docs/checkpoint2-readiness.md)
 - [CP2 evidence PDF](output/pdf/Apex3D_Checkpoint2_Evidence.pdf)
 - [Architecture and rendering pipeline](docs/architecture.md)
@@ -96,14 +126,17 @@ On Windows, the executable may be under a configuration directory such as
 
 ## Current limitations
 
-- The CP2 demonstrations are 2D CPU-rendered evidence programs, not the final
-  integrated OpenGL application.
-- Circuit coordinates and cars are simplified rather than telemetry-derived.
+- The CP3 prototype is a top-down 2D OpenGL scene. Perspective, elevation and
+  a full 3D car remain final-project work.
+- The path and car are simplified, hand-authored geometry rather than actual
+  telemetry-derived data.
 - Raster edges are not anti-aliased.
-- Bézier arc length is approximated numerically and Catmull–Rom sampling is not
-  constant-speed.
-- Camera control, perspective, lighting, telemetry heatmaps and interactive lap
-  playback remain later-checkpoint work.
+- Catmull-Rom travel distance is estimated from a sampled path. It is
+  approximately, not exactly, constant-speed.
+- The CP2 wheel hierarchy and Bézier lap are still separate demonstrations.
+  They are not selectable in the OpenGL prototype yet.
+- Camera control, perspective, lighting and telemetry heatmaps remain
+  final-project work.
 
 ## Reference
 
