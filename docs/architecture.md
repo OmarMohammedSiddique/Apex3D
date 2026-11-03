@@ -1,28 +1,51 @@
 # Apex3D Architecture
 
-## Current milestone
+## Current OpenGL prototype
 
-The Monza centerline milestone extends the basic OpenGL rendering pipeline:
+The Checkpoint 3 application connects earlier C++ graphics work to a live
+OpenGL renderer:
 
-1. GLFW creates a window and OpenGL context.
-2. GLAD loads the OpenGL functions provided by the graphics driver.
-3. C++ uploads an ordered set of two-dimensional track points to a vertex buffer.
-4. The CPU applies Bresenham's line algorithm to each consecutive pair, including the closing segment.
-5. The generated raster points are uploaded to a second vertex buffer and drawn with `GL_POINTS`.
-6. A vertex shader corrects the coordinates for the current viewport aspect ratio.
-7. A second draw call displays the original vertices as red control points.
-8. A fragment shader applies a uniform colour to each draw call before presentation.
+```text
+Hand-authored Monza points
+    -> even-distance resampling
+    -> CP2 Catmull-Rom interpolation
+    -> sampled lap distances and track surface
+    -> static OpenGL triangle buffer
 
-The current coordinates are hand-authored from the official Formula 1 Monza circuit-map reference. They preserve the recognizable layout and isolate the graphics pipeline from telemetry parsing so the team can verify one subsystem at a time.
+Elapsed time -> lap progress -> path position and tangent
+    -> CP2 Mat3 translation, rotation and optional scaling
+    -> CP2 polygon-car model -> triangulated car mesh
+    -> dynamic OpenGL triangle buffer
 
-## Planned modules
+Playback state -> in-window progress and controls -> dynamic HUD buffer
+```
 
-- **Application:** startup, main loop, input routing, and shared state.
-- **Telemetry:** CSV loading, validation, normalization, and interpolation.
-- **Geometry:** raw centerline points, Bezier smoothing, and track ribbon generation.
-- **Rendering:** shaders, buffers, meshes, grid, vehicle marker, and debug views.
-- **Camera:** orbit, pan, zoom, view matrix, and perspective projection.
-- **Playback:** time control, scrubbing, marker position, and live statistics.
-- **Interface:** telemetry layers, legend, playback controls, and errors.
+GLFW creates the window and handles keys. GLAD loads OpenGL functions. A vertex
+shader corrects the scene for the window's aspect ratio and passes per-vertex
+colour to a fragment shader. The track mesh is uploaded once; the car and HUD
+meshes are updated as the lap progresses. The car is drawn after the track, and
+the HUD is drawn last in clip coordinates.
 
-These modules will be separated gradually. The early milestones intentionally keep the rendering code together so every team member can trace the complete pipeline in one file.
+## Source map
+
+| Path | Responsibility |
+| --- | --- |
+| `src/main.cpp` | Window, shaders, buffers, playback controls and frame loop |
+| `include/apex3d/cp3_scene.hpp` | Monza points, path resampling, CP2 spline reuse, track mesh, CP2 car placement and triangulation |
+| `include/apex3d/cp3_hud.hpp` | Small CPU-built text and progress display drawn with OpenGL triangles |
+| `tests/cp3_scene_tests.cpp` | Closure, monotonic lap distance, car orientation and mesh checks |
+| `checkpoint2/transformations/include/transform2d.hpp` | Shared 3 x 3 matrix and polygon transforms |
+| `checkpoint2/animation/splines/include/spline_motion.hpp` | Catmull-Rom position and analytic tangent |
+| `checkpoint2/animation/car/include/car_animation.hpp` | Formula 1 car polygon components and shared placement function |
+
+The original Bresenham and other CP1/CP2 demonstrations remain available in
+their checkpoint directories. The current OpenGL path uses triangles for the
+visible track surface and car.
+
+## Scope
+
+This is a top-down 2D prototype inside an OpenGL window. The car and road are
+simplified graphical components. Future work includes a 3D camera, elevation,
+lighting, detailed car and scenery, telemetry input, wheel animation in the
+live scene, and a selectable Bézier route. The lecturer's final requirements
+will determine which of those become assessed features.
