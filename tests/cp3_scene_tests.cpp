@@ -9,8 +9,10 @@
 int main()
 {
     using namespace apex3d;
+    const auto controls = cp3::evenlySpacedControls();
     const auto path = cp3::makePath();
-    assert(path.size() == cp3::monzaControls.size() * cp3::samplesPerSegment + 1);
+    assert(controls.size() > cp3::monzaControls.size());
+    assert(path.size() == controls.size() * cp3::samplesPerSegment + 1);
     assert(path.back().distance > 7.0);
     assert(std::hypot(path.front().point.x - path.back().point.x,
                       path.front().point.y - path.back().point.y) < 1e-8);
@@ -39,6 +41,15 @@ int main()
     const auto track = cp3::makeTrackMesh(path);
     const auto model = car::carModel();
     const auto vehicle = cp3::makeCarMesh(model, quarter);
+    const auto transform = cp3::carTransform(quarter);
+    const Vec2 centre = transform.transformPoint(car::kCarCentre);
+    const Vec2 nose = transform.transformPoint({0.0, -70.0});
+    const Vec2 forward{std::cos(quarter.headingRadians),
+                       std::sin(quarter.headingRadians)};
+    assert(std::hypot(centre.x - quarter.position.x,
+                      centre.y - quarter.position.y) < 1e-8);
+    assert((nose.x - centre.x) * forward.x +
+           (nose.y - centre.y) * forward.y > 0.0);
     assert(!track.empty() && track.size() % 3 == 0);
     assert(!vehicle.empty() && vehicle.size() % 3 == 0);
     for (const auto& vertex : vehicle) {

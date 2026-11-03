@@ -1,193 +1,58 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
-#include <cmath>
+#include "../include/apex3d/cp3_scene.hpp"
+#include "../include/apex3d/cp3_hud.hpp"
+
+#include <algorithm>
+#include <cstddef>
 #include <cstdlib>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
+#include <string>
 #include <vector>
 
 namespace {
 
-constexpr int kWindowWidth = 1280;
-constexpr int kWindowHeight = 720;
-constexpr int kRasterScale = 500;
+constexpr int windowWidth = 1280;
+constexpr int windowHeight = 720;
+constexpr double lapSeconds = 18.0;
 
-struct TrackPoint {
-    float x;
-    float y;
-};
-
-struct RasterPoint {
-    int x;
-    int y;
-};
-
-// A reference-derived Monza centerline for the geometry milestone. The points
-// are ordered around the lap so GL_LINE_LOOP can join and close the circuit.
-// They remain deliberately hand-authored; telemetry will replace them later.
-constexpr TrackPoint kMonzaCenterline[] = {
-    // Start/finish straight and Rettifilo chicane (turns 1-2).
-    { 1.16F, -0.87F}, { 0.82F, -0.87F}, { 0.45F, -0.87F},
-    { 0.08F, -0.87F}, {-0.25F, -0.87F}, {-0.46F, -0.87F},
-    {-0.49F, -0.84F}, {-0.49F, -0.78F}, {-0.52F, -0.75F},
-    {-0.58F, -0.76F}, {-0.67F, -0.81F},
-
-    // Curva Grande and the run toward the Roggia chicane (turns 3-5).
-    {-0.80F, -0.84F}, {-0.94F, -0.83F}, {-1.07F, -0.77F},
-    {-1.18F, -0.67F}, {-1.25F, -0.54F}, {-1.30F, -0.38F},
-    {-1.33F,  0.00F}, {-1.35F,  0.18F}, {-1.39F,  0.23F},
-    {-1.46F,  0.24F}, {-1.49F,  0.28F}, {-1.50F,  0.35F},
-
-    // Lesmo curves (turns 6-7).
-    {-1.54F,  0.49F}, {-1.58F,  0.63F}, {-1.58F,  0.70F},
-    {-1.55F,  0.76F}, {-1.49F,  0.80F}, {-1.39F,  0.83F},
-    {-1.25F,  0.85F}, {-1.10F,  0.88F}, {-0.95F,  0.90F},
-    {-0.87F,  0.88F}, {-0.81F,  0.81F},
-
-    // Long descending run from Lesmo 2 to Variante Ascari (turns 8-10).
-    {-0.72F,  0.68F}, {-0.61F,  0.51F}, {-0.51F,  0.35F},
-    {-0.39F,  0.20F}, {-0.25F,  0.06F}, {-0.10F, -0.08F},
-    { 0.05F, -0.21F}, { 0.18F, -0.32F}, { 0.26F, -0.38F},
-    { 0.33F, -0.39F}, { 0.40F, -0.36F}, { 0.48F, -0.35F},
-    { 0.56F, -0.37F}, { 0.63F, -0.42F}, { 0.70F, -0.44F},
-
-    // Back straight and Curva Alboreto/Parabolica (turn 11).
-    { 0.91F, -0.45F}, { 1.14F, -0.46F}, { 1.36F, -0.46F},
-    { 1.51F, -0.47F}, { 1.59F, -0.50F}, { 1.64F, -0.56F},
-    { 1.66F, -0.63F}, { 1.65F, -0.69F}, { 1.61F, -0.75F},
-    { 1.54F, -0.80F}, { 1.43F, -0.84F}, { 1.30F, -0.86F},
-    { 1.17F, -0.87F},
-};
-
-constexpr GLsizei kTrackPointCount =
-    static_cast<GLsizei>(sizeof(kMonzaCenterline) / sizeof(kMonzaCenterline[0]));
-
-RasterPoint toRasterPoint(const TrackPoint& point)
-{
-    return {
-        static_cast<int>(std::lround(point.x * kRasterScale)),
-        static_cast<int>(std::lround(point.y * kRasterScale)),
-    };
-}
-
-void appendBresenhamLine(
-    const TrackPoint& start,
-    const TrackPoint& end,
-    std::vector<TrackPoint>& output
-)
-{
-    RasterPoint current = toRasterPoint(start);
-    const RasterPoint target = toRasterPoint(end);
-
-    const int deltaX = std::abs(target.x - current.x);
-    const int stepX = current.x < target.x ? 1 : -1;
-    const int deltaY = -std::abs(target.y - current.y);
-    const int stepY = current.y < target.y ? 1 : -1;
-    int error = deltaX + deltaY;
-
-    while (true) {
-        const TrackPoint plottedPoint {
-            static_cast<float>(current.x) / kRasterScale,
-            static_cast<float>(current.y) / kRasterScale,
-        };
-
-        // Adjacent segments share an endpoint, so avoid storing it twice.
-        if (output.empty()
-            || output.back().x != plottedPoint.x
-            || output.back().y != plottedPoint.y) {
-            output.push_back(plottedPoint);
-        }
-
-        if (current.x == target.x && current.y == target.y) {
-            break;
-        }
-
-        const int doubledError = 2 * error;
-        if (doubledError >= deltaY) {
-            error += deltaY;
-            current.x += stepX;
-        }
-        if (doubledError <= deltaX) {
-            error += deltaX;
-            current.y += stepY;
-        }
-    }
-}
-
-std::vector<TrackPoint> rasterizeTrackWithBresenham()
-{
-    std::vector<TrackPoint> rasterizedTrack;
-    rasterizedTrack.reserve(4096);
-
-    for (GLsizei index = 0; index < kTrackPointCount; ++index) {
-        const GLsizei nextIndex = (index + 1) % kTrackPointCount;
-        appendBresenhamLine(
-            kMonzaCenterline[index],
-            kMonzaCenterline[nextIndex],
-            rasterizedTrack
-        );
-    }
-
-    return rasterizedTrack;
-}
-
-bool gShowControlPoints = true;
-
-constexpr char kVertexShaderSource[] = R"(
+constexpr char vertexShaderSource[] = R"(
     #version 330 core
-
     layout (location = 0) in vec2 position;
+    layout (location = 1) in vec3 vertexColor;
     uniform vec2 viewportScale;
-
+    out vec3 color;
     void main()
     {
         gl_Position = vec4(position * viewportScale, 0.0, 1.0);
+        color = vertexColor;
     }
 )";
 
-constexpr char kFragmentShaderSource[] = R"(
+constexpr char fragmentShaderSource[] = R"(
     #version 330 core
-
-    uniform vec3 drawColor;
+    in vec3 color;
     out vec4 fragmentColor;
-
     void main()
     {
-        fragmentColor = vec4(drawColor, 1.0);
+        fragmentColor = vec4(color, 1.0);
     }
 )";
-
-void framebufferSizeCallback(GLFWwindow*, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
-
-void processInput(GLFWwindow* window)
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-    }
-
-    static bool pWasPressed = false;
-    const bool pIsPressed = glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS;
-    if (pIsPressed && !pWasPressed) {
-        gShowControlPoints = !gShowControlPoints;
-    }
-    pWasPressed = pIsPressed;
-}
 
 GLuint compileShader(GLenum type, const char* source)
 {
     const GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
-
     GLint succeeded = GL_FALSE;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &succeeded);
     if (succeeded == GL_TRUE) {
         return shader;
     }
-
     char infoLog[1024]{};
     glGetShaderInfoLog(shader, sizeof(infoLog), nullptr, infoLog);
     std::cerr << "Shader compilation failed:\n" << infoLog << '\n';
@@ -197,29 +62,24 @@ GLuint compileShader(GLenum type, const char* source)
 
 GLuint createShaderProgram()
 {
-    const GLuint vertexShader = compileShader(GL_VERTEX_SHADER, kVertexShaderSource);
-    const GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, kFragmentShaderSource);
-
+    const GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
+    const GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
     if (vertexShader == 0 || fragmentShader == 0) {
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
         return 0;
     }
-
     const GLuint program = glCreateProgram();
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
     glLinkProgram(program);
-
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
-
     GLint succeeded = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &succeeded);
     if (succeeded == GL_TRUE) {
         return program;
     }
-
     char infoLog[1024]{};
     glGetProgramInfoLog(program, sizeof(infoLog), nullptr, infoLog);
     std::cerr << "Shader linking failed:\n" << infoLog << '\n';
@@ -227,51 +87,186 @@ GLuint createShaderProgram()
     return 0;
 }
 
+struct GlMesh {
+    GLuint vertexArray{};
+    GLuint vertexBuffer{};
+    GLsizei vertexCount{};
+
+    void create(const std::vector<apex3d::cp3::Vertex>& vertices, GLenum usage)
+    {
+        glGenVertexArrays(1, &vertexArray);
+        glGenBuffers(1, &vertexBuffer);
+        glBindVertexArray(vertexArray);
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE,
+                              sizeof(apex3d::cp3::Vertex), nullptr);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
+                              sizeof(apex3d::cp3::Vertex),
+                              reinterpret_cast<const void*>(offsetof(apex3d::cp3::Vertex, r)));
+        glEnableVertexAttribArray(1);
+        update(vertices, usage);
+        glBindVertexArray(0);
+    }
+
+    void update(const std::vector<apex3d::cp3::Vertex>& vertices, GLenum usage)
+    {
+        vertexCount = static_cast<GLsizei>(vertices.size());
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+        glBufferData(GL_ARRAY_BUFFER,
+                     static_cast<GLsizeiptr>(vertices.size() * sizeof(vertices.front())),
+                     vertices.data(), usage);
+    }
+
+    void draw() const
+    {
+        glBindVertexArray(vertexArray);
+        glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+    }
+
+    void destroy()
+    {
+        glDeleteBuffers(1, &vertexBuffer);
+        glDeleteVertexArrays(1, &vertexArray);
+    }
+};
+
+struct Playback {
+    double progress{};
+    double speed{1.0};
+    bool playing{true};
+    bool showControls{false};
+    bool scaleDemo{false};
+};
+
+bool pressedOnce(GLFWwindow* window, int key)
+{
+    static bool previous[GLFW_KEY_LAST + 1]{};
+    const bool down = glfwGetKey(window, key) == GLFW_PRESS;
+    const bool pressed = down && !previous[key];
+    previous[key] = down;
+    return pressed;
+}
+
+void processInput(GLFWwindow* window, Playback& playback)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+    if (pressedOnce(window, GLFW_KEY_SPACE)) {
+        playback.playing = !playback.playing;
+    }
+    if (pressedOnce(window, GLFW_KEY_R)) {
+        playback.progress = 0.0;
+        playback.playing = true;
+    }
+    if (pressedOnce(window, GLFW_KEY_P)) {
+        playback.showControls = !playback.showControls;
+    }
+    if (pressedOnce(window, GLFW_KEY_T)) {
+        playback.scaleDemo = !playback.scaleDemo;
+    }
+    if (pressedOnce(window, GLFW_KEY_EQUAL) ||
+        pressedOnce(window, GLFW_KEY_KP_ADD)) {
+        playback.speed = std::min(4.0, playback.speed * 1.25);
+    }
+    if (pressedOnce(window, GLFW_KEY_MINUS) ||
+        pressedOnce(window, GLFW_KEY_KP_SUBTRACT)) {
+        playback.speed = std::max(0.25, playback.speed / 1.25);
+    }
+}
+
+void updateTitle(GLFWwindow* window, const Playback& playback)
+{
+    std::ostringstream title;
+    title << "Apex3D | Monza OpenGL prototype | Lap "
+          << std::fixed << std::setprecision(0) << playback.progress * 100.0
+          << "% | " << std::setprecision(2) << playback.speed << "x | "
+          << (playback.playing ? "Playing" : "Paused")
+          << " | Space pause  R restart  +/- speed  T scale  P points  Esc quit";
+    glfwSetWindowTitle(window, title.str().c_str());
+}
+
+void framebufferSizeCallback(GLFWwindow*, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
+bool saveScreenshot(const std::string& path, int width, int height)
+{
+    std::vector<unsigned char> pixels(
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 3);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadBuffer(GL_BACK);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+    std::ofstream output(path, std::ios::binary);
+    if (!output) {
+        return false;
+    }
+    output << "P6\n" << width << ' ' << height << "\n255\n";
+    const std::size_t stride = static_cast<std::size_t>(width) * 3;
+    for (int row = height - 1; row >= 0; --row) {
+        output.write(reinterpret_cast<const char*>(
+            pixels.data() + static_cast<std::size_t>(row) * stride),
+            static_cast<std::streamsize>(stride));
+    }
+    return static_cast<bool>(output);
+}
+
 } // namespace
 
-int main()
+int main(int argc, char** argv)
 {
+    const bool capture = argc == 3 && std::string(argv[1]) == "--screenshot";
+    const bool captureAt = argc == 4 && std::string(argv[1]) == "--screenshot-at";
+    if (argc != 1 && !capture && !captureAt) {
+        std::cerr << "Usage: Apex3D [--screenshot output.ppm | "
+                     "--screenshot-at lap-progress output.ppm]\n";
+        return EXIT_FAILURE;
+    }
+    double initialProgress = 0.0;
+    if (captureAt) {
+        try {
+            initialProgress = std::stod(argv[2]);
+        } catch (const std::exception&) {
+            std::cerr << "Lap progress must be a number between 0 and 1.\n";
+            return EXIT_FAILURE;
+        }
+        if (!std::isfinite(initialProgress) || initialProgress < 0.0 ||
+            initialProgress > 1.0) {
+            std::cerr << "Lap progress must be a number between 0 and 1.\n";
+            return EXIT_FAILURE;
+        }
+    }
     if (glfwInit() != GLFW_TRUE) {
         std::cerr << "Failed to initialize GLFW.\n";
         return EXIT_FAILURE;
     }
-
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 #endif
-
-    GLFWwindow* window = glfwCreateWindow(
-        kWindowWidth,
-        kWindowHeight,
-        "Apex3D - Monza Centerline Milestone",
-        nullptr,
-        nullptr
-    );
-
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight,
+                                          "Apex3D - Monza OpenGL prototype",
+                                          nullptr, nullptr);
     if (window == nullptr) {
         std::cerr << "Failed to create the Apex3D window.\n";
         glfwTerminate();
         return EXIT_FAILURE;
     }
-
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
-
     if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0) {
         std::cerr << "Failed to load OpenGL functions.\n";
         glfwDestroyWindow(window);
         glfwTerminate();
         return EXIT_FAILURE;
     }
-
     std::cout << "OpenGL renderer: " << glGetString(GL_RENDERER) << '\n';
     std::cout << "OpenGL version: " << glGetString(GL_VERSION) << '\n';
-
     const GLuint shaderProgram = createShaderProgram();
     if (shaderProgram == 0) {
         glfwDestroyWindow(window);
@@ -279,102 +274,93 @@ int main()
         return EXIT_FAILURE;
     }
 
-    const std::vector<TrackPoint> rasterizedTrack = rasterizeTrackWithBresenham();
-    std::cout << "Bresenham raster points: " << rasterizedTrack.size() << '\n';
+    const auto path = apex3d::cp3::makePath();
+    const auto carModel = apex3d::car::carModel();
+    GlMesh track;
+    GlMesh controlPoints;
+    GlMesh car;
+    GlMesh hud;
+    track.create(apex3d::cp3::makeTrackMesh(path), GL_STATIC_DRAW);
+    controlPoints.create(apex3d::cp3::makeControlMesh(), GL_STATIC_DRAW);
+    car.create(apex3d::cp3::makeCarMesh(carModel,
+        apex3d::cp3::poseAtProgress(path, 0.0)), GL_DYNAMIC_DRAW);
+    hud.create(apex3d::cp3::makeHudMesh(0.0, 1.0, true, false), GL_DYNAMIC_DRAW);
+    std::cout << "Monza control points: " << apex3d::cp3::monzaControls.size()
+              << " | spline samples: " << path.size()
+              << " | track triangles: " << track.vertexCount / 3 << '\n';
 
-    GLuint trackVertexArray = 0;
-    GLuint trackVertexBuffer = 0;
-    glGenVertexArrays(1, &trackVertexArray);
-    glGenBuffers(1, &trackVertexBuffer);
-
-    glBindVertexArray(trackVertexArray);
-    glBindBuffer(GL_ARRAY_BUFFER, trackVertexBuffer);
-    glBufferData(
-        GL_ARRAY_BUFFER,
-        static_cast<GLsizeiptr>(rasterizedTrack.size() * sizeof(TrackPoint)),
-        rasterizedTrack.data(),
-        GL_STATIC_DRAW
-    );
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(TrackPoint), nullptr);
-    glEnableVertexAttribArray(0);
-
-    GLuint controlPointVertexArray = 0;
-    GLuint controlPointVertexBuffer = 0;
-    glGenVertexArrays(1, &controlPointVertexArray);
-    glGenBuffers(1, &controlPointVertexBuffer);
-
-    glBindVertexArray(controlPointVertexArray);
-    glBindBuffer(GL_ARRAY_BUFFER, controlPointVertexBuffer);
-    glBufferData(
-        GL_ARRAY_BUFFER,
-        sizeof(kMonzaCenterline),
-        kMonzaCenterline,
-        GL_STATIC_DRAW
-    );
-
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(TrackPoint), nullptr);
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    const GLint viewportScaleLocation = glGetUniformLocation(shaderProgram, "viewportScale");
-    const GLint drawColorLocation = glGetUniformLocation(shaderProgram, "drawColor");
-
-    glEnable(GL_DEPTH_TEST);
+    Playback playback;
+    playback.progress = initialProgress;
+    if (captureAt) {
+        playback.playing = false;
+    }
+    double previousTime = glfwGetTime();
+    double lastTitleTime = -1.0;
+    bool screenshotSaved = true;
+    glDisable(GL_DEPTH_TEST);
     while (glfwWindowShouldClose(window) == GLFW_FALSE) {
-        processInput(window);
-
-        glClearColor(0.035F, 0.035F, 0.045F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        glUseProgram(shaderProgram);
-
-        int framebufferWidth = 0;
-        int framebufferHeight = 0;
-        glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
-
-        float xScale = 1.0F;
-        float yScale = 1.0F;
-        if (framebufferWidth > framebufferHeight && framebufferWidth > 0) {
-            xScale = static_cast<float>(framebufferHeight) /
-                static_cast<float>(framebufferWidth);
-        } else if (framebufferHeight > 0) {
-            yScale = static_cast<float>(framebufferWidth) /
-                static_cast<float>(framebufferHeight);
-        }
-        glUniform2f(viewportScaleLocation, xScale, yScale);
-
-        // Bresenham produces the individual raster points for every track segment.
-        glBindVertexArray(trackVertexArray);
-        glPointSize(2.0F);
-        glUniform3f(drawColorLocation, 0.94F, 0.94F, 0.96F);
-        glDrawArrays(
-            GL_POINTS,
-            0,
-            static_cast<GLsizei>(rasterizedTrack.size())
-        );
-
-        // The red control points reveal the raw geometry used to build the line.
-        if (gShowControlPoints) {
-            glBindVertexArray(controlPointVertexArray);
-            glPointSize(6.0F);
-            glUniform3f(drawColorLocation, 0.95F, 0.05F, 0.03F);
-            glDrawArrays(GL_POINTS, 0, kTrackPointCount);
-        }
-
-        glfwSwapBuffers(window);
+        const double now = glfwGetTime();
+        const double deltaSeconds = std::clamp(now - previousTime, 0.0, 0.1);
+        previousTime = now;
         glfwPollEvents();
+        processInput(window, playback);
+        if (playback.playing) {
+            playback.progress += deltaSeconds * playback.speed / lapSeconds;
+            playback.progress -= std::floor(playback.progress);
+        }
+        if (now - lastTitleTime >= 0.2) {
+            updateTitle(window, playback);
+            lastTitleTime = now;
+        }
+
+        const auto pose = apex3d::cp3::poseAtProgress(path, playback.progress);
+        const double scale = playback.scaleDemo ? 1.0 + 0.22 * std::sin(now * 3.0) : 1.0;
+        car.update(apex3d::cp3::makeCarMesh(carModel, pose, scale), GL_DYNAMIC_DRAW);
+        hud.update(apex3d::cp3::makeHudMesh(playback.progress, playback.speed,
+            playback.playing, playback.scaleDemo), GL_DYNAMIC_DRAW);
+
+        int width = 0;
+        int height = 0;
+        glfwGetFramebufferSize(window, &width, &height);
+        if (width == 0 || height == 0) {
+            continue;
+        }
+        const float aspect = static_cast<float>(width) / static_cast<float>(height);
+        const float yScale = std::min(0.94F / 1.1F, 0.94F * aspect / 1.85F);
+        const float xScale = yScale / aspect;
+
+        glViewport(0, 0, width, height);
+        glClearColor(0.045F, 0.11F, 0.085F, 1.0F);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(shaderProgram);
+        glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"),
+                    xScale, yScale);
+        track.draw();
+        if (playback.showControls) {
+            controlPoints.draw();
+        }
+        car.draw();
+        glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"), 1.0F, 1.0F);
+        hud.draw();
+        if (capture || captureAt) {
+            const char* outputPath = captureAt ? argv[3] : argv[2];
+            screenshotSaved = saveScreenshot(outputPath, width, height);
+            if (!screenshotSaved) {
+                std::cerr << "Could not save screenshot to " << outputPath << '\n';
+            } else {
+                std::cout << "Saved OpenGL screenshot to " << outputPath << '\n';
+            }
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
+        glfwSwapBuffers(window);
     }
 
-    glDeleteBuffers(1, &controlPointVertexBuffer);
-    glDeleteVertexArrays(1, &controlPointVertexArray);
-    glDeleteBuffers(1, &trackVertexBuffer);
-    glDeleteVertexArrays(1, &trackVertexArray);
+    hud.destroy();
+    car.destroy();
+    controlPoints.destroy();
+    track.destroy();
     glDeleteProgram(shaderProgram);
     glfwDestroyWindow(window);
     glfwTerminate();
-
-    return EXIT_SUCCESS;
+    return screenshotSaved ? EXIT_SUCCESS : EXIT_FAILURE;
 }

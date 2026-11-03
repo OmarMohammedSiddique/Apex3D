@@ -55,38 +55,63 @@ inline constexpr std::array<Vec2, 63> monzaControls{{
     { 1.17, -0.87},
 }};
 
-inline constexpr int samplesPerSegment = 12;
+inline constexpr int samplesPerSegment = 3;
 
-[[nodiscard]] inline Vec2 control(int index)
+[[nodiscard]] inline std::vector<Vec2> evenlySpacedControls()
 {
-    const int count = static_cast<int>(monzaControls.size());
-    return monzaControls[static_cast<std::size_t>((index % count + count) % count)];
+    std::vector<double> cumulative{0.0};
+    for (std::size_t i = 0; i < monzaControls.size(); ++i) {
+        const Vec2 a = monzaControls[i];
+        const Vec2 b = monzaControls[(i + 1) % monzaControls.size()];
+        cumulative.push_back(cumulative.back() + std::hypot(b.x - a.x, b.y - a.y));
+    }
+    const int count = static_cast<int>(std::ceil(cumulative.back() / 0.05));
+    std::vector<Vec2> controls;
+    controls.reserve(static_cast<std::size_t>(count));
+    for (int i = 0; i < count; ++i) {
+        const double target = cumulative.back() * i / count;
+        const auto upper = std::upper_bound(cumulative.begin(), cumulative.end(), target);
+        const std::size_t segment = static_cast<std::size_t>(upper - cumulative.begin() - 1);
+        const double alpha = (target - cumulative[segment]) /
+            (cumulative[segment + 1] - cumulative[segment]);
+        const Vec2 a = monzaControls[segment];
+        const Vec2 b = monzaControls[(segment + 1) % monzaControls.size()];
+        controls.push_back({a.x + alpha * (b.x - a.x),
+                            a.y + alpha * (b.y - a.y)});
+    }
+    return controls;
 }
 
-[[nodiscard]] inline Vec2 pathPoint(double u)
+[[nodiscard]] inline Vec2 control(const std::vector<Vec2>& controls, int index)
+{
+    const int count = static_cast<int>(controls.size());
+    return controls[static_cast<std::size_t>((index % count + count) % count)];
+}
+
+[[nodiscard]] inline Vec2 pathPoint(const std::vector<Vec2>& controls, double u)
 {
     const int segment = static_cast<int>(std::floor(u));
     const double t = u - segment;
     return spline::catmullRom(
-        control(segment - 1), control(segment),
-        control(segment + 1), control(segment + 2), t);
+        control(controls, segment - 1), control(controls, segment),
+        control(controls, segment + 1), control(controls, segment + 2), t);
 }
 
-[[nodiscard]] inline Vec2 pathTangent(double u)
+[[nodiscard]] inline Vec2 pathTangent(const std::vector<Vec2>& controls, double u)
 {
     const int segment = static_cast<int>(std::floor(u));
     const double t = u - segment;
     return spline::catmullRomTangent(
-        control(segment - 1), control(segment),
-        control(segment + 1), control(segment + 2), t);
+        control(controls, segment - 1), control(controls, segment),
+        control(controls, segment + 1), control(controls, segment + 2), t);
 }
 
-[[nodiscard]] inline Vec2 stableTangent(double u)
+[[nodiscard]] inline Vec2 stableTangent(const std::vector<Vec2>& controls, double u)
 {
-    Vec2 tangent = pathTangent(u);
+    Vec2 tangent = pathTangent(controls, u);
     if (std::hypot(tangent.x, tangent.y) <= 1e-10) {
-        const Vec2 before = pathPoint(u - 0.001);
-        const Vec2 after = pathPoint(u + 0.001);
+        const Vec2 before = pathPoint(controls, u - 0.001);
+        const Vec2 after = pathPoint(controls, u + 0.001);
         tangent = {after.x - before.x, after.y - before.y};
     }
     return tangent;
@@ -101,15 +126,16 @@ struct PathSample {
 
 [[nodiscard]] inline std::vector<PathSample> makePath()
 {
-    const int segmentCount = static_cast<int>(monzaControls.size());
+    const std::vector<Vec2> controls = evenlySpacedControls();
+    const int segmentCount = static_cast<int>(controls.size());
     const int steps = segmentCount * samplesPerSegment;
     std::vector<PathSample> path;
     path.reserve(static_cast<std::size_t>(steps + 1));
     double distance = 0.0;
     for (int step = 0; step <= steps; ++step) {
         const double u = static_cast<double>(step) / samplesPerSegment;
-        const Vec2 point = pathPoint(u);
-        const Vec2 tangent = stableTangent(u);
+        const Vec2 point = pathPoint(controls, u);
+        const Vec2 tangent = stableTangent(controls, u);
         const double length = std::hypot(tangent.x, tangent.y);
         if (length <= 1e-10) {
             throw std::runtime_error("Monza spline contains a zero tangent at u=" +
@@ -145,16 +171,18 @@ struct Pose {
             return sample.distance < value;
         });
     if (upper == path.begin()) {
-        const Vec2 tangent = stableTangent(0.0);
-        return {path.front().point, std::atan2(tangent.y, tangent.x), 0.0};
+        return {path.front().point,
+                std::atan2(-path.front().normal.x, path.front().normal.y), 0.0};
     }
     const PathSample& after = *upper;
     const PathSample& before = *(upper - 1);
     const double span = after.distance - before.distance;
     const double alpha = span > 0.0 ? (target - before.distance) / span : 0.0;
-    const double u = before.u + alpha * (after.u - before.u);
-    const Vec2 tangent = stableTangent(u);
-    return {pathPoint(u), std::atan2(tangent.y, tangent.x), target};
+    const Vec2 point{before.point.x + alpha * (after.point.x - before.point.x),
+                     before.point.y + alpha * (after.point.y - before.point.y)};
+    const Vec2 normal{before.normal.x + alpha * (after.normal.x - before.normal.x),
+                      before.normal.y + alpha * (after.normal.y - before.normal.y)};
+    return {point, std::atan2(-normal.x, normal.y), target};
 }
 
 inline void triangle(std::vector<Vertex>& mesh, Vec2 a, Vec2 b, Vec2 c, Color color)
@@ -188,6 +216,20 @@ inline void ribbonSegment(std::vector<Vertex>& mesh, const PathSample& a,
          offset(b, outer), offset(a, outer), color);
 }
 
+inline void disk(std::vector<Vertex>& mesh, Vec2 centre, double radius, Color color)
+{
+    constexpr int sides = 10;
+    for (int side = 0; side < sides; ++side) {
+        const double first = 2.0 * std::numbers::pi * side / sides;
+        const double second = 2.0 * std::numbers::pi * (side + 1) / sides;
+        triangle(mesh, centre,
+                 {centre.x + radius * std::cos(first),
+                  centre.y + radius * std::sin(first)},
+                 {centre.x + radius * std::cos(second),
+                  centre.y + radius * std::sin(second)}, color);
+    }
+}
+
 [[nodiscard]] inline std::vector<Vertex> makeTrackMesh(
     const std::vector<PathSample>& path)
 {
@@ -200,32 +242,43 @@ inline void ribbonSegment(std::vector<Vertex>& mesh, const PathSample& a,
     constexpr Color kerbWhite{0.88F, 0.91F, 0.91F};
     constexpr Color lane{0.32F, 0.38F, 0.42F};
     std::vector<Vertex> mesh;
-    mesh.reserve((path.size() - 1) * 60);
+    mesh.reserve(path.size() * 3 * 30);
+    // Render each full layer before the next. Circular stamps form a clean
+    // union around tight chicanes where a normal-offset ribbon would fold.
+    for (std::size_t i = 0; i + 1 < path.size(); ++i) {
+        disk(mesh, path[i].point, 0.093, shadow);
+    }
+    for (std::size_t i = 0; i + 1 < path.size(); ++i) {
+        disk(mesh, path[i].point, 0.083, kerbWhite);
+    }
+    for (std::size_t i = 0; i + 1 < path.size(); ++i) {
+        if ((i / 6) % 2 == 0) {
+            ribbonSegment(mesh, path[i], path[i + 1], -0.083, -0.071, kerbRed);
+            ribbonSegment(mesh, path[i], path[i + 1], 0.071, 0.083, kerbRed);
+        }
+    }
+    for (std::size_t i = 0; i + 1 < path.size(); ++i) {
+        disk(mesh, path[i].point, 0.068, asphalt);
+    }
     for (std::size_t i = 0; i + 1 < path.size(); ++i) {
         const PathSample& a = path[i];
         const PathSample& b = path[i + 1];
-        const Color kerb = (i / 5) % 2 == 0 ? kerbRed : kerbWhite;
-        ribbonSegment(mesh, a, b, -0.165, 0.165, shadow);
-        ribbonSegment(mesh, a, b, -0.148, 0.148, kerb);
-        ribbonSegment(mesh, a, b, -0.125, 0.125, asphalt);
-        ribbonSegment(mesh, a, b, -0.125, -0.119, kerbWhite);
-        ribbonSegment(mesh, a, b, 0.119, 0.125, kerbWhite);
         if (i % 17 < 8) {
             ribbonSegment(mesh, a, b, -0.0015, 0.0015, lane);
         }
     }
     // Chequered start/finish line across the straight.
     const PathSample& start = path.front();
-    const Vec2 tangent = stableTangent(0.0);
+    const Vec2 tangent{start.normal.y, -start.normal.x};
     const double length = std::hypot(tangent.x, tangent.y);
     const Vec2 along{tangent.x / length * 0.012, tangent.y / length * 0.012};
     constexpr Color finishWhite{0.97F, 0.97F, 0.93F};
     constexpr Color finishBlack{0.025F, 0.03F, 0.035F};
     for (int row = 0; row < 2; ++row) {
-        for (int column = 0; column < 12; ++column) {
-            const double left = -0.12 + column * 0.02;
+        for (int column = 0; column < 8; ++column) {
+            const double left = -0.064 + column * 0.016;
             const Vec2 p = offset(start, left);
-            const Vec2 q = offset(start, left + 0.02);
+            const Vec2 q = offset(start, left + 0.016);
             const Vec2 rowOffset{along.x * row, along.y * row};
             const Vec2 nextOffset{along.x * (row + 1), along.y * (row + 1)};
             quad(mesh, {p.x + rowOffset.x, p.y + rowOffset.y},
@@ -314,19 +367,24 @@ inline void triangulate(std::vector<Vertex>& mesh,
              polygon[remaining[2]], fill);
 }
 
+[[nodiscard]] inline Mat3 carTransform(const Pose& pose,
+                                       double scaleMultiplier = 1.0)
+{
+    constexpr double baseScale = 0.00070;
+    const double scale = baseScale * scaleMultiplier;
+    // The CP2 model points its nose along local -Y. A quarter turn aligns it
+    // with the direction of the circuit tangent.
+    return Mat3::translation(pose.position.x, pose.position.y) *
+        Mat3::rotationDegrees(pose.headingRadians * 180.0 / std::numbers::pi + 90.0) *
+        Mat3::scaling(scale, scale) *
+        Mat3::translation(-car::kCarCentre.x, -car::kCarCentre.y);
+}
+
 [[nodiscard]] inline std::vector<Vertex> makeCarMesh(
     const std::vector<car::Component>& model, const Pose& pose,
     double scaleMultiplier = 1.0)
 {
-    constexpr double baseScale = 0.00072;
-    const double scale = baseScale * scaleMultiplier;
-    // The CP2 model points its nose along local -Y. A quarter turn aligns it
-    // with the direction of the circuit tangent.
-    const Mat3 transform = Mat3::translation(pose.position.x, pose.position.y) *
-        Mat3::rotationDegrees(pose.headingRadians * 180.0 / std::numbers::pi + 90.0) *
-        Mat3::scaling(scale, scale) *
-        Mat3::translation(-car::kCarCentre.x, -car::kCarCentre.y);
-    const auto placed = car::placeCar(model, transform);
+    const auto placed = car::placeCar(model, carTransform(pose, scaleMultiplier));
     std::vector<Vertex> mesh;
     mesh.reserve(240);
     for (const auto& component : placed) {
