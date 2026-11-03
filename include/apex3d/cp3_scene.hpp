@@ -30,7 +30,7 @@ struct Vertex {
 
 // The original hand-authored Monza centreline remains the reference shape.
 // CP2's Catmull-Rom algorithm turns these points into a continuous lap.
-inline constexpr std::array<Vec2, 63> monzaControls{{
+inline constexpr auto monzaControls = std::to_array<Vec2>({
     { 1.16, -0.87}, { 0.82, -0.87}, { 0.45, -0.87},
     { 0.08, -0.87}, {-0.25, -0.87}, {-0.46, -0.87},
     {-0.49, -0.84}, {-0.49, -0.78}, {-0.52, -0.75},
@@ -53,7 +53,7 @@ inline constexpr std::array<Vec2, 63> monzaControls{{
     { 1.66, -0.63}, { 1.65, -0.69}, { 1.61, -0.75},
     { 1.54, -0.80}, { 1.43, -0.84}, { 1.30, -0.86},
     { 1.17, -0.87},
-}};
+});
 
 inline constexpr int samplesPerSegment = 3;
 
