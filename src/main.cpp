@@ -3,6 +3,7 @@
 
 #include "../include/apex3d/cp3_scene.hpp"
 #include "../include/apex3d/cp3_hud.hpp"
+#include "../include/apex3d/cp3_wheels.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -10,6 +11,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <numbers>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -176,13 +178,15 @@ void processInput(GLFWwindow* window, Playback& playback)
     }
 }
 
-void updateTitle(GLFWwindow* window, const Playback& playback)
+void updateTitle(GLFWwindow* window, const Playback& playback,
+                 double steerRadians)
 {
     std::ostringstream title;
     title << "Apex3D | Monza OpenGL prototype | Lap "
           << std::fixed << std::setprecision(0) << playback.progress * 100.0
           << "% | " << std::setprecision(2) << playback.speed << "x | "
-          << (playback.playing ? "Playing" : "Paused")
+          << (playback.playing ? "Playing" : "Paused") << " | Steer "
+          << std::setprecision(0) << steerRadians * 180.0 / std::numbers::pi << " deg"
           << " | Space pause  R restart  +/- speed  T scale  P points  Esc quit";
     glfwSetWindowTitle(window, title.str().c_str());
 }
@@ -276,14 +280,16 @@ int main(int argc, char** argv)
 
     const auto path = apex3d::cp3::makePath();
     const auto carModel = apex3d::car::carModel();
+    const auto wheelMounts = apex3d::cp3::wheelMountsFrom(carModel);
     GlMesh track;
     GlMesh controlPoints;
     GlMesh car;
     GlMesh hud;
     track.create(apex3d::cp3::makeTrackMesh(path), GL_STATIC_DRAW);
     controlPoints.create(apex3d::cp3::makeControlMesh(), GL_STATIC_DRAW);
-    car.create(apex3d::cp3::makeCarMesh(carModel,
-        apex3d::cp3::poseAtProgress(path, 0.0)), GL_DYNAMIC_DRAW);
+    car.create(apex3d::cp3::makeLiveCarMesh(carModel, wheelMounts,
+        apex3d::cp3::poseAtProgress(path, 0.0),
+        apex3d::cp3::wheelStateAt(path, wheelMounts, 0.0)), GL_DYNAMIC_DRAW);
     hud.create(apex3d::cp3::makeHudMesh(0.0, 1.0, true, false), GL_DYNAMIC_DRAW);
     std::cout << "Monza control points: " << apex3d::cp3::monzaControls.size()
               << " | spline samples: " << path.size()
@@ -308,14 +314,17 @@ int main(int argc, char** argv)
             playback.progress += deltaSeconds * playback.speed / lapSeconds;
             playback.progress -= std::floor(playback.progress);
         }
+        const auto pose = apex3d::cp3::poseAtProgress(path, playback.progress);
+        const auto wheelState =
+            apex3d::cp3::wheelStateAt(path, wheelMounts, playback.progress);
         if (now - lastTitleTime >= 0.2) {
-            updateTitle(window, playback);
+            updateTitle(window, playback, wheelState.steerRadians);
             lastTitleTime = now;
         }
 
-        const auto pose = apex3d::cp3::poseAtProgress(path, playback.progress);
         const double scale = playback.scaleDemo ? 1.0 + 0.22 * std::sin(now * 3.0) : 1.0;
-        car.update(apex3d::cp3::makeCarMesh(carModel, pose, scale), GL_DYNAMIC_DRAW);
+        car.update(apex3d::cp3::makeLiveCarMesh(carModel, wheelMounts, pose,
+            wheelState, scale), GL_DYNAMIC_DRAW);
         hud.update(apex3d::cp3::makeHudMesh(playback.progress, playback.speed,
             playback.playing, playback.scaleDemo), GL_DYNAMIC_DRAW);
 
