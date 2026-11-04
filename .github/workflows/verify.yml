@@ -1,0 +1,27 @@
+name: Graphics verification
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    name: C++20 checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux window-system headers
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xorg-dev libgl1-mesa-dev
+      - name: Configure release build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGLFW_BUILD_WAYLAND=OFF
+      - name: Build OpenGL application and scene tests
+        run: cmake --build build --parallel
+      - name: Run scene and integration checks
+        run: ctest --test-dir build --output-on-failure
+      - name: Verify all Checkpoint 2 modules
+        run: checkpoint2/verify_all.sh
