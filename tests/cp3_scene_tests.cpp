@@ -98,6 +98,26 @@ int main()
     CHECK(arcTable.back().cumulativeDistance > 7.0);
     for (std::size_t i = 1; i < arcTable.size(); ++i) {
         CHECK(arcTable[i].cumulativeDistance >= arcTable[i - 1].cumulativeDistance);
+        // Continuous u must also be strictly non-decreasing.
+        CHECK(arcTable[i].u >= arcTable[i - 1].u);
+    }
+    // u must be continuous across every segment join: the last entry of
+    // segment i has u == i+1 == the first entry of segment i+1.
+    {
+        const int nSegs = static_cast<int>(cp3::monzaCircuit().size());
+        constexpr int stepsPerSeg = 120; // must match makeMonzaArcTable
+        for (int i = 0; i < nSegs - 1; ++i) {
+            // Entry index of the last step of segment i
+            const std::size_t lastOfSeg =
+                static_cast<std::size_t>(i * stepsPerSeg + stepsPerSeg);
+            const std::size_t firstOfNext =
+                static_cast<std::size_t>((i + 1) * stepsPerSeg + 1);
+            // The u at the end of seg i should equal i+1.0 (== start of seg i+1).
+            CHECK(std::abs(arcTable[lastOfSeg].u - static_cast<double>(i + 1)) < 1e-12);
+            CHECK(std::abs(arcTable[firstOfNext].u -
+                           (static_cast<double>(i + 1) +
+                            1.0 / stepsPerSeg)) < 1e-12);
+        }
     }
 
     // 5. makeBezierPath: closed loop, monotone distances, unit normals.
@@ -144,6 +164,47 @@ int main()
     for (const auto& s : bzPath) {
         CHECK(s.point.x > -2.0 && s.point.x < 2.0);
         CHECK(s.point.y > -1.2 && s.point.y < 1.2);
+    }
+
+    // 11. Regression: no sudden position jumps across segment boundaries.
+    //
+    // Densely sample bezierSampleAtProgress() around every segment join
+    // (progress values that map to the arc-length fraction at the join ± a
+    // tiny epsilon).  Two consecutive samples must never be farther apart
+    // than a threshold that rules out the wrap-around discontinuity that the
+    // old per-segment t interpolation produced.
+    //
+    // The Monza circuit is ~9 units long with 62 segments (~0.145 u each).
+    // A genuine smooth step at 1/10 000th of a lap covers at most ~0.0009 u,
+    // which at peak curvature is well under 0.01 world units.  We use 0.05 as
+    // the jump threshold — generous enough to tolerate arc-length variation but
+    // tight enough to catch the old boundary teleport (~0.1–0.3 units).
+    {
+        const auto& arcTableRef = cp3::monzaArcTable();
+        const double totalLen   = arcTableRef.back().cumulativeDistance;
+        constexpr int nSegs     = 62; // monzaControls.size()
+        constexpr int stepsPerSeg = 120;
+        constexpr double jumpTolerance = 0.05;
+        constexpr double epsilon = 1e-5; // tiny progress nudge near the join
+
+        for (int joinIdx = 1; joinIdx < nSegs; ++joinIdx) {
+            // Arc-length distance at the join between seg (joinIdx-1) and joinIdx.
+            // That is the last table entry of the previous segment.
+            const std::size_t lastIdx =
+                static_cast<std::size_t>(joinIdx * stepsPerSeg);
+            const double joinDist = arcTableRef[lastIdx].cumulativeDistance;
+            const double progressAtJoin = joinDist / totalLen;
+
+            // Sample just before and just after the join.
+            const cp3::PathSample before =
+                cp3::bezierSampleAtProgress(progressAtJoin - epsilon);
+            const cp3::PathSample after  =
+                cp3::bezierSampleAtProgress(progressAtJoin + epsilon);
+
+            const double jump = std::hypot(after.point.x - before.point.x,
+                                           after.point.y - before.point.y);
+            CHECK(jump < jumpTolerance);
+        }
     }
 
     std::cout << "CP3 Bezier route closure, C1 continuity, lap poses and"

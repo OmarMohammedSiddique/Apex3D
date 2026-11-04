@@ -466,8 +466,7 @@ inline void triangulate(std::vector<Vertex>& mesh,
 // approximately constant speed regardless of control-point density.
 struct BezierArcSample {
     double cumulativeDistance{};
-    int    segment{};
-    double t{};
+    double u{}; // continuous parameter: segment index + local t in [0, N)
 };
 
 [[nodiscard]] inline std::vector<BezierArcSample> makeMonzaArcTable()
@@ -477,7 +476,7 @@ struct BezierArcSample {
     const int n = static_cast<int>(chain.size());
     std::vector<BezierArcSample> table;
     table.reserve(static_cast<std::size_t>(n * stepsPerSegment + 1));
-    table.push_back({0.0, 0, 0.0});
+    table.push_back({0.0, 0.0});
     double cumulative = 0.0;
     Vec2 prev = chain[0].p0;
     for (int seg = 0; seg < n; ++seg) {
@@ -486,7 +485,10 @@ struct BezierArcSample {
             const double tVal = static_cast<double>(step) / stepsPerSegment;
             const Vec2 cur = bezier::evaluate(curve, tVal);
             cumulative += std::hypot(cur.x - prev.x, cur.y - prev.y);
-            table.push_back({cumulative, seg, tVal});
+            // u is the continuous parameter: an integer segment offset plus
+            // the local t so that it increases monotonically across the whole
+            // circuit with no discontinuities at segment joins.
+            table.push_back({cumulative, static_cast<double>(seg) + tVal});
             prev = cur;
         }
     }
@@ -501,6 +503,14 @@ struct BezierArcSample {
 
 // Sample the Monza Bézier circuit at normalised lap progress in [0,1].
 // Returns a PathSample so the rest of the scene is route-agnostic.
+//
+// Key design: the arc-length table stores a *continuous* parameter u in
+// [0, N) where N = number of segments.  Interpolating u across a segment
+// boundary is safe because u increases monotonically with no wrap-around
+// discontinuity.  After interpolation, u is split with std::modf into an
+// integer segment index and a local t in [0, 1].  This eliminates the
+// position jump that occurred in the old code when before and after came
+// from different segments and their per-segment t values were naively mixed.
 [[nodiscard]] inline PathSample bezierSampleAtProgress(double progress)
 {
     const auto& table = monzaArcTable();
@@ -514,34 +524,40 @@ struct BezierArcSample {
             return s.cumulativeDistance < v;
         });
 
-    int    seg = 0;
-    double t   = 0.0;
+    double u = 0.0;
     if (upper == table.begin()) {
-        seg = table.front().segment;
-        t   = table.front().t;
+        u = table.front().u;
     } else if (upper == table.end()) {
-        seg = table.back().segment;
-        t   = table.back().t;
+        u = table.back().u;
     } else {
         const BezierArcSample& after  = *upper;
         const BezierArcSample& before = *(upper - 1);
         const double span  = after.cumulativeDistance - before.cumulativeDistance;
         const double alpha = span > 0.0 ? (target - before.cumulativeDistance) / span : 0.0;
-        seg = before.segment;
-        t   = before.t + alpha * (after.t - before.t);
-        if (t > 1.0) { t = 1.0; }
+        // Interpolate the *continuous* parameter — safe across segment joins.
+        u = before.u + alpha * (after.u - before.u);
     }
+
+    // Split continuous u into segment index + local t.
+    const int n = static_cast<int>(monzaCircuit().size());
+    double tFrac = 0.0;
+    double segFloor = 0.0;
+    tFrac = std::modf(u, &segFloor);
+    int seg = static_cast<int>(segFloor);
+    // Clamp to the last valid segment/t when u lands exactly on the circuit end.
+    if (seg >= n) { seg = n - 1; tFrac = 1.0; }
+    if (seg < 0)  { seg = 0;     tFrac = 0.0; }
 
     const auto& chain = monzaCircuit();
     const bezier::CubicBezier& curve = chain[static_cast<std::size_t>(seg)];
-    const Vec2 point   = bezier::evaluate(curve, t);
-    const Vec2 tangent = bezier::derivative(curve, t);
+    const Vec2 point   = bezier::evaluate(curve, tFrac);
+    const Vec2 tangent = bezier::derivative(curve, tFrac);
     const double len   = std::hypot(tangent.x, tangent.y);
     if (len <= 1e-10) {
         throw std::runtime_error("Monza Bezier tangent is degenerate");
     }
     const Vec2 normal{-tangent.y / len, tangent.x / len};
-    return {point, normal, target, static_cast<double>(seg) + t};
+    return {point, normal, target, u};
 }
 
 // Build a dense PathSample vector for the Bézier route.
