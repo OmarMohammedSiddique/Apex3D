@@ -21,16 +21,19 @@ namespace {
 constexpr int windowWidth = 1280;
 constexpr int windowHeight = 720;
 constexpr double lapSeconds = 18.0;
+// The close-up camera follows the car so the CP2 wheel motion is readable.
+constexpr float closeUpZoom = 7.0F;
 
 constexpr char vertexShaderSource[] = R"(
     #version 330 core
     layout (location = 0) in vec2 position;
     layout (location = 1) in vec3 vertexColor;
     uniform vec2 viewportScale;
+    uniform vec2 viewCentre;
     out vec3 color;
     void main()
     {
-        gl_Position = vec4(position * viewportScale, 0.0, 1.0);
+        gl_Position = vec4((position - viewCentre) * viewportScale, 0.0, 1.0);
         color = vertexColor;
     }
 )";
@@ -139,6 +142,7 @@ struct Playback {
     bool playing{true};
     bool showControls{false};
     bool scaleDemo{false};
+    bool closeUp{false};
 };
 
 bool pressedOnce(GLFWwindow* window, int key)
@@ -168,6 +172,9 @@ void processInput(GLFWwindow* window, Playback& playback)
     if (pressedOnce(window, GLFW_KEY_T)) {
         playback.scaleDemo = !playback.scaleDemo;
     }
+    if (pressedOnce(window, GLFW_KEY_C)) {
+        playback.closeUp = !playback.closeUp;
+    }
     if (pressedOnce(window, GLFW_KEY_EQUAL) ||
         pressedOnce(window, GLFW_KEY_KP_ADD)) {
         playback.speed = std::min(4.0, playback.speed * 1.25);
@@ -187,7 +194,7 @@ void updateTitle(GLFWwindow* window, const Playback& playback,
           << "% | " << std::setprecision(2) << playback.speed << "x | "
           << (playback.playing ? "Playing" : "Paused") << " | Steer "
           << std::setprecision(0) << steerRadians * 180.0 / std::numbers::pi << " deg"
-          << " | Space pause  R restart  +/- speed  T scale  P points  Esc quit";
+          << " | Space pause  R restart  +/- speed  T scale  P points  C close-up  Esc quit";
     glfwSetWindowTitle(window, title.str().c_str());
 }
 
@@ -222,10 +229,14 @@ bool saveScreenshot(const std::string& path, int width, int height)
 int main(int argc, char** argv)
 {
     const bool capture = argc == 3 && std::string(argv[1]) == "--screenshot";
-    const bool captureAt = argc == 4 && std::string(argv[1]) == "--screenshot-at";
+    const bool captureCloseUp =
+        argc == 4 && std::string(argv[1]) == "--screenshot-closeup-at";
+    const bool captureAt =
+        captureCloseUp || (argc == 4 && std::string(argv[1]) == "--screenshot-at");
     if (argc != 1 && !capture && !captureAt) {
         std::cerr << "Usage: Apex3D [--screenshot output.ppm | "
-                     "--screenshot-at lap-progress output.ppm]\n";
+                     "--screenshot-at lap-progress output.ppm | "
+                     "--screenshot-closeup-at lap-progress output.ppm]\n";
         return EXIT_FAILURE;
     }
     double initialProgress = 0.0;
@@ -299,6 +310,7 @@ int main(int argc, char** argv)
     playback.progress = initialProgress;
     if (captureAt) {
         playback.playing = false;
+        playback.closeUp = captureCloseUp;
     }
     double previousTime = glfwGetTime();
     double lastTitleTime = -1.0;
@@ -335,8 +347,10 @@ int main(int argc, char** argv)
             continue;
         }
         const float aspect = static_cast<float>(width) / static_cast<float>(height);
-        const float yScale = std::min(0.94F / 1.1F, 0.94F * aspect / 1.85F);
+        const float zoom = playback.closeUp ? closeUpZoom : 1.0F;
+        const float yScale = std::min(0.94F / 1.1F, 0.94F * aspect / 1.85F) * zoom;
         const float xScale = yScale / aspect;
+        const GLint viewCentre = glGetUniformLocation(shaderProgram, "viewCentre");
 
         glViewport(0, 0, width, height);
         glClearColor(0.045F, 0.11F, 0.085F, 1.0F);
@@ -344,12 +358,19 @@ int main(int argc, char** argv)
         glUseProgram(shaderProgram);
         glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"),
                     xScale, yScale);
+        if (playback.closeUp) {
+            glUniform2f(viewCentre, static_cast<float>(pose.position.x),
+                        static_cast<float>(pose.position.y));
+        } else {
+            glUniform2f(viewCentre, 0.0F, 0.0F);
+        }
         track.draw();
         if (playback.showControls) {
             controlPoints.draw();
         }
         car.draw();
         glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"), 1.0F, 1.0F);
+        glUniform2f(viewCentre, 0.0F, 0.0F);
         hud.draw();
         if (capture || captureAt) {
             const char* outputPath = captureAt ? argv[3] : argv[2];
