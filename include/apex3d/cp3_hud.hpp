@@ -98,7 +98,7 @@ inline void hudRectangle(std::vector<Vertex>& mesh, double left, double bottom,
     const bool isBezier = (routeMode == RouteMode::Bezier);
     const Color routeColor = isBezier ? orange : cyan;
     std::vector<Vertex> mesh;
-    hudRectangle(mesh, 0.17, 0.39, 0.95, 0.94, panel);
+    hudRectangle(mesh, 0.17, 0.34, 0.95, 0.94, panel);
     hudRectangle(mesh, 0.17, 0.927, 0.95, 0.94, routeColor);
     hudText(mesh, 0.21, 0.88, 0.009, "APEX3D", white);
     hudText(mesh, 0.21, 0.78, 0.0044,
@@ -119,7 +119,8 @@ inline void hudRectangle(std::vector<Vertex>& mesh, double left, double bottom,
     hudText(mesh, 0.21, 0.46, 0.0039,
             scaleDemo ? "+/- SPEED  T SCALE ON" : "+/- SPEED  T SCALE OFF",
             secondary);
-    hudText(mesh, 0.21, 0.42, 0.0039, "B ROUTE  P POINTS  ESC QUIT", secondary);
+    hudText(mesh, 0.21, 0.42, 0.0039, "B ROUTE  P POINTS  C CLOSE-UP", secondary);
+    hudText(mesh, 0.21, 0.38, 0.0039, "ESC QUIT", secondary);
     return mesh;
 }
 

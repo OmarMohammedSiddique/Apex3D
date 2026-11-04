@@ -3,6 +3,7 @@
 
 #include "../include/apex3d/cp3_scene.hpp"
 #include "../include/apex3d/cp3_hud.hpp"
+#include "../include/apex3d/cp3_wheels.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -10,6 +11,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <numbers>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -19,16 +21,19 @@ namespace {
 constexpr int windowWidth = 1280;
 constexpr int windowHeight = 720;
 constexpr double lapSeconds = 18.0;
+// The close-up camera follows the car so the CP2 wheel motion is readable.
+constexpr float closeUpZoom = 7.0F;
 
 constexpr char vertexShaderSource[] = R"(
     #version 330 core
     layout (location = 0) in vec2 position;
     layout (location = 1) in vec3 vertexColor;
     uniform vec2 viewportScale;
+    uniform vec2 viewCentre;
     out vec3 color;
     void main()
     {
-        gl_Position = vec4(position * viewportScale, 0.0, 1.0);
+        gl_Position = vec4((position - viewCentre) * viewportScale, 0.0, 1.0);
         color = vertexColor;
     }
 )";
@@ -137,6 +142,7 @@ struct Playback {
     bool playing{true};
     bool showControls{false};
     bool scaleDemo{false};
+    bool closeUp{false};
     apex3d::cp3::RouteMode routeMode{apex3d::cp3::RouteMode::CatmullRom};
 };
 
@@ -167,6 +173,9 @@ void processInput(GLFWwindow* window, Playback& playback)
     if (pressedOnce(window, GLFW_KEY_T)) {
         playback.scaleDemo = !playback.scaleDemo;
     }
+    if (pressedOnce(window, GLFW_KEY_C)) {
+        playback.closeUp = !playback.closeUp;
+    }
     if (pressedOnce(window, GLFW_KEY_B)) {
         playback.routeMode = (playback.routeMode == apex3d::cp3::RouteMode::CatmullRom)
             ? apex3d::cp3::RouteMode::Bezier
@@ -182,7 +191,8 @@ void processInput(GLFWwindow* window, Playback& playback)
     }
 }
 
-void updateTitle(GLFWwindow* window, const Playback& playback)
+void updateTitle(GLFWwindow* window, const Playback& playback,
+                 double steerRadians)
 {
     std::ostringstream title;
     title << "Apex3D | Monza OpenGL prototype | "
@@ -191,8 +201,9 @@ void updateTitle(GLFWwindow* window, const Playback& playback)
           << " | Lap "
           << std::fixed << std::setprecision(0) << playback.progress * 100.0
           << "% | " << std::setprecision(2) << playback.speed << "x | "
-          << (playback.playing ? "Playing" : "Paused")
-          << " | Space pause  R restart  B route  +/- speed  T scale  P points  Esc quit";
+          << (playback.playing ? "Playing" : "Paused") << " | Steer "
+          << std::setprecision(0) << steerRadians * 180.0 / std::numbers::pi << " deg"
+          << " | Space pause  R restart  B route  +/- speed  T scale  P points  C close-up  Esc quit";
     glfwSetWindowTitle(window, title.str().c_str());
 }
 
@@ -233,6 +244,8 @@ int main(int argc, char** argv)
     //   Apex3D --bezier --screenshot output.ppm
     //   Apex3D --screenshot-at progress output.ppm
     //   Apex3D --bezier --screenshot-at progress output.ppm
+    //   Apex3D --screenshot-closeup-at progress output.ppm
+    //   Apex3D --bezier --screenshot-closeup-at progress output.ppm
     bool startBezier = false;
     int  argOffset   = 0;
     if (argc >= 2 && std::string(argv[1]) == "--bezier") {
@@ -243,12 +256,15 @@ int main(int argc, char** argv)
     char** effectiveArgv    = argv + argOffset;
     const bool capture   = effectiveArgc == 3 &&
         std::string(effectiveArgv[1]) == "--screenshot";
-    const bool captureAt = effectiveArgc == 4 &&
-        std::string(effectiveArgv[1]) == "--screenshot-at";
+    const bool captureCloseUp = effectiveArgc == 4 &&
+        std::string(effectiveArgv[1]) == "--screenshot-closeup-at";
+    const bool captureAt = captureCloseUp || (effectiveArgc == 4 &&
+        std::string(effectiveArgv[1]) == "--screenshot-at");
     if (effectiveArgc != 1 && !capture && !captureAt) {
         std::cerr << "Usage: Apex3D [--bezier] "
                      "[--screenshot output.ppm | "
-                     "--screenshot-at lap-progress output.ppm]\n";
+                     "--screenshot-at lap-progress output.ppm | "
+                     "--screenshot-closeup-at lap-progress output.ppm]\n";
         return EXIT_FAILURE;
     }
     double initialProgress = 0.0;
@@ -302,6 +318,7 @@ int main(int argc, char** argv)
     }
 
     const auto carModel = apex3d::car::carModel();
+    const auto wheelMounts = apex3d::cp3::wheelMountsFrom(carModel);
     GlMesh track;
     GlMesh controlPoints;       // Catmull-Rom cyan dots
     GlMesh bezierAnchors;       // Bézier orange squares
@@ -313,8 +330,9 @@ int main(int argc, char** argv)
     track.create(apex3d::cp3::makeTrackMesh(activePath), GL_DYNAMIC_DRAW);
     controlPoints.create(apex3d::cp3::makeControlMesh(), GL_STATIC_DRAW);
     bezierAnchors.create(apex3d::cp3::makeBezierAnchorMesh(), GL_STATIC_DRAW);
-    car.create(apex3d::cp3::makeCarMesh(carModel,
-        apex3d::cp3::poseAtProgress(activePath, 0.0)), GL_DYNAMIC_DRAW);
+    car.create(apex3d::cp3::makeLiveCarMesh(carModel, wheelMounts,
+        apex3d::cp3::poseAtProgress(activePath, 0.0),
+        apex3d::cp3::wheelStateAt(activePath, wheelMounts, 0.0)), GL_DYNAMIC_DRAW);
     hud.create(apex3d::cp3::makeHudMesh(0.0, 1.0, true, false,
         apex3d::cp3::RouteMode::CatmullRom), GL_DYNAMIC_DRAW);
     std::cout << "Monza control points: " << apex3d::cp3::monzaControls.size()
@@ -328,6 +346,7 @@ int main(int argc, char** argv)
     }
     if (captureAt) {
         playback.playing = false;
+        playback.closeUp = captureCloseUp;
     }
     // If starting in Bézier mode, rebuild path and track immediately.
     if (startBezier) {
@@ -361,14 +380,17 @@ int main(int argc, char** argv)
             playback.progress += deltaSeconds * playback.speed / lapSeconds;
             playback.progress -= std::floor(playback.progress);
         }
+        const auto pose = apex3d::cp3::poseAtProgress(activePath, playback.progress);
+        const auto wheelState =
+            apex3d::cp3::wheelStateAt(activePath, wheelMounts, playback.progress);
         if (now - lastTitleTime >= 0.2) {
-            updateTitle(window, playback);
+            updateTitle(window, playback, wheelState.steerRadians);
             lastTitleTime = now;
         }
 
-        const auto pose = apex3d::cp3::poseAtProgress(activePath, playback.progress);
         const double scale = playback.scaleDemo ? 1.0 + 0.22 * std::sin(now * 3.0) : 1.0;
-        car.update(apex3d::cp3::makeCarMesh(carModel, pose, scale), GL_DYNAMIC_DRAW);
+        car.update(apex3d::cp3::makeLiveCarMesh(carModel, wheelMounts, pose,
+            wheelState, scale), GL_DYNAMIC_DRAW);
         hud.update(apex3d::cp3::makeHudMesh(playback.progress, playback.speed,
             playback.playing, playback.scaleDemo, playback.routeMode), GL_DYNAMIC_DRAW);
 
@@ -379,8 +401,10 @@ int main(int argc, char** argv)
             continue;
         }
         const float aspect = static_cast<float>(width) / static_cast<float>(height);
-        const float yScale = std::min(0.94F / 1.1F, 0.94F * aspect / 1.85F);
+        const float zoom = playback.closeUp ? closeUpZoom : 1.0F;
+        const float yScale = std::min(0.94F / 1.1F, 0.94F * aspect / 1.85F) * zoom;
         const float xScale = yScale / aspect;
+        const GLint viewCentre = glGetUniformLocation(shaderProgram, "viewCentre");
 
         glViewport(0, 0, width, height);
         glClearColor(0.045F, 0.11F, 0.085F, 1.0F);
@@ -388,6 +412,12 @@ int main(int argc, char** argv)
         glUseProgram(shaderProgram);
         glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"),
                     xScale, yScale);
+        if (playback.closeUp) {
+            glUniform2f(viewCentre, static_cast<float>(pose.position.x),
+                        static_cast<float>(pose.position.y));
+        } else {
+            glUniform2f(viewCentre, 0.0F, 0.0F);
+        }
         track.draw();
         if (playback.showControls) {
             if (playback.routeMode == apex3d::cp3::RouteMode::Bezier) {
@@ -398,6 +428,7 @@ int main(int argc, char** argv)
         }
         car.draw();
         glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"), 1.0F, 1.0F);
+        glUniform2f(viewCentre, 0.0F, 0.0F);
         hud.draw();
         if (capture || captureAt) {
             const char* outputPath = captureAt ? effectiveArgv[3] : effectiveArgv[2];

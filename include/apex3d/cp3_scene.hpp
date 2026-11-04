@@ -374,11 +374,13 @@ inline void triangulate(std::vector<Vertex>& mesh,
              polygon[remaining[2]], fill);
 }
 
+// World units per CP2 car-model unit at normal (non-demonstration) scale.
+inline constexpr double carBaseScale = 0.00070;
+
 [[nodiscard]] inline Mat3 carTransform(const Pose& pose,
                                        double scaleMultiplier = 1.0)
 {
-    constexpr double baseScale = 0.00070;
-    const double scale = baseScale * scaleMultiplier;
+    const double scale = carBaseScale * scaleMultiplier;
     // The CP2 model points its nose along local -Y. A quarter turn aligns it
     // with the direction of the circuit tangent.
     return Mat3::translation(pose.position.x, pose.position.y) *
