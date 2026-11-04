@@ -51,6 +51,7 @@ visible track surface and car.
 
 This is a top-down 2D prototype inside an OpenGL window. The car and road are
 simplified graphical components. Future work includes a 3D camera, elevation,
-lighting, detailed car and scenery, telemetry input and a selectable Bézier
-route. The lecturer's final requirements
+lighting, detailed car and scenery and telemetry input. (The Bézier route is
+now selectable with `B`, and the wheels follow whichever route is active.) The
+lecturer's final requirements
 will determine which of those become assessed features.

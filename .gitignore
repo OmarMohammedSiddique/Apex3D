@@ -9,3 +9,7 @@ tmp/
 .vscode/
 .idea/
 .DS_Store
+.vs/
+
+# Generated raw framebuffer images (keep only compressed PNG evidence)
+*.ppm
