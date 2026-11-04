@@ -113,7 +113,7 @@ inline void hudRectangle(std::vector<Vertex>& mesh, double left, double bottom,
     hudText(mesh, 0.21, 0.50, 0.0039, "SPACE PAUSE  R RESTART", secondary);
     hudText(mesh, 0.21, 0.46, 0.0039,
             scaleDemo ? "+/- SPEED  T SCALE ON" : "+/- SPEED  T SCALE OFF", secondary);
-    hudText(mesh, 0.21, 0.42, 0.0039, "P POINTS  ESC QUIT", secondary);
+    hudText(mesh, 0.21, 0.42, 0.0039, "P POINTS  C CLOSE-UP  ESC QUIT", secondary);
     return mesh;
 }
 
