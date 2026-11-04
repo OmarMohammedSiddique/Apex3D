@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../checkpoint2/animation/car/include/car_animation.hpp"
+#include "../../checkpoint2/animation/bezier/include/bezier_motion.hpp"
 #include "../../checkpoint2/animation/splines/include/spline_motion.hpp"
 
 #include <algorithm>
@@ -147,6 +148,41 @@ struct PathSample {
         }
         path.push_back({point, {-tangent.y / length, tangent.x / length},
                         distance, u});
+    }
+    return path;
+}
+
+enum class Route { Monza, BezierDemo };
+
+[[nodiscard]] inline const char* routeName(Route route)
+{
+    return route == Route::Monza ? "MONZA / CATMULL-ROM" : "BEZIER / DEMO CIRCUIT";
+}
+
+// Preserve the original CP2 Bezier circuit, converting pixel coordinates to
+// scene units and flipping Y. The demo is intentionally distinct from Monza.
+[[nodiscard]] inline Vec2 bezierScenePoint(Vec2 point)
+{
+    return {(point.x - 305.0) / 145.0, (195.0 - point.y) / 145.0};
+}
+
+[[nodiscard]] inline std::vector<PathSample> makeBezierPath()
+{
+    std::vector<PathSample> path;
+    double distance = 0.0;
+    for (const auto& sample : bezier::arcLengthTable().samples()) {
+        const Vec2 point = bezierScenePoint(bezier::pointAt(sample.u));
+        const Vec2 tangent = bezier::tangentAt(sample.u);
+        const double length = std::hypot(tangent.x, tangent.y);
+        if (length <= 1e-10) {
+            throw std::runtime_error("Bezier circuit contains a zero tangent");
+        }
+        if (!path.empty()) {
+            distance += std::hypot(point.x - path.back().point.x,
+                                   point.y - path.back().point.y);
+        }
+        path.push_back({point, {tangent.y / length, tangent.x / length},
+                        distance, sample.u});
     }
     return path;
 }
@@ -393,12 +429,19 @@ inline void triangulate(std::vector<Vertex>& mesh,
     return mesh;
 }
 
-[[nodiscard]] inline std::vector<Vertex> makeControlMesh()
+[[nodiscard]] inline std::vector<Vertex> makeControlMesh(Route route = Route::Monza)
 {
     constexpr Color cyan{0.2F, 0.81F, 0.9F};
     std::vector<Vertex> mesh;
     mesh.reserve(monzaControls.size() * 6);
-    for (Vec2 point : monzaControls) {
+    std::vector<Vec2> points(monzaControls.begin(), monzaControls.end());
+    if (route == Route::BezierDemo) {
+        points.clear();
+        for (Vec2 point : bezier::anchors) {
+            points.push_back(bezierScenePoint(point));
+        }
+    }
+    for (Vec2 point : points) {
         quad(mesh, {point.x - 0.006, point.y - 0.006},
              {point.x + 0.006, point.y - 0.006},
              {point.x + 0.006, point.y + 0.006},
