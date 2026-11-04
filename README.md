@@ -11,7 +11,10 @@ The runnable OpenGL application now displays a filled Monza circuit and a
 polygon Formula 1 car moving around it. It reuses the CP2 Catmull-Rom curve,
 transformation matrix and polygon-car model. The path is resampled by distance
 so the car travels at approximately uniform speed and faces the tangent of the
-circuit. A small in-window display shows lap progress and controls.
+circuit. The CP2 wheel hierarchy keeps four wheels attached to the car: the
+front pair steers through corners and tread bars roll over every tyre at the
+rolling-without-slipping rate. A small in-window display shows lap progress
+and controls.
 
 ![Checkpoint 3 OpenGL prototype at a quarter lap](docs/evidence/cp3-opengl-prototype.png)
 
@@ -36,6 +39,7 @@ On Windows, the executable may be under `build/Debug/Apex3D.exe`.
 | `+` / `-` | Increase or decrease playback speed |
 | `T` | Toggle the scaling demonstration |
 | `P` | Show or hide Monza control points |
+| `C` | Toggle the close-up camera that follows the car and its wheels |
 | `Esc` | Quit |
 
 To capture a real OpenGL frame as a PPM image:
@@ -43,10 +47,13 @@ To capture a real OpenGL frame as a PPM image:
 ```bash
 ./build/Apex3D --screenshot frame.ppm
 ./build/Apex3D --screenshot-at 0.25 quarter_lap.ppm
+./build/Apex3D --screenshot-closeup-at 0.195 chicane.ppm
 ```
 
-The second command renders the car at 25% lap progress. The accepted progress
-range is 0 to 1.
+The second command renders the car at 25% lap progress, and the third renders
+the close-up wheel view at 19.5%. The accepted progress range is 0 to 1.
+
+![Close-up of the steered front wheels in the first chicane](docs/evidence/cp3-wheels-chicane-closeup.png)
 
 ## Checkpoint 2 foundation
 
@@ -118,6 +125,7 @@ Each milestone also has its own README with individual build and run commands:
 
 - [CP3 progress and remaining work](docs/checkpoint3-progress.md)
 - [CP3 OpenGL screenshot](docs/evidence/cp3-opengl-prototype.png)
+- [CP3 wheel close-ups](docs/checkpoint3-progress.md#wheel-animation-in-the-live-car)
 - [CP2 readiness checklist](docs/checkpoint2-readiness.md)
 - [CP2 evidence PDF](output/pdf/Apex3D_Checkpoint2_Evidence.pdf)
 - [Architecture and rendering pipeline](docs/architecture.md)
@@ -133,8 +141,10 @@ Each milestone also has its own README with individual build and run commands:
 - Raster edges are not anti-aliased.
 - Catmull-Rom travel distance is estimated from a sampled path. It is
   approximately, not exactly, constant-speed.
-- The CP2 wheel hierarchy and Bézier lap are still separate demonstrations.
-  They are not selectable in the OpenGL prototype yet.
+- The CP2 Bézier lap is still a separate demonstration. It is not
+  selectable in the OpenGL prototype yet.
+- Wheel spin is drawn as rolling tread bars; they are only readable in the
+  close-up view and can alias at high playback speeds.
 - Camera control, perspective, lighting and telemetry heatmaps remain
   final-project work.
 

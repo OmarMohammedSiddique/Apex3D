@@ -14,8 +14,10 @@ Hand-authored Monza points
 
 Elapsed time -> lap progress -> path position and tangent
     -> CP2 Mat3 translation, rotation and optional scaling
-    -> CP2 polygon-car model -> triangulated car mesh
-    -> dynamic OpenGL triangle buffer
+    -> CP2 polygon-car model -> triangulated car body
+    -> CP2 wheel hierarchy: M_car * T(mount) * R(steer) * T(-mount)
+       with path-curvature steering and rolling tread bars
+    -> dynamic OpenGL triangle buffer (wheels first, body on top)
 
 Playback state -> in-window progress and controls -> dynamic HUD buffer
 ```
@@ -32,8 +34,11 @@ the HUD is drawn last in clip coordinates.
 | --- | --- |
 | `src/main.cpp` | Window, shaders, buffers, playback controls and frame loop |
 | `include/apex3d/cp3_scene.hpp` | Monza points, path resampling, CP2 spline reuse, track mesh, CP2 car placement and triangulation |
+| `include/apex3d/cp3_wheels.hpp` | Wheel mounts from the CP2 car, CP2 wheel hierarchy, steering, rolling spin and tread-bar mesh |
 | `include/apex3d/cp3_hud.hpp` | Small CPU-built text and progress display drawn with OpenGL triangles |
 | `tests/cp3_scene_tests.cpp` | Closure, monotonic lap distance, car orientation and mesh checks |
+| `tests/cp3_wheel_tests.cpp` | Wheel attachment, steering direction and lock, rolling rate, lap-seam continuity and draw order |
+| `checkpoint2/animation/wheels/include/wheel_animation.hpp` | CP2 wheel hierarchy (`wheelTransform`) reused by the live car |
 | `checkpoint2/transformations/include/transform2d.hpp` | Shared 3 x 3 matrix and polygon transforms |
 | `checkpoint2/animation/splines/include/spline_motion.hpp` | Catmull-Rom position and analytic tangent |
 | `checkpoint2/animation/car/include/car_animation.hpp` | Formula 1 car polygon components and shared placement function |
@@ -46,6 +51,6 @@ visible track surface and car.
 
 This is a top-down 2D prototype inside an OpenGL window. The car and road are
 simplified graphical components. Future work includes a 3D camera, elevation,
-lighting, detailed car and scenery, telemetry input, wheel animation in the
-live scene, and a selectable Bézier route. The lecturer's final requirements
+lighting, detailed car and scenery, telemetry input and a selectable Bézier
+route. The lecturer's final requirements
 will determine which of those become assessed features.
