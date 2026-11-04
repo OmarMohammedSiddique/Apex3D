@@ -11,7 +11,10 @@ The runnable OpenGL application now displays a filled Monza circuit and a
 polygon Formula 1 car moving around it. It reuses the CP2 Catmull-Rom curve,
 transformation matrix and polygon-car model. The path is resampled by distance
 so the car travels at approximately uniform speed and faces the tangent of the
-circuit. A small in-window display shows lap progress and controls.
+circuit. Press `B` to switch to the original CP2 Bézier demo circuit, with its
+own matching road and anchor display. A live side-view inset reuses the CP2
+wheel hierarchy: body translation and local wheel spin follow travelled
+distance. A small in-window display shows the active route, lap progress and controls.
 
 ![Checkpoint 3 OpenGL prototype at a quarter lap](docs/evidence/cp3-opengl-prototype.png)
 
@@ -35,7 +38,9 @@ On Windows, the executable may be under `build/Debug/Apex3D.exe`.
 | `R` | Restart from the start/finish line |
 | `+` / `-` | Increase or decrease playback speed |
 | `T` | Toggle the scaling demonstration |
-| `P` | Show or hide Monza control points |
+| `P` | Show or hide the active route’s anchor points |
+| `B` | Switch between Monza/Catmull–Rom and the Bézier demo; reset progress |
+| `W` | Show or hide the live wheel hierarchy inset |
 | `Esc` | Quit |
 
 To capture a real OpenGL frame as a PPM image:
@@ -46,7 +51,16 @@ To capture a real OpenGL frame as a PPM image:
 ```
 
 The second command renders the car at 25% lap progress. The accepted progress
-range is 0 to 1.
+range is 0 to 1. Append `--bezier` to either capture command, or run
+`./build/Apex3D --bezier`, to start on the Bézier demo circuit.
+
+![Bézier route and live wheel hierarchy](docs/evidence/cp3-bezier-wheels.png)
+
+Both routes use an 18-second lap at 1x speed, rather than a shared physical
+speed. Switching routes resets the lap and wheel travel while preserving the
+play/pause state. Restart resumes playback. The wheel inset repeats one
+revolution of the side-view CP2 car; it does not rotate the top-down tyres
+around the wrong axis.
 
 ## Checkpoint 2 foundation
 
@@ -104,6 +118,10 @@ The script compiles every CP2 test and demonstration with:
 It runs the transformation, timeline, wheel, polygon-car, spline and Bézier
 test suites and regenerates disposable evidence in a temporary directory.
 
+GitHub Actions runs the release build, CP3 scene checks, and complete CP2
+verification on Linux and macOS. OpenGL screenshots and keyboard interaction
+are checked locally; CI does not launch the graphical window.
+
 Each milestone also has its own README with individual build and run commands:
 
 - [Checkpoint 2 overview](checkpoint2/README.md)
@@ -117,6 +135,7 @@ Each milestone also has its own README with individual build and run commands:
 ## Evidence and documentation
 
 - [CP3 progress and remaining work](docs/checkpoint3-progress.md)
+- [CP3 demo and explanation guide](docs/checkpoint3-demo-guide.md)
 - [CP3 OpenGL screenshot](docs/evidence/cp3-opengl-prototype.png)
 - [CP2 readiness checklist](docs/checkpoint2-readiness.md)
 - [CP2 evidence PDF](output/pdf/Apex3D_Checkpoint2_Evidence.pdf)
@@ -133,8 +152,8 @@ Each milestone also has its own README with individual build and run commands:
 - Raster edges are not anti-aliased.
 - Catmull-Rom travel distance is estimated from a sampled path. It is
   approximately, not exactly, constant-speed.
-- The CP2 wheel hierarchy and Bézier lap are still separate demonstrations.
-  They are not selectable in the OpenGL prototype yet.
+- Wheel rolling is shown in a live side-view inset; the top-down car does not
+  yet have 3D wheel geometry. The inset resets its position once per revolution.
 - Camera control, perspective, lighting and telemetry heatmaps remain
   final-project work.
 
