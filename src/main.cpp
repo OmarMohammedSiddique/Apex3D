@@ -25,10 +25,11 @@ constexpr char vertexShaderSource[] = R"(
     layout (location = 0) in vec2 position;
     layout (location = 1) in vec3 vertexColor;
     uniform vec2 viewportScale;
+    uniform vec2 viewportOffset;
     out vec3 color;
     void main()
     {
-        gl_Position = vec4(position * viewportScale, 0.0, 1.0);
+        gl_Position = vec4(position * viewportScale + viewportOffset, 0.0, 1.0);
         color = vertexColor;
     }
 )";
@@ -137,6 +138,9 @@ struct Playback {
     bool playing{true};
     bool showControls{false};
     bool scaleDemo{false};
+    bool showWheels{true};
+    apex3d::cp3::Route route{apex3d::cp3::Route::Monza};
+    double travelled{};
 };
 
 bool pressedOnce(GLFWwindow* window, int key)
@@ -158,10 +162,20 @@ void processInput(GLFWwindow* window, Playback& playback)
     }
     if (pressedOnce(window, GLFW_KEY_R)) {
         playback.progress = 0.0;
+        playback.travelled = 0.0;
         playback.playing = true;
     }
     if (pressedOnce(window, GLFW_KEY_P)) {
         playback.showControls = !playback.showControls;
+    }
+    if (pressedOnce(window, GLFW_KEY_B)) {
+        playback.route = playback.route == apex3d::cp3::Route::Monza
+            ? apex3d::cp3::Route::BezierDemo : apex3d::cp3::Route::Monza;
+        playback.progress = 0.0;
+        playback.travelled = 0.0;
+    }
+    if (pressedOnce(window, GLFW_KEY_W)) {
+        playback.showWheels = !playback.showWheels;
     }
     if (pressedOnce(window, GLFW_KEY_T)) {
         playback.scaleDemo = !playback.scaleDemo;
@@ -179,11 +193,11 @@ void processInput(GLFWwindow* window, Playback& playback)
 void updateTitle(GLFWwindow* window, const Playback& playback)
 {
     std::ostringstream title;
-    title << "Apex3D | Monza OpenGL prototype | Lap "
+    title << "Apex3D | " << apex3d::cp3::routeName(playback.route) << " | Lap "
           << std::fixed << std::setprecision(0) << playback.progress * 100.0
           << "% | " << std::setprecision(2) << playback.speed << "x | "
           << (playback.playing ? "Playing" : "Paused")
-          << " | Space pause  R restart  +/- speed  T scale  P points  Esc quit";
+          << " | Space pause  R restart  +/- speed  T scale  P points  B route  W wheels  Esc quit";
     glfwSetWindowTitle(window, title.str().c_str());
 }
 
@@ -217,11 +231,15 @@ bool saveScreenshot(const std::string& path, int width, int height)
 
 int main(int argc, char** argv)
 {
+    const bool initialBezier = argc > 1 && std::string(argv[argc - 1]) == "--bezier";
+    if (initialBezier) {
+        --argc;
+    }
     const bool capture = argc == 3 && std::string(argv[1]) == "--screenshot";
     const bool captureAt = argc == 4 && std::string(argv[1]) == "--screenshot-at";
     if (argc != 1 && !capture && !captureAt) {
         std::cerr << "Usage: Apex3D [--screenshot output.ppm | "
-                     "--screenshot-at lap-progress output.ppm]\n";
+                     "--screenshot-at lap-progress output.ppm] [--bezier]\n";
         return EXIT_FAILURE;
     }
     double initialProgress = 0.0;
@@ -258,6 +276,7 @@ int main(int argc, char** argv)
     }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0) {
         std::cerr << "Failed to load OpenGL functions.\n";
@@ -274,23 +293,32 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    const auto path = apex3d::cp3::makePath();
+    const auto monzaPath = apex3d::cp3::makePath();
+    const auto bezierPath = apex3d::cp3::makeBezierPath();
+    const auto initialRoute = initialBezier ? apex3d::cp3::Route::BezierDemo
+        : apex3d::cp3::Route::Monza;
+    const auto& path = initialBezier ? bezierPath : monzaPath;
     const auto carModel = apex3d::car::carModel();
     GlMesh track;
     GlMesh controlPoints;
     GlMesh car;
     GlMesh hud;
     track.create(apex3d::cp3::makeTrackMesh(path), GL_STATIC_DRAW);
-    controlPoints.create(apex3d::cp3::makeControlMesh(), GL_STATIC_DRAW);
+    controlPoints.create(apex3d::cp3::makeControlMesh(initialRoute), GL_STATIC_DRAW);
     car.create(apex3d::cp3::makeCarMesh(carModel,
         apex3d::cp3::poseAtProgress(path, 0.0)), GL_DYNAMIC_DRAW);
-    hud.create(apex3d::cp3::makeHudMesh(0.0, 1.0, true, false), GL_DYNAMIC_DRAW);
-    std::cout << "Monza control points: " << apex3d::cp3::monzaControls.size()
+    hud.create(apex3d::cp3::makeHudMesh(0.0, 1.0, true, false, initialRoute), GL_DYNAMIC_DRAW);
+    std::cout << "Route: " << apex3d::cp3::routeName(initialRoute)
+              << " | anchors: " << (initialBezier ? apex3d::bezier::anchors.size()
+                  : apex3d::cp3::monzaControls.size())
               << " | spline samples: " << path.size()
               << " | track triangles: " << track.vertexCount / 3 << '\n';
 
+    auto renderedRoute = initialRoute;
     Playback playback;
+    playback.route = initialRoute;
     playback.progress = initialProgress;
+    playback.travelled = initialProgress * path.back().distance;
     if (captureAt) {
         playback.playing = false;
     }
@@ -304,8 +332,17 @@ int main(int argc, char** argv)
         previousTime = now;
         glfwPollEvents();
         processInput(window, playback);
+        const auto& activePath = playback.route == apex3d::cp3::Route::Monza
+            ? monzaPath : bezierPath;
+        if (renderedRoute != playback.route) {
+            track.update(apex3d::cp3::makeTrackMesh(activePath), GL_STATIC_DRAW);
+            controlPoints.update(apex3d::cp3::makeControlMesh(playback.route), GL_STATIC_DRAW);
+            renderedRoute = playback.route;
+        }
         if (playback.playing) {
-            playback.progress += deltaSeconds * playback.speed / lapSeconds;
+            const double step = deltaSeconds * playback.speed / lapSeconds;
+            playback.travelled += step * activePath.back().distance;
+            playback.progress += step;
             playback.progress -= std::floor(playback.progress);
         }
         if (now - lastTitleTime >= 0.2) {
@@ -313,11 +350,9 @@ int main(int argc, char** argv)
             lastTitleTime = now;
         }
 
-        const auto pose = apex3d::cp3::poseAtProgress(path, playback.progress);
+        const auto pose = apex3d::cp3::poseAtProgress(activePath, playback.progress);
         const double scale = playback.scaleDemo ? 1.0 + 0.22 * std::sin(now * 3.0) : 1.0;
         car.update(apex3d::cp3::makeCarMesh(carModel, pose, scale), GL_DYNAMIC_DRAW);
-        hud.update(apex3d::cp3::makeHudMesh(playback.progress, playback.speed,
-            playback.playing, playback.scaleDemo), GL_DYNAMIC_DRAW);
 
         int width = 0;
         int height = 0;
@@ -326,7 +361,10 @@ int main(int argc, char** argv)
             continue;
         }
         const float aspect = static_cast<float>(width) / static_cast<float>(height);
-        const float yScale = std::min(0.94F / 1.1F, 0.94F * aspect / 1.85F);
+        hud.update(apex3d::cp3::makeHudMesh(playback.progress, playback.speed,
+            playback.playing, playback.scaleDemo, playback.route,
+            playback.showWheels, playback.travelled, aspect), GL_DYNAMIC_DRAW);
+        const float yScale = std::min(0.90F / 1.1F, 0.53F * aspect / 1.85F);
         const float xScale = yScale / aspect;
 
         glViewport(0, 0, width, height);
@@ -335,12 +373,14 @@ int main(int argc, char** argv)
         glUseProgram(shaderProgram);
         glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"),
                     xScale, yScale);
+        glUniform2f(glGetUniformLocation(shaderProgram, "viewportOffset"), -0.43F, 0.0F);
         track.draw();
         if (playback.showControls) {
             controlPoints.draw();
         }
         car.draw();
         glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"), 1.0F, 1.0F);
+        glUniform2f(glGetUniformLocation(shaderProgram, "viewportOffset"), 0.0F, 0.0F);
         hud.draw();
         if (capture || captureAt) {
             const char* outputPath = captureAt ? argv[3] : argv[2];
