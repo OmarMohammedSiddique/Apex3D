@@ -16,7 +16,9 @@ front pair steers through corners and tread bars roll over every tyre at the
 rolling-without-slipping rate. A small in-window display shows lap progress
 and controls.
 
-![Checkpoint 3 OpenGL prototype at a quarter lap](docs/evidence/cp3-opengl-prototype.png)
+![Checkpoint 3 OpenGL prototype — Catmull-Rom route at a quarter lap](docs/evidence/cp3-opengl-prototype.png)
+
+![Checkpoint 3 OpenGL prototype — Bézier route at a quarter lap](docs/evidence/cp3-bezier-route.png)
 
 ### Build and run
 
@@ -36,22 +38,31 @@ On Windows, the executable may be under `build/Debug/Apex3D.exe`.
 | --- | --- |
 | `Space` | Play or pause the lap |
 | `R` | Restart from the start/finish line |
+| `B` | Toggle route — Catmull-Rom (cyan HUD) or Bézier (orange HUD) |
 | `+` / `-` | Increase or decrease playback speed |
 | `T` | Toggle the scaling demonstration |
-| `P` | Show or hide Monza control points |
+| `P` | Show or hide control-point overlay (cyan dots = Catmull-Rom; orange squares = Bézier) |
 | `C` | Toggle the close-up camera that follows the car and its wheels |
 | `Esc` | Quit |
 
 To capture a real OpenGL frame as a PPM image:
 
 ```bash
+# Default Catmull-Rom route
 ./build/Apex3D --screenshot frame.ppm
 ./build/Apex3D --screenshot-at 0.25 quarter_lap.ppm
 ./build/Apex3D --screenshot-closeup-at 0.195 chicane.ppm
+
+# Bézier route (issue #18)
+./build/Apex3D --bezier --screenshot bezier_frame.ppm
+./build/Apex3D --bezier --screenshot-at 0.25 bezier_quarter.ppm
+./build/Apex3D --bezier --screenshot-closeup-at 0.25 bezier_closeup.ppm
 ```
 
-The second command renders the car at 25% lap progress, and the third renders
-the close-up wheel view at 19.5%. The accepted progress range is 0 to 1.
+The `--screenshot-at` and `--screenshot-closeup-at` values are normalised lap
+progress (0 – 1). The close-up command renders the wheel view at that point.
+The wheels follow whichever route is active, so steering and spin are taken
+from the Bézier path when `--bezier` or `B` is used.
 
 ![Close-up of the steered front wheels in the first chicane](docs/evidence/cp3-wheels-chicane-closeup.png)
 
@@ -124,7 +135,9 @@ Each milestone also has its own README with individual build and run commands:
 ## Evidence and documentation
 
 - [CP3 progress and remaining work](docs/checkpoint3-progress.md)
-- [CP3 OpenGL screenshot](docs/evidence/cp3-opengl-prototype.png)
+- [CP3 OpenGL screenshot — Catmull-Rom route](docs/evidence/cp3-opengl-prototype.png)
+- [CP3 OpenGL screenshot — Bézier route](docs/evidence/cp3-bezier-route.png)
+- [CP3 Bézier route algorithm](docs/algorithms/bezier-route.md)
 - [CP3 wheel close-ups](docs/checkpoint3-progress.md#wheel-animation-in-the-live-car)
 - [CP2 readiness checklist](docs/checkpoint2-readiness.md)
 - [CP2 evidence PDF](output/pdf/Apex3D_Checkpoint2_Evidence.pdf)
@@ -139,10 +152,8 @@ Each milestone also has its own README with individual build and run commands:
 - The path and car are simplified, hand-authored geometry rather than actual
   telemetry-derived data.
 - Raster edges are not anti-aliased.
-- Catmull-Rom travel distance is estimated from a sampled path. It is
+- Catmull-Rom and Bézier travel distance is estimated from sampled paths. It is
   approximately, not exactly, constant-speed.
-- The CP2 Bézier lap is still a separate demonstration. It is not
-  selectable in the OpenGL prototype yet.
 - Wheel spin is drawn as rolling tread bars; they are only readable in the
   close-up view and can alias at high playback speeds.
 - Camera control, perspective, lighting and telemetry heatmaps remain

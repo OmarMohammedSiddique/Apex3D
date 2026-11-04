@@ -14,7 +14,7 @@ prototype. The current branch contains the first working integration milestone.
 | Interaction and feedback | Complete | Play/pause, restart, speed, scale demonstration, points toggle and an in-window lap display. |
 | Source and visual verification | Complete | `ctest --test-dir build --output-on-failure` and `docs/evidence/cp3-opengl-prototype.png`. |
 | Wheel hierarchy in the live scene | Complete | `include/apex3d/cp3_wheels.hpp` attaches four wheels with the CP2 `wheelTransform` hierarchy; the front pair steers from path curvature and tread bars roll at the rolling-without-slipping rate. Checked by `tests/cp3_wheel_tests.cpp`; see `docs/evidence/cp3-wheels-chicane-closeup.png`. |
-| Bézier path as a selectable live route | Pending | The CP2 Bézier demonstration remains separate. |
+| CP2 Bezier path as a selectable live route | Complete | Press B to toggle; `docs/evidence/cp3-bezier-route.png` shows the Bezier lap. |
 | Group explanation and final submission evidence | Pending | Prepare after the lecturer publishes the combined checkpoint specifics. |
 
 ## Run the prototype
@@ -26,11 +26,34 @@ ctest --test-dir build --output-on-failure
 ./build/Apex3D
 ```
 
-Press `C` for a close-up camera that follows the car, which makes the wheel
-motion readable. The same view can be captured from the command line:
+## Controls
 
-```bash
-./build/Apex3D --screenshot-closeup-at 0.195 chicane.ppm
+| Key | Action |
+| --- | --- |
+| `Space` | Pause / resume lap animation |
+| `R` | Restart lap from the beginning |
+| `B` | Toggle route — Catmull-Rom (cyan HUD) or Bezier (orange HUD) |
+| `+` / `-` | Increase / decrease animation speed (0.25x to 4x) |
+| `T` | Toggle scale demonstration |
+| `P` | Toggle control-point overlay (cyan dots = Catmull-Rom; orange squares = Bezier) |
+| `C` | Toggle the close-up camera that follows the car and its wheels |
+| `Esc` | Quit |
+
+## Screenshot CLI
+
+```
+# Default Catmull-Rom route
+Apex3D --screenshot output.ppm
+
+# Start in Bezier route
+Apex3D --bezier --screenshot output.ppm
+
+# Capture at specific lap progress in Bezier mode
+Apex3D --bezier --screenshot-at 0.25 output.ppm
+
+# Close-up wheel view that follows the car (either route)
+Apex3D --screenshot-closeup-at 0.195 chicane.ppm
+Apex3D --bezier --screenshot-closeup-at 0.25 output.ppm
 ```
 
 ## Wheel animation in the live car
@@ -52,6 +75,9 @@ the OpenGL car rather than a separate side-view demonstration:
   top-dead-centre is drawn at `-r sin(phi)` along the tyre with thickness
   proportional to `cos(phi)`, and only the upper half is visible. Bar 0 is
   yellow so the wheel angle can be read, as with the highlighted spoke in CP2.
+- **Either route.** Steering and spin are computed from the active path, so
+  pressing `B` (or starting with `--bezier`) moves the wheels onto the Bezier
+  lap with its own curvature and lap length.
 - **Rolling without slipping.** Spin equals lap distance divided by tyre
   radius, rounded to a whole number of revolutions per lap so the pattern
   lines up at the start/finish line (about 0.5% from the exact rate).

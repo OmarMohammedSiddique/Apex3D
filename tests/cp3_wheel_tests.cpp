@@ -193,6 +193,28 @@ void checkLiveCar(const std::vector<cp3::PathSample>& path,
     }
 }
 
+void checkRouteSwitch(const std::vector<car::Component>& model,
+                      const cp3::WheelMounts& mounts)
+{
+    // Pressing B swaps the active path to the Bezier lap; the wheels must
+    // stay attached, steer within lock and roll with that lap's own length.
+    const auto bezier = cp3::makePathForMode(cp3::RouteMode::Bezier);
+    const auto catmull = cp3::makePathForMode(cp3::RouteMode::CatmullRom);
+    CHECK(bezier.back().distance != catmull.back().distance);
+    checkAttachment(bezier, mounts);
+    checkRolling(bezier, mounts);
+    checkLiveCar(bezier, model, mounts);
+    double largest = 0.0;
+    for (int step = 0; step < 400; ++step) {
+        const double progress = step / 400.0;
+        const auto state = cp3::wheelStateAt(bezier, mounts, progress);
+        CHECK(std::isfinite(state.steerRadians));
+        CHECK(std::abs(state.steerRadians) <= cp3::maxSteerRadians + 1e-12);
+        largest = std::max(largest, std::abs(state.steerRadians));
+    }
+    CHECK(largest > 5.0 * std::numbers::pi / 180.0);
+}
+
 } // namespace
 
 int main()
@@ -205,5 +227,6 @@ int main()
     checkSteering(path, mounts);
     checkRolling(path, mounts);
     checkLiveCar(path, model, mounts);
-    std::cout << "CP3 wheel hierarchy, steering, rolling tread and live car mesh: PASS\n";
+    checkRouteSwitch(model, mounts);
+    std::cout << "CP3 wheel hierarchy, steering, rolling tread and live car mesh on both routes: PASS\n";
 }
