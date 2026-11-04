@@ -87,18 +87,23 @@ inline void hudRectangle(std::vector<Vertex>& mesh, double left, double bottom,
 }
 
 [[nodiscard]] inline std::vector<Vertex> makeHudMesh(double progress,
-    double speed, bool playing, bool scaleDemo)
+    double speed, bool playing, bool scaleDemo, RouteMode routeMode)
 {
     constexpr Color panel{0.035F, 0.075F, 0.11F};
     constexpr Color panelAccent{0.055F, 0.16F, 0.20F};
     constexpr Color cyan{0.22F, 0.86F, 0.91F};
+    constexpr Color orange{1.0F, 0.55F, 0.1F};
     constexpr Color white{0.94F, 0.97F, 0.97F};
     constexpr Color secondary{0.55F, 0.68F, 0.72F};
+    const bool isBezier = (routeMode == RouteMode::Bezier);
+    const Color routeColor = isBezier ? orange : cyan;
     std::vector<Vertex> mesh;
     hudRectangle(mesh, 0.17, 0.39, 0.95, 0.94, panel);
-    hudRectangle(mesh, 0.17, 0.927, 0.95, 0.94, cyan);
+    hudRectangle(mesh, 0.17, 0.927, 0.95, 0.94, routeColor);
     hudText(mesh, 0.21, 0.88, 0.009, "APEX3D", white);
-    hudText(mesh, 0.21, 0.78, 0.0044, "MONZA / OPENGL PROTOTYPE", secondary);
+    hudText(mesh, 0.21, 0.78, 0.0044,
+            isBezier ? "MONZA / BEZIER ROUTE" : "MONZA / CATMULL-ROM ROUTE",
+            secondary);
 
     std::ostringstream lap;
     lap << "LAP " << std::setfill('0') << std::setw(2)
@@ -107,13 +112,14 @@ inline void hudRectangle(std::vector<Vertex>& mesh, double left, double bottom,
     hudText(mesh, 0.21, 0.70, 0.0062, lap.str(), white);
     hudRectangle(mesh, 0.21, 0.605, 0.91, 0.638, panelAccent);
     hudRectangle(mesh, 0.21, 0.605,
-                 0.21 + 0.70 * std::clamp(progress, 0.0, 1.0), 0.638, cyan);
+                 0.21 + 0.70 * std::clamp(progress, 0.0, 1.0), 0.638, routeColor);
     hudText(mesh, 0.21, 0.57, 0.0046,
-            playing ? "PLAYING" : "PAUSED", cyan);
+            playing ? "PLAYING" : "PAUSED", routeColor);
     hudText(mesh, 0.21, 0.50, 0.0039, "SPACE PAUSE  R RESTART", secondary);
     hudText(mesh, 0.21, 0.46, 0.0039,
-            scaleDemo ? "+/- SPEED  T SCALE ON" : "+/- SPEED  T SCALE OFF", secondary);
-    hudText(mesh, 0.21, 0.42, 0.0039, "P POINTS  ESC QUIT", secondary);
+            scaleDemo ? "+/- SPEED  T SCALE ON" : "+/- SPEED  T SCALE OFF",
+            secondary);
+    hudText(mesh, 0.21, 0.42, 0.0039, "B ROUTE  P POINTS  ESC QUIT", secondary);
     return mesh;
 }
 
