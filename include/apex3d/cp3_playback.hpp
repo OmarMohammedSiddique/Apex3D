@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cp3_race.hpp"
+#include "post_race.hpp"
 
 namespace apex3d::cp3 {
 
@@ -20,6 +21,8 @@ struct Playback {
     double travelled{};
     double elapsed{};
     double startElapsed{};
+    double postRaceElapsed{};
+    double simulationSeconds()const{return elapsed+postRaceElapsed;}
 
     [[nodiscard]] bool isRace() const { return route == Route::Monza; }
     [[nodiscard]] bool finished() const { return isRace() ? elapsed >= raceTotalSeconds : progress >= 1.0; }
@@ -32,13 +35,14 @@ struct Playback {
         travelled = 0.0;
         elapsed = 0.0;
         startElapsed = 0.0;
+        postRaceElapsed=0;
         started = true;
         playing = true;
     }
 
     void togglePlaying()
     {
-        if (finished()) {
+        if (finished()&&(!isRace()||postRaceElapsed>=postRaceDuration)) {
             restart();
         } else {
             started = true;
@@ -50,6 +54,7 @@ struct Playback {
     {
         if (!isRace()) return;
         elapsed = std::clamp(seconds, 0.0, raceTotalSeconds);
+        postRaceElapsed=0;
         startElapsed = startSequenceSeconds;
         started = true;
         const auto clock = raceClock(elapsed);
@@ -68,9 +73,19 @@ struct Playback {
                 delta -= used;
                 if (starting()) return false;
             }
-            const double previous = elapsed;
-            seek(elapsed + delta * speed);
-            return elapsed >= raceTotalSeconds && previous < raceTotalSeconds;
+            if(finished()){
+                postRaceElapsed=std::min(postRaceDuration,postRaceElapsed+delta*speed);
+                if(postRaceElapsed>=postRaceDuration)playing=false;
+                return false;
+            }
+            const double target=elapsed+delta*speed;
+            seek(target);
+            if(finished()){
+                postRaceElapsed=std::min(postRaceDuration,std::max(0.0,target-raceTotalSeconds));
+                playing=postRaceElapsed<postRaceDuration;
+                return true;
+            }
+            return false;
         }
         double step = delta * speed / lapSeconds;
         if (!looping) step = std::min(step, 1.0 - progress);

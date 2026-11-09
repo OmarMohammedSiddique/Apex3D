@@ -13,3 +13,6 @@ tmp/
 
 # Generated raw framebuffer images (keep only compressed PNG evidence)
 *.ppm
+
+# Python asset-generator caches
+__pycache__/
