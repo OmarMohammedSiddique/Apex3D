@@ -2,69 +2,113 @@
 
 Apex3D is an ICS 3204 Computer Graphics semester project that turns Formula 1
 circuit geometry into a progressively richer visualisation. Checkpoints 1 and 2
-demonstrate the underlying graphics algorithms in C++20. The Checkpoint 3
-prototype brings the track and an animated Formula 1 car together in OpenGL.
+demonstrate the underlying graphics algorithms in C++20. The interactive OpenGL
+application now renders a 3D circuit, car and scenery around a documented race replay.
 
-## Current milestone: Checkpoint 3 prototype
+## Current milestone: 3D Monza race visualization
 
-The runnable OpenGL application now displays a filled Monza circuit and a
-polygon Formula 1 car moving around it. It reuses the CP2 Catmull-Rom curve,
-transformation matrix and polygon-car model. The path is resampled by distance
-so the car travels at approximately uniform speed and faces the tangent of the
-circuit. The CP2 wheel hierarchy keeps four wheels attached to the car: the
-front pair steers through corners and tread bars roll over every tyre at the
-rolling-without-slipping rate. A small in-window display shows lap progress
-and controls.
+The 3D OpenGL application follows **Max Verstappen's 53-lap 2025 Italian Grand Prix**
+using the FIA lap and sector timings. F1 reported this as its fastest race:
+**1:13:24.325**. The first lap takes **1:27.159**, not a repeated qualifying
+record. A race timer, current/last lap times, lap counter and progress bar
+follow the same clock. The replay ends at lap 53 with the clock fixed at the
+official result.
 
-![Checkpoint 3 OpenGL prototype — Catmull-Rom route at a quarter lap](docs/evidence/cp3-opengl-prototype.png)
+A five-light start precedes the race clock. The drawn pit lane includes the
+single documented **24.545-second visit**, with a **2.3-second stationary tyre
+change** from Medium to Hard. The car body stays fixed in the optional wheel
+inspector while local tyre rotation follows reconstructed travel and the nominal
+2025 tyre radius.
 
-![Checkpoint 3 OpenGL prototype — Bézier route at a quarter lap](docs/evidence/cp3-bezier-route.png)
+The scene has a volume-modelled F1-style car with a cockpit, halo, suspension,
+front/rear wings and rotating tyres. It includes a raised track and kerbs,
+3D pit garages, a pit wall, starting gantry, grandstands, parkland trees,
+directional lighting and filtered sun shadows. A small procedural pit crew
+appears during the documented tyre-change interval.
+
+Choose an overview, chase or cockpit perspective. Drag the scene to orbit,
+scroll to zoom and press `F` to reset. `H` hides the dashboard. The chase view
+smooths camera movement and resets on seeks; it does not change race timing.
+
+This is a **timing-based, schematic reconstruction**. Lap and sector crossings
+match the reports; positions within sectors, pit geometry and box-arrival
+splits are interpolated. See [research and assumptions](docs/monza-race-research.md)
+for primary sources and the distinction between qualifying, race-lap and
+full-race records. The Monza Bézier route remains a separate teaching demo.
+
+![3D Monza: overview, chase, pit service and cockpit views](docs/evidence/apex3d-3d-views.png)
 
 ### Build and run
 
-Requires CMake 3.24 or later, a C++20 compiler and an OpenGL 3.3 capable
-desktop. CMake fetches GLFW; GLAD is included in the repository.
+Run these commands **inside the Apex3D project folder**, where CMakeLists.txt
+is located. Requires CMake 3.24+, a C++20 compiler and OpenGL 3.3.
 
 ```bash
-cmake -S . -B build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ./build/Apex3D
 ```
 
-On Windows, the executable may be under `build/Debug/Apex3D.exe`.
+The app opens ready and muted. Click **START** or press `Space` to begin the
+lights. Click **UNMUTE/MUTE** or press `M` for optional short start cues. There
+is no engine or background sound. Native audio currently supports macOS;
+other platforms run silently with a NO AUDIO button. Screenshot modes remain
+silent. The small CC0 samples and timing data are embedded, so launching the
+executable does not require a network connection or a particular working folder.
 
-| Key | Action |
+On Windows the executable may be under `build/Release/Apex3D.exe`.
+
+| Control | Action |
 | --- | --- |
-| `Space` | Play or pause the lap |
-| `R` | Restart from the start/finish line |
-| `B` | Toggle route — Catmull-Rom (cyan HUD) or Bézier (orange HUD) |
-| `+` / `-` | Increase or decrease playback speed |
-| `T` | Toggle the scaling demonstration |
-| `P` | Show or hide control-point overlay (cyan dots = Catmull-Rom; orange squares = Bézier) |
-| `C` | Toggle the close-up camera that follows the car and its wheels |
+| `Space` / playback button | Start, pause, resume or replay after the finish |
+| `R` | Restart with the light sequence |
+| `+` / `-` | Double/halve playback rate, between 0.25x and 64x |
+| `1` | Restore real-time playback |
+| Left / Right | Seek backward/forward 10 race seconds |
+| `N` | Seek to the next lap boundary |
+| `J` | Seek to five seconds before the pit visit |
+| `W` | Show or hide the fixed-body wheel inspector |
+| `M` / sound button | Unmute/mute start cues; muted at every fresh launch |
+| `P` | Show or hide 3D route anchors |
+| `C` | Cycle overview, chase and cockpit cameras |
+| Drag in the scene | Orbit the overview/chase camera |
+| Scroll in the scene | Zoom the overview/chase camera |
+| `F` | Reset the current camera |
+| `H` | Hide/show the dashboard |
+| `B` | Switch Monza race / Monza Bézier demonstration |
+| `L` | Toggle looping in the Bezier demonstration only |
+| `T` | Toggle scaling in the Bezier demonstration only |
 | `Esc` | Quit |
 
-To capture a real OpenGL frame as a PPM image:
+At 1x the full race lasts 73 minutes 24.325 seconds after lights-out, excluding
+pauses. At 64x it takes about 69 seconds. Start lights always run at real-time
+pace; the illustrative sequence takes 6.5 seconds and is excluded from the
+race timer. Seeking jumps directly to a race state without replaying old cues.
+
+### Capture and inspect
 
 ```bash
-# Default Catmull-Rom route
-./build/Apex3D --screenshot frame.ppm
-./build/Apex3D --screenshot-at 0.25 quarter_lap.ppm
-./build/Apex3D --screenshot-closeup-at 0.195 chicane.ppm
-
-# Bézier route (issue #18)
-./build/Apex3D --bezier --screenshot bezier_frame.ppm
-./build/Apex3D --bezier --screenshot-at 0.25 bezier_quarter.ppm
-./build/Apex3D --bezier --screenshot-closeup-at 0.25 bezier_closeup.ppm
+./build/Apex3D --screenshot-start 5 five_lights.ppm
+./build/Apex3D --screenshot-time 87.159 lap_two.ppm
+./build/Apex3D --screenshot-time 3088.249 tyre_change.ppm --camera chase --wheels
+./build/Apex3D --screenshot-time 4404.325 finish.ppm
+./build/Apex3D --race-time 3072.249 --wheels
+./build/Apex3D --screenshot-time 120 cockpit.ppm --camera cockpit
+./build/Apex3D --bezier --screenshot-at 0.25 bezier.ppm
 ```
 
-The `--screenshot-at` and `--screenshot-closeup-at` values are normalised lap
-progress (0 – 1). The close-up command renders the wheel view at that point.
-The wheels follow whichever route is active, so steering and spin are taken
-from the Bézier path when `--bezier` or `B` is used.
+`--race-time` opens paused at the requested race second. `--screenshot-at`
+retains the old 0..1 lap-progress capture option (first lap for Monza).
+`--camera overview|chase|cockpit` sets the initial perspective.
+`--speed 0.25..64` sets the initial rate; `--wheels` opens the inspector.
 
-![Close-up of the steered front wheels in the first chicane](docs/evidence/cp3-wheels-chicane-closeup.png)
+To verify or regenerate embedded data after editing the CSV/WAV inputs:
+
+```bash
+python3 tools/generate_race_assets.py --check
+python3 tools/generate_race_assets.py
+```
 
 ## Checkpoint 2 foundation
 
@@ -122,6 +166,10 @@ The script compiles every CP2 test and demonstration with:
 It runs the transformation, timeline, wheel, polygon-car, spline and Bézier
 test suites and regenerates disposable evidence in a temporary directory.
 
+GitHub Actions runs the release build, CP3 scene checks, and complete CP2
+verification on Linux and macOS. OpenGL screenshots and keyboard interaction
+are checked locally; CI does not launch the graphical window.
+
 Each milestone also has its own README with individual build and run commands:
 
 - [Checkpoint 2 overview](checkpoint2/README.md)
@@ -134,11 +182,10 @@ Each milestone also has its own README with individual build and run commands:
 
 ## Evidence and documentation
 
+- [Monza race research and assumptions](docs/monza-race-research.md)
 - [CP3 progress and remaining work](docs/checkpoint3-progress.md)
-- [CP3 OpenGL screenshot — Catmull-Rom route](docs/evidence/cp3-opengl-prototype.png)
-- [CP3 OpenGL screenshot — Bézier route](docs/evidence/cp3-bezier-route.png)
-- [CP3 Bézier route algorithm](docs/algorithms/bezier-route.md)
-- [CP3 wheel close-ups](docs/checkpoint3-progress.md#wheel-animation-in-the-live-car)
+- [CP3 demo and explanation guide](docs/checkpoint3-demo-guide.md)
+- [CP3 OpenGL screenshot](docs/evidence/cp3-opengl-prototype.png)
 - [CP2 readiness checklist](docs/checkpoint2-readiness.md)
 - [CP2 evidence PDF](output/pdf/Apex3D_Checkpoint2_Evidence.pdf)
 - [Architecture and rendering pipeline](docs/architecture.md)
@@ -147,17 +194,18 @@ Each milestone also has its own README with individual build and run commands:
 
 ## Current limitations
 
-- The CP3 prototype is a top-down 2D OpenGL scene. Perspective, elevation and
-  a full 3D car remain final-project work.
-- The path and car are simplified, hand-authored geometry rather than actual
-  telemetry-derived data.
-- Raster edges are not anti-aliased.
-- Catmull-Rom and Bézier travel distance is estimated from sampled paths. It is
-  approximately, not exactly, constant-speed.
-- Wheel spin is drawn as rolling tread bars; they are only readable in the
-  close-up view and can alias at high playback speeds.
-- Camera control, perspective, lighting and telemetry heatmaps remain
-  final-project work.
+- The track is a flat-height 3D reconstruction with raised surfaces and
+  buildings. No surveyed Monza elevation model is supplied. Cars, scenery and
+  crew are procedural low-poly models rather than detailed licensed assets.
+- Geometry is simplified and hand-authored. The replay uses one driver's
+  timing results; it does not reproduce the full field or GPS/speed telemetry.
+- Intra-sector speed, pit geometry and service-box arrival are reconstructed.
+  Exact lap times do not imply exact corner-by-corner motion.
+- Race wheel RPM uses reconstructed travel in metres and the nominal 720 mm
+  2025 tyre diameter, not measured wheel telemetry. Spokes may visually alias at high playback rates.
+- Native starting-cue audio currently supports macOS only and is muted by default.
+- Lecturer-rubric alignment, hosted CI, group review and submission remain
+  separate from verified local builds and tests.
 
 ## Reference
 

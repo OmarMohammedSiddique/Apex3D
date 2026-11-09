@@ -1,9 +1,13 @@
+#include "../include/apex3d/cp3_wheels.hpp"
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
 #include "../include/apex3d/cp3_scene.hpp"
 #include "../include/apex3d/cp3_hud.hpp"
-#include "../include/apex3d/cp3_wheels.hpp"
+#include "../include/apex3d/cp3_playback.hpp"
+#include "../include/apex3d/cp3_start_audio.hpp"
+#include "../include/apex3d/renderer3d.hpp"
+#include "../include/apex3d/hud3d.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -11,7 +15,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <numbers>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -20,20 +23,18 @@ namespace {
 
 constexpr int windowWidth = 1280;
 constexpr int windowHeight = 720;
-constexpr double lapSeconds = 18.0;
-// The close-up camera follows the car so the CP2 wheel motion is readable.
-constexpr float closeUpZoom = 7.0F;
+using apex3d::cp3::Playback;
 
 constexpr char vertexShaderSource[] = R"(
     #version 330 core
     layout (location = 0) in vec2 position;
     layout (location = 1) in vec3 vertexColor;
     uniform vec2 viewportScale;
-    uniform vec2 viewCentre;
+    uniform vec2 viewportOffset;
     out vec3 color;
     void main()
     {
-        gl_Position = vec4((position - viewCentre) * viewportScale, 0.0, 1.0);
+        gl_Position = vec4(position * viewportScale + viewportOffset, 0.0, 1.0);
         color = vertexColor;
     }
 )";
@@ -136,16 +137,6 @@ struct GlMesh {
     }
 };
 
-struct Playback {
-    double progress{};
-    double speed{1.0};
-    bool playing{true};
-    bool showControls{false};
-    bool scaleDemo{false};
-    bool closeUp{false};
-    apex3d::cp3::RouteMode routeMode{apex3d::cp3::RouteMode::CatmullRom};
-};
-
 bool pressedOnce(GLFWwindow* window, int key)
 {
     static bool previous[GLFW_KEY_LAST + 1]{};
@@ -155,55 +146,101 @@ bool pressedOnce(GLFWwindow* window, int key)
     return pressed;
 }
 
-void processInput(GLFWwindow* window, Playback& playback)
+struct WindowInput {
+    double x{},y{};
+    bool dragging{false},hudVisible{true};
+    apex3d::three::CameraRig camera;
+};
+
+apex3d::cp3::HudAction hoveredAction(GLFWwindow* window)
+{
+    double x = 0.0, y = 0.0;
+    int width = 0, height = 0;
+    if (const auto* input = static_cast<WindowInput*>(glfwGetWindowUserPointer(window))) {
+        x = input->x; y = input->y;
+    } else glfwGetCursorPos(window, &x, &y);
+    glfwGetWindowSize(window, &width, &height);
+    if (width <= 0 || height <= 0) return apex3d::cp3::HudAction::None;
+    const auto* state=static_cast<WindowInput*>(glfwGetWindowUserPointer(window));
+    return apex3d::three::overlayAction(2.0*x/width-1.0, 1.0-2.0*y/height, state->hudVisible);
+}
+
+void processInput(GLFWwindow* window, Playback& playback, bool audioAvailable)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
     if (pressedOnce(window, GLFW_KEY_SPACE)) {
-        playback.playing = !playback.playing;
+        playback.togglePlaying();
     }
     if (pressedOnce(window, GLFW_KEY_R)) {
-        playback.progress = 0.0;
-        playback.playing = true;
+        playback.restart();
     }
     if (pressedOnce(window, GLFW_KEY_P)) {
         playback.showControls = !playback.showControls;
     }
-    if (pressedOnce(window, GLFW_KEY_T)) {
-        playback.scaleDemo = !playback.scaleDemo;
-    }
-    if (pressedOnce(window, GLFW_KEY_C)) {
-        playback.closeUp = !playback.closeUp;
-    }
     if (pressedOnce(window, GLFW_KEY_B)) {
-        playback.routeMode = (playback.routeMode == apex3d::cp3::RouteMode::CatmullRom)
-            ? apex3d::cp3::RouteMode::Bezier
-            : apex3d::cp3::RouteMode::CatmullRom;
+        playback.route = playback.route == apex3d::cp3::Route::Monza
+            ? apex3d::cp3::Route::BezierDemo : apex3d::cp3::Route::Monza;
+        playback.restart();
+        playback.scaleDemo = false;
+    }
+    if (pressedOnce(window, GLFW_KEY_L)) {
+        if (!playback.isRace()) playback.looping = !playback.looping;
+    }
+    if (pressedOnce(window, GLFW_KEY_W)) {
+        playback.showWheels = !playback.showWheels;
+    }
+    if (pressedOnce(window, GLFW_KEY_T)) {
+        if (!playback.isRace()) playback.scaleDemo = !playback.scaleDemo;
     }
     if (pressedOnce(window, GLFW_KEY_EQUAL) ||
         pressedOnce(window, GLFW_KEY_KP_ADD)) {
-        playback.speed = std::min(4.0, playback.speed * 1.25);
+        playback.speed = std::min(64.0, playback.speed * 2.0);
     }
     if (pressedOnce(window, GLFW_KEY_MINUS) ||
         pressedOnce(window, GLFW_KEY_KP_SUBTRACT)) {
-        playback.speed = std::max(0.25, playback.speed / 1.25);
+        playback.speed = std::max(0.25, playback.speed / 2.0);
     }
+    auto* input=static_cast<WindowInput*>(glfwGetWindowUserPointer(window));
+    if(pressedOnce(window,GLFW_KEY_C))input->camera.cycle();
+    if(pressedOnce(window,GLFW_KEY_F))input->camera.reset();
+    if(pressedOnce(window,GLFW_KEY_H))input->hudVisible=!input->hudVisible;
+    if (pressedOnce(window, GLFW_KEY_1)) playback.speed = 1.0;
+    if (pressedOnce(window, GLFW_KEY_M) && audioAvailable) playback.muted = !playback.muted;
+    if (pressedOnce(window, GLFW_KEY_RIGHT)) playback.seek(playback.elapsed + 10.0);
+    if (pressedOnce(window, GLFW_KEY_LEFT)) playback.seek(playback.elapsed - 10.0);
+    if (pressedOnce(window, GLFW_KEY_J)) playback.seek(apex3d::cp3::pitEntrySeconds - 5.0);
+    if (pressedOnce(window, GLFW_KEY_N) && playback.isRace()) {
+        const auto clock = apex3d::cp3::raceClock(playback.elapsed);
+        playback.seek(apex3d::cp3::raceBoundariesMs[static_cast<std::size_t>(clock.lap)] / 1000.0);
+    }
+    static bool mouseWasDown = false;
+    const bool mouseDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+    if (mouseDown && !mouseWasDown && playback.isRace()) {
+        const auto action = hoveredAction(window);
+        if (action == apex3d::cp3::HudAction::Play) playback.togglePlaying();
+        if (action == apex3d::cp3::HudAction::Mute && audioAvailable) playback.muted = !playback.muted;
+    }
+    mouseWasDown = mouseDown;
+
 }
 
-void updateTitle(GLFWwindow* window, const Playback& playback,
-                 double steerRadians)
+void updateTitle(GLFWwindow* window, const Playback& playback)
 {
     std::ostringstream title;
-    title << "Apex3D | Monza OpenGL prototype | "
-          << (playback.routeMode == apex3d::cp3::RouteMode::Bezier
-                  ? "Bezier" : "Catmull-Rom")
-          << " | Lap "
-          << std::fixed << std::setprecision(0) << playback.progress * 100.0
-          << "% | " << std::setprecision(2) << playback.speed << "x | "
-          << (playback.playing ? "Playing" : "Paused") << " | Steer "
-          << std::setprecision(0) << steerRadians * 180.0 / std::numbers::pi << " deg"
-          << " | Space pause  R restart  B route  +/- speed  T scale  P points  C close-up  Esc quit";
+    if (playback.isRace()) {
+        const auto clock = apex3d::cp3::raceClock(playback.elapsed);
+        title << "Apex3D | Monza 2025 - Max Verstappen | Lap " << clock.lap
+              << "/53 | Race " << apex3d::cp3::clockText(playback.elapsed, true)
+              << " | " << playback.speed << "x | "
+              << (playback.finished() ? "Finished" : !playback.started ? "Ready - Space to start" :
+                  !playback.playing ? "Paused" : playback.starting() ? "Starting lights" : "Racing");
+    } else {
+        title << "Apex3D | Bezier teaching demo | " << std::fixed << std::setprecision(0)
+              << playback.progress * 100.0 << "% | " << playback.speed << "x | "
+              << (playback.playing ? "Playing" : "Paused");
+    }
     glfwSetWindowTitle(window, title.str().c_str());
 }
 
@@ -237,50 +274,70 @@ bool saveScreenshot(const std::string& path, int width, int height)
 
 int main(int argc, char** argv)
 {
-    // Accepted forms:
-    //   Apex3D
-    //   Apex3D --bezier
-    //   Apex3D --screenshot output.ppm
-    //   Apex3D --bezier --screenshot output.ppm
-    //   Apex3D --screenshot-at progress output.ppm
-    //   Apex3D --bezier --screenshot-at progress output.ppm
-    //   Apex3D --screenshot-closeup-at progress output.ppm
-    //   Apex3D --bezier --screenshot-closeup-at progress output.ppm
-    bool startBezier = false;
-    int  argOffset   = 0;
-    if (argc >= 2 && std::string(argv[1]) == "--bezier") {
-        startBezier = true;
-        argOffset   = 1;
-    }
-    const int effectiveArgc = argc - argOffset;
-    char** effectiveArgv    = argv + argOffset;
-    const bool capture   = effectiveArgc == 3 &&
-        std::string(effectiveArgv[1]) == "--screenshot";
-    const bool captureCloseUp = effectiveArgc == 4 &&
-        std::string(effectiveArgv[1]) == "--screenshot-closeup-at";
-    const bool captureAt = captureCloseUp || (effectiveArgc == 4 &&
-        std::string(effectiveArgv[1]) == "--screenshot-at");
-    if (effectiveArgc != 1 && !capture && !captureAt) {
-        std::cerr << "Usage: Apex3D [--bezier] "
-                     "[--screenshot output.ppm | "
-                     "--screenshot-at lap-progress output.ppm | "
-                     "--screenshot-closeup-at lap-progress output.ppm]\n";
+    bool initialBezier = false, showWheels = false, capture = false;
+    std::string outputPath;
+    double initialProgress = -1.0, initialRaceTime = -1.0, initialStartTime = -1.0;
+    double initialSpeed = 1.0;
+    apex3d::three::CameraMode initialCamera=apex3d::three::CameraMode::Overview;
+    try {
+        const auto number = [](const std::string& value) {
+            std::size_t consumed = 0;
+            const double result = std::stod(value, &consumed);
+            if (consumed != value.size() || !std::isfinite(result)) throw std::invalid_argument("Invalid number");
+            return result;
+        };
+        const auto bounded = [&](const std::string& value, double low, double high) {
+            const double result = number(value);
+            if (result < low || result > high) throw std::invalid_argument("Number out of range");
+            return result;
+        };
+        int timingOptions = 0;
+        for (int i = 1; i < argc; ++i) {
+            const std::string arg = argv[i];
+            const auto next = [&]() -> std::string {
+                if (++i >= argc) throw std::invalid_argument("Missing argument for " + arg);
+                return argv[i];
+            };
+            if(arg=="--camera") {
+                const auto value=next();
+                if(value=="overview")initialCamera=apex3d::three::CameraMode::Overview;
+                else if(value=="chase")initialCamera=apex3d::three::CameraMode::Chase;
+                else if(value=="cockpit")initialCamera=apex3d::three::CameraMode::Cockpit;
+                else throw std::invalid_argument("Camera must be overview, chase or cockpit");
+            }
+            else if (arg == "--bezier") initialBezier = true;
+            else if (arg == "--wheels") showWheels = true;
+            else if (arg == "--speed") initialSpeed = bounded(next(), 0.25, 64.0);
+            else if (arg == "--race-time") { initialRaceTime = bounded(next(), 0.0, apex3d::cp3::raceTotalSeconds); ++timingOptions; }
+            else if (arg == "--screenshot" || arg == "--screenshot-at" ||
+                     arg == "--screenshot-time" || arg == "--screenshot-start") {
+                if (capture) throw std::invalid_argument("Choose one screenshot mode");
+                capture = true;
+                if (arg == "--screenshot-at") { initialProgress = bounded(next(), 0.0, 1.0); ++timingOptions; }
+                if (arg == "--screenshot-time") { initialRaceTime = bounded(next(), 0.0, apex3d::cp3::raceTotalSeconds); ++timingOptions; }
+                if (arg == "--screenshot-start") { initialStartTime = bounded(next(), 0.0, apex3d::cp3::startSequenceSeconds); ++timingOptions; }
+                outputPath = next();
+            } else throw std::invalid_argument("Unknown option: " + arg);
+        }
+        if (timingOptions > 1) throw std::invalid_argument("Choose one initial time or progress option");
+        if (initialProgress < -1.0 || initialProgress > 1.0 ||
+            initialRaceTime < -1.0 || initialRaceTime > apex3d::cp3::raceTotalSeconds ||
+            initialStartTime < -1.0 || initialStartTime > apex3d::cp3::startSequenceSeconds ||
+            initialSpeed < 0.25 || initialSpeed > 64.0)
+            throw std::invalid_argument("Time, progress or speed out of range");
+        if (initialBezier && (initialRaceTime >= 0 || initialStartTime >= 0))
+            throw std::invalid_argument("Race timing options require Monza");
+    } catch (const std::exception& error) {
+        std::cerr << error.what() << "\nUsage: Apex3D [--bezier] [--wheels] [--speed 0.25..64]\n"
+                     "  [--camera overview|chase|cockpit] [--race-time seconds]\n"
+                     "  [--screenshot file.ppm |\n"
+                     "   --screenshot-at 0..1 file.ppm | --screenshot-time seconds file.ppm |\n"
+                     "   --screenshot-start 0..6.5 file.ppm]\n";
         return EXIT_FAILURE;
     }
-    double initialProgress = 0.0;
-    if (captureAt) {
-        try {
-            initialProgress = std::stod(effectiveArgv[2]);
-        } catch (const std::exception&) {
-            std::cerr << "Lap progress must be a number between 0 and 1.\n";
-            return EXIT_FAILURE;
-        }
-        if (!std::isfinite(initialProgress) || initialProgress < 0.0 ||
-            initialProgress > 1.0) {
-            std::cerr << "Lap progress must be a number between 0 and 1.\n";
-            return EXIT_FAILURE;
-        }
-    }
+#ifdef __APPLE__
+    if(capture)glfwInitHint(GLFW_COCOA_MENUBAR,GLFW_FALSE);
+#endif
     if (glfwInit() != GLFW_TRUE) {
         std::cerr << "Failed to initialize GLFW.\n";
         return EXIT_FAILURE;
@@ -291,6 +348,9 @@ int main(int argc, char** argv)
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 #endif
+    if(capture)glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
+    glfwWindowHint(GLFW_SAMPLES,4);
+    glfwWindowHint(GLFW_DEPTH_BITS,24);
     GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight,
                                           "Apex3D - Monza OpenGL prototype",
                                           nullptr, nullptr);
@@ -299,8 +359,31 @@ int main(int argc, char** argv)
         glfwTerminate();
         return EXIT_FAILURE;
     }
+    WindowInput input;
+    input.camera.mode=initialCamera;input.camera.reset();
+    glfwGetCursorPos(window, &input.x, &input.y);
+    glfwSetWindowUserPointer(window, &input);
+    glfwSetCursorPosCallback(window, [](GLFWwindow* target, double x, double y) {
+        auto* state = static_cast<WindowInput*>(glfwGetWindowUserPointer(target));
+        if(state->dragging)state->camera.orbit(x-state->x,y-state->y);
+        state->x = x; state->y = y;
+    });
+    glfwSetMouseButtonCallback(window,[](GLFWwindow* target,int button,int action,int) {
+        auto* state=static_cast<WindowInput*>(glfwGetWindowUserPointer(target));
+        if(button!=GLFW_MOUSE_BUTTON_LEFT)return;
+        int w=0,h=0;glfwGetWindowSize(target,&w,&h);
+        state->dragging=action==GLFW_PRESS && w>0 &&
+            (!state->hudVisible || state->x<0.715*w);
+    });
+    glfwSetScrollCallback(window,[](GLFWwindow* target,double,double steps) {
+        auto* state=static_cast<WindowInput*>(glfwGetWindowUserPointer(target));
+        int w=0,h=0;glfwGetWindowSize(target,&w,&h);
+        if(w>0&&(!state->hudVisible||state->x<0.715*w))state->camera.dolly(steps);
+    });
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
+    glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     if (gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress)) == 0) {
         std::cerr << "Failed to load OpenGL functions.\n";
@@ -317,82 +400,91 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    const auto carModel = apex3d::car::carModel();
-    const auto wheelMounts = apex3d::cp3::wheelMountsFrom(carModel);
-    GlMesh track;
-    GlMesh controlPoints;       // Catmull-Rom cyan dots
-    GlMesh bezierAnchors;       // Bézier orange squares
-    GlMesh car;
+    const auto wheelMounts = apex3d::cp3::wheelMountsFrom(apex3d::car::carModel());
+    const auto monzaPath = apex3d::cp3::makePath();
+    const auto bezierPath = apex3d::cp3::makeBezierPath();
+    const auto initialRoute = initialBezier ? apex3d::cp3::Route::BezierDemo
+        : apex3d::cp3::Route::Monza;
+    const auto& path = initialBezier ? bezierPath : monzaPath;
+    const apex3d::cp3::RaceMotion race(monzaPath);
+    apex3d::three::Renderer renderer;
+    if(!renderer.initialize()) {
+        std::cerr<<"Failed to initialize the 3D renderer.\n";
+        renderer.destroy();glDeleteProgram(shaderProgram);
+        glfwDestroyWindow(window);glfwTerminate();return EXIT_FAILURE;
+    }
+    renderer.setWorld(apex3d::three::makeWorld(path,initialBezier?nullptr:&race),
+        apex3d::three::makeAnchors(initialRoute));
     GlMesh hud;
+    hud.create({},GL_DYNAMIC_DRAW);
+    std::cout << "3D route: " << apex3d::cp3::routeName(initialRoute) << " | " << path.size() << " path samples\n";
 
-    // Initial build with Catmull-Rom route.
-    auto activePath = apex3d::cp3::makePath();
-    track.create(apex3d::cp3::makeTrackMesh(activePath), GL_DYNAMIC_DRAW);
-    controlPoints.create(apex3d::cp3::makeControlMesh(), GL_STATIC_DRAW);
-    bezierAnchors.create(apex3d::cp3::makeBezierAnchorMesh(), GL_STATIC_DRAW);
-    car.create(apex3d::cp3::makeLiveCarMesh(carModel, wheelMounts,
-        apex3d::cp3::poseAtProgress(activePath, 0.0),
-        apex3d::cp3::wheelStateAt(activePath, wheelMounts, 0.0)), GL_DYNAMIC_DRAW);
-    hud.create(apex3d::cp3::makeHudMesh(0.0, 1.0, true, false,
-        apex3d::cp3::RouteMode::CatmullRom), GL_DYNAMIC_DRAW);
-    std::cout << "Monza control points: " << apex3d::cp3::monzaControls.size()
-              << " | spline samples: " << activePath.size()
-              << " | track triangles: " << track.vertexCount / 3 << '\n';
-
+    auto renderedRoute = initialRoute;
     Playback playback;
-    playback.progress  = initialProgress;
-    if (startBezier) {
-        playback.routeMode = apex3d::cp3::RouteMode::Bezier;
+    playback.route = initialRoute;
+    playback.speed = initialSpeed;
+    playback.showWheels = showWheels;
+    if (initialBezier) playback.playing = true;
+    if (initialProgress >= 0.0) {
+        if (initialBezier) { playback.progress = initialProgress; playback.travelled = initialProgress * path.back().distance; }
+        else playback.seek(initialProgress * apex3d::cp3::raceLaps.front().milliseconds() / 1000.0);
     }
-    if (captureAt) {
-        playback.playing = false;
-        playback.closeUp = captureCloseUp;
+    if (initialRaceTime >= 0.0) playback.seek(initialRaceTime);
+    if (initialStartTime >= 0.0) {
+        playback.started = true;
+        playback.startElapsed = initialStartTime;
     }
-    // If starting in Bézier mode, rebuild path and track immediately.
-    if (startBezier) {
-        activePath = apex3d::cp3::makeBezierPath();
-        track.update(apex3d::cp3::makeTrackMesh(activePath), GL_DYNAMIC_DRAW);
-    }
-    apex3d::cp3::RouteMode lastRoute = playback.routeMode;
+    if (capture) playback.playing = false;
+    apex3d::audio::StartAudio audio;
+    const bool audioAvailable = !capture && audio.start();
     double previousTime = glfwGetTime();
     double lastTitleTime = -1.0;
     bool screenshotSaved = true;
-    glDisable(GL_DEPTH_TEST);
+    double previousRaceTime=playback.elapsed;
     while (glfwWindowShouldClose(window) == GLFW_FALSE) {
         const double now = glfwGetTime();
-        const double deltaSeconds = std::clamp(now - previousTime, 0.0, 0.1);
+        const double deltaSeconds = std::max(now - previousTime, 0.0);
         previousTime = now;
         glfwPollEvents();
-        processInput(window, playback);
-
-        // Rebuild path and track mesh when the user switches route mode.
-        if (playback.routeMode != lastRoute) {
-            activePath = apex3d::cp3::makePathForMode(playback.routeMode);
-            track.update(apex3d::cp3::makeTrackMesh(activePath), GL_DYNAMIC_DRAW);
-            lastRoute = playback.routeMode;
-            std::cout << "Route: "
-                      << (playback.routeMode == apex3d::cp3::RouteMode::Bezier
-                              ? "Bezier" : "Catmull-Rom")
-                      << " | samples: " << activePath.size() << '\n';
+        const int previousLights = playback.redLights();
+        processInput(window, playback, audioAvailable);
+        const bool wasStarting = playback.starting();
+        const auto& activePath = playback.route == apex3d::cp3::Route::Monza
+            ? monzaPath : bezierPath;
+        if (renderedRoute != playback.route) {
+            renderer.setWorld(apex3d::three::makeWorld(activePath,playback.isRace()?&race:nullptr),
+                apex3d::three::makeAnchors(playback.route));
+            input.camera.initialized=false;
+            renderedRoute = playback.route;
         }
-
-        if (playback.playing) {
-            playback.progress += deltaSeconds * playback.speed / lapSeconds;
-            playback.progress -= std::floor(playback.progress);
+        playback.advance(deltaSeconds, activePath.back().distance);
+        audio.mute(playback.muted);
+        if (playback.isRace() && playback.playing) {
+            if (wasStarting && !playback.starting()) audio.trigger(2);
+            else if (playback.redLights() > previousLights) audio.trigger(1);
         }
-        const auto pose = apex3d::cp3::poseAtProgress(activePath, playback.progress);
-        const auto wheelState =
-            apex3d::cp3::wheelStateAt(activePath, wheelMounts, playback.progress);
+        const auto raceSample = race.sample(playback.elapsed);
         if (now - lastTitleTime >= 0.2) {
-            updateTitle(window, playback, wheelState.steerRadians);
+            updateTitle(window, playback);
             lastTitleTime = now;
         }
 
-        const double scale = playback.scaleDemo ? 1.0 + 0.22 * std::sin(now * 3.0) : 1.0;
-        car.update(apex3d::cp3::makeLiveCarMesh(carModel, wheelMounts, pose,
-            wheelState, scale), GL_DYNAMIC_DRAW);
-        hud.update(apex3d::cp3::makeHudMesh(playback.progress, playback.speed,
-            playback.playing, playback.scaleDemo, playback.routeMode), GL_DYNAMIC_DRAW);
+        const auto pose = playback.isRace() ? raceSample.pose :
+            apex3d::cp3::poseAtProgress(activePath, playback.progress);
+        const double wheelTurns=playback.isRace()?apex3d::cp3::raceWheelTurns(raceSample.progress):
+            apex3d::cp3::wheelTurnsForDistance(playback.travelled);
+        auto carVertices=apex3d::three::makeCar(pose,wheelTurns,
+            playback.isRace()&&playback.elapsed>=apex3d::cp3::pitBoxEndSeconds,
+            playback.isRace()&&raceSample.inPit ? 0.0 : apex3d::cp3::steeringRadians(
+                activePath,wheelMounts,playback.isRace()?raceSample.progress:playback.progress));
+        if(!playback.isRace()&&playback.scaleDemo) {
+            const double scale=1.0+0.22*std::sin(playback.elapsed*3.0);
+            const auto centre=apex3d::three::world(pose.position,0.016);
+            for(auto& v:carVertices){v.x=static_cast<float>(centre.x+(v.x-centre.x)*scale);
+                v.y=static_cast<float>(centre.y+(v.y-centre.y)*scale);v.z=static_cast<float>(centre.z+(v.z-centre.z)*scale);}
+        }
+        renderer.update(carVertices,playback.isRace()?apex3d::three::gantry(activePath,playback.redLights(),false):apex3d::three::Mesh{},
+            apex3d::three::makeCrew(pose,playback.isRace()&&raceSample.servicing));
 
         int width = 0;
         int height = 0;
@@ -401,37 +493,18 @@ int main(int argc, char** argv)
             continue;
         }
         const float aspect = static_cast<float>(width) / static_cast<float>(height);
-        const float zoom = playback.closeUp ? closeUpZoom : 1.0F;
-        const float yScale = std::min(0.94F / 1.1F, 0.94F * aspect / 1.85F) * zoom;
-        const float xScale = yScale / aspect;
-        const GLint viewCentre = glGetUniformLocation(shaderProgram, "viewCentre");
-
-        glViewport(0, 0, width, height);
-        glClearColor(0.045F, 0.11F, 0.085F, 1.0F);
-        glClear(GL_COLOR_BUFFER_BIT);
+        const int sceneWidth=input.hudVisible?static_cast<int>(width*0.715):width;
+        const bool snap=capture||std::abs(playback.elapsed-previousRaceTime)>2.0;
+        const auto camera=input.camera.frame(pose,static_cast<double>(sceneWidth)/height,deltaSeconds,snap);
+        previousRaceTime=playback.elapsed;
+        renderer.draw(camera,width,height,sceneWidth,playback.showControls);
+        hud.update(apex3d::three::overlay(playback,raceSample,activePath.back().distance,aspect,audioAvailable,
+            input.camera.mode,input.hudVisible,hoveredAction(window)),GL_DYNAMIC_DRAW);
         glUseProgram(shaderProgram);
-        glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"),
-                    xScale, yScale);
-        if (playback.closeUp) {
-            glUniform2f(viewCentre, static_cast<float>(pose.position.x),
-                        static_cast<float>(pose.position.y));
-        } else {
-            glUniform2f(viewCentre, 0.0F, 0.0F);
-        }
-        track.draw();
-        if (playback.showControls) {
-            if (playback.routeMode == apex3d::cp3::RouteMode::Bezier) {
-                bezierAnchors.draw();
-            } else {
-                controlPoints.draw();
-            }
-        }
-        car.draw();
-        glUniform2f(glGetUniformLocation(shaderProgram, "viewportScale"), 1.0F, 1.0F);
-        glUniform2f(viewCentre, 0.0F, 0.0F);
+        glUniform2f(glGetUniformLocation(shaderProgram,"viewportScale"),1,1);
+        glUniform2f(glGetUniformLocation(shaderProgram,"viewportOffset"),0,0);
         hud.draw();
-        if (capture || captureAt) {
-            const char* outputPath = captureAt ? effectiveArgv[3] : effectiveArgv[2];
+        if (capture) {
             screenshotSaved = saveScreenshot(outputPath, width, height);
             if (!screenshotSaved) {
                 std::cerr << "Could not save screenshot to " << outputPath << '\n';
@@ -443,11 +516,8 @@ int main(int argc, char** argv)
         glfwSwapBuffers(window);
     }
 
+    renderer.destroy();
     hud.destroy();
-    car.destroy();
-    bezierAnchors.destroy();
-    controlPoints.destroy();
-    track.destroy();
     glDeleteProgram(shaderProgram);
     glfwDestroyWindow(window);
     glfwTerminate();

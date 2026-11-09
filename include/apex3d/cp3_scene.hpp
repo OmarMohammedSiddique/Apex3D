@@ -15,12 +15,6 @@
 
 namespace apex3d::cp3 {
 
-// Selectable lap route modes.
-enum class RouteMode {
-    CatmullRom, // CP2 Catmull-Rom spline through the Monza centreline (default)
-    Bezier      // CP2 cubic Bézier chain through the same Monza centreline
-};
-
 struct Color {
     float r;
     float g;
@@ -158,6 +152,43 @@ struct PathSample {
     return path;
 }
 
+enum class RouteMode { CatmullRom, Bezier };
+
+enum class Route { Monza, BezierDemo };
+
+[[nodiscard]] inline const char* routeName(Route route)
+{
+    return route == Route::Monza ? "MONZA / CATMULL-ROM" : "MONZA / BEZIER DEMO";
+}
+
+// Preserve the original CP2 Bezier circuit, converting pixel coordinates to
+// scene units and flipping Y. The demo is intentionally distinct from Monza.
+[[nodiscard]] inline Vec2 bezierScenePoint(Vec2 point)
+{
+    return {(point.x - 305.0) / 145.0, (195.0 - point.y) / 145.0};
+}
+
+[[nodiscard]] inline std::vector<PathSample> makeDemoBezierPath()
+{
+    std::vector<PathSample> path;
+    double distance = 0.0;
+    for (const auto& sample : bezier::arcLengthTable().samples()) {
+        const Vec2 point = bezierScenePoint(bezier::pointAt(sample.u));
+        const Vec2 tangent = bezier::tangentAt(sample.u);
+        const double length = std::hypot(tangent.x, tangent.y);
+        if (length <= 1e-10) {
+            throw std::runtime_error("Bezier circuit contains a zero tangent");
+        }
+        if (!path.empty()) {
+            distance += std::hypot(point.x - path.back().point.x,
+                                   point.y - path.back().point.y);
+        }
+        path.push_back({point, {tangent.y / length, tangent.x / length},
+                        distance, sample.u});
+    }
+    return path;
+}
+
 struct Pose {
     Vec2 position;
     double headingRadians;
@@ -225,7 +256,7 @@ inline void ribbonSegment(std::vector<Vertex>& mesh, const PathSample& a,
 
 inline void disk(std::vector<Vertex>& mesh, Vec2 centre, double radius, Color color)
 {
-    constexpr int sides = 10;
+    constexpr int sides = 24;
     for (int side = 0; side < sides; ++side) {
         const double first = 2.0 * std::numbers::pi * side / sides;
         const double second = 2.0 * std::numbers::pi * (side + 1) / sides;
@@ -374,13 +405,13 @@ inline void triangulate(std::vector<Vertex>& mesh,
              polygon[remaining[2]], fill);
 }
 
-// World units per CP2 car-model unit at normal (non-demonstration) scale.
-inline constexpr double carBaseScale = 0.00070;
+inline constexpr double carModelScale = 0.00070;
+inline constexpr double carBaseScale = carModelScale;
 
 [[nodiscard]] inline Mat3 carTransform(const Pose& pose,
                                        double scaleMultiplier = 1.0)
 {
-    const double scale = carBaseScale * scaleMultiplier;
+    const double scale = carModelScale * scaleMultiplier;
     // The CP2 model points its nose along local -Y. A quarter turn aligns it
     // with the direction of the circuit tangent.
     return Mat3::translation(pose.position.x, pose.position.y) *
@@ -402,12 +433,14 @@ inline constexpr double carBaseScale = 0.00070;
     return mesh;
 }
 
-[[nodiscard]] inline std::vector<Vertex> makeControlMesh()
+[[nodiscard]] inline std::vector<Vertex> makeControlMesh(Route route = Route::Monza)
 {
     constexpr Color cyan{0.2F, 0.81F, 0.9F};
     std::vector<Vertex> mesh;
     mesh.reserve(monzaControls.size() * 6);
-    for (Vec2 point : monzaControls) {
+    (void)route;
+    std::vector<Vec2> points(monzaControls.begin(), monzaControls.end());
+    for (Vec2 point : points) {
         quad(mesh, {point.x - 0.006, point.y - 0.006},
              {point.x + 0.006, point.y - 0.006},
              {point.x + 0.006, point.y + 0.006},
