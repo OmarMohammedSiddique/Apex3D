@@ -1,0 +1,45 @@
+#pragma once
+#include <array>
+#include <string_view>
+namespace apex3d::three {
+struct StandSpec {std::string_view id,name;double x,y,side,setback,length;int rows;bool covered;};
+inline constexpr std::array<StandSpec,37> monzaStands{{
+    {"1", "Centrale", 0.52, -0.87, -1, 24, 40, 9, true},
+    {"2", "Gradinate Traguardo 2", 0.38, -0.87, -1, 16, 27, 5, false},
+    {"3", "Gradinate Traguardo 3", 0.25, -0.87, -1, 16, 27, 5, false},
+    {"4", "Laterale Sinistra", 0.38, -0.87, -1, 37, 55, 8, true},
+    {"5", "Piscina", 0.10, -0.87, -1, 21, 32, 6, false},
+    {"6A", "Alta Velocita A", -0.20, -0.87, 1, 21, 35, 8, false},
+    {"6B", "Alta Velocita B", -0.33, -0.87, 1, 23, 35, 8, false},
+    {"6C", "Alta Velocita C", -0.46, -0.87, 1, 27, 35, 8, false},
+    {"7", "Biassono", -0.13, -0.87, -1, 23, 35, 7, false},
+    {"8A", "Prima Variante Esterna A", -0.62, -0.79, -1, 27, 40, 8, false},
+    {"8B", "Prima Variante Esterna B", -0.56, -0.76, -1, 24, 28, 8, false},
+    {"9", "Seconda Variante", -1.39, 0.23, 1, 24, 38, 8, false},
+    {"10", "Roggia", -1.50, 0.35, 1, 25, 45, 8, false},
+    {"10BIS", "Lesmo 2 Interno", -0.87, 0.88, 1, 26, 38, 7, false},
+    {"11", "Serraglio", -0.69, 0.63, 1, 23, 40, 6, false},
+    {"12", "Ascari 3", 0.18, -0.32, 1, 25, 40, 8, false},
+    {"15", "Ascari 2", 0.40, -0.36, 1, 27, 42, 8, false},
+    {"16", "Ascari", 0.56, -0.37, 1, 27, 40, 8, false},
+    {"17A", "Ascari Esterna A", 0.43, -0.35, -1, 28, 38, 8, false},
+    {"17B", "Ascari Esterna B", 0.57, -0.38, -1, 31, 38, 8, false},
+    {"18", "Uscita Ascari A", 0.70, -0.44, 1, 25, 45, 7, false},
+    {"21E", "Laterale Parabolica E", 0.95, -0.45, -1, 24, 36, 8, false},
+    {"21D", "Laterale Parabolica D", 1.08, -0.46, -1, 24, 36, 8, false},
+    {"21C", "Laterale Parabolica C", 1.21, -0.46, -1, 24, 36, 8, false},
+    {"21B", "Laterale Parabolica B", 1.34, -0.46, -1, 24, 36, 8, false},
+    {"21A", "Laterale Parabolica A", 1.47, -0.47, -1, 27, 36, 8, false},
+    {"22", "Parabolica", 1.59, -0.50, -1, 28, 36, 8, false},
+    {"23A", "Parabolica Interna A", 1.43, -0.84, 1, 27, 36, 7, false},
+    {"23B", "Parabolica Interna B", 1.30, -0.86, 1, 24, 36, 7, false},
+    {"24", "Vedano", 1.22, -0.87, -1, 25, 55, 8, false},
+    {"26A", "Laterale Destra A", 0.66, -0.87, -1, 38, 38, 8, true},
+    {"26B", "Laterale Destra B", 0.82, -0.87, -1, 38, 38, 8, true},
+    {"26C", "Laterale Destra C", 0.98, -0.87, -1, 38, 38, 8, true},
+    {"27", "Gradinate Traguardo 27", 0.66, -0.87, -1, 16, 32, 5, false},
+    {"28", "Gradinate Traguardo 28", 0.82, -0.87, -1, 16, 32, 5, false},
+    {"29", "Gradinate Traguardo 29", 0.98, -0.87, -1, 16, 32, 5, false},
+    {"30", "Gradinate Traguardo 30", 1.10, -0.87, -1, 16, 28, 5, false},
+}};
+}

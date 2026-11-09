@@ -5,6 +5,20 @@ circuit geometry into a progressively richer visualisation. Checkpoints 1 and 2
 demonstrate the underlying graphics algorithms in C++20. The interactive OpenGL
 application now renders a 3D circuit, car and scenery around a documented race replay.
 
+## Podium replay and driver focus
+
+The replay includes Norris and Piastri with independent 53-lap timing,
+readable overview pointers, deeper zoom, a recorded speed/gear/engine-RPM panel,
+and 37 grandstand sections placed by the official 2025 map's corner areas and
+sides. Click a podium row to follow any driver; only the selected car shows a pointer.
+The telemetry panel has a speed dial, gear tile and segmented RPM bar. Scenery footprints and racing lines
+are reconstructed. Sources and accuracy limits are in
+[Podium, telemetry and grandstands](docs/podium-telemetry-grandstands.md). The wheel inspector also shows
+[tyre compound, set number and completed laps](docs/tyre-inspector.md), including
+prior use of reused sets.
+
+![Driver focus and recorded telemetry](docs/evidence/apex3d-driver-focus.png)
+
 ## Current milestone: 3D Monza race visualization
 
 The 3D OpenGL application follows **Max Verstappen's 53-lap 2025 Italian Grand Prix**
@@ -36,7 +50,11 @@ splits are interpolated. See [research and assumptions](docs/monza-race-research
 for primary sources and the distinction between qualifying, race-lap and
 full-race records. The Monza Bézier route remains a separate teaching demo.
 
-![3D Monza: overview, chase, pit service and cockpit views](docs/evidence/apex3d-3d-views.png)
+The 3D world now uses **1 unit = 1 metre**, with a 5,793 m centreline, a 12 m racing surface, and a representative 2025 F1 car with 720 mm tyres. Chase view opens by default. Dimensions, sources and estimated scenery sizes are documented in [Physical scale](docs/physical-scale.md).
+
+
+
+
 
 ### Build and run
 

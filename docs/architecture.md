@@ -7,7 +7,7 @@ FIA timing CSV -> generated integer-ms data -> 53-lap race/sector boundaries
 Real frame delta -> ready/start/pause/rate/seek/finish -> race clock
     -> current/last lap, sector/pit keyframes and unwrapped progress
     -> CP2 Catmull-Rom or Bezier position + tangent
-    -> 3D pose: (path.x, road height, -path.y), yaw from tangent
+    -> metre-space 3D pose: (path.x * metres/unit, road height, -path.y * metres/unit), yaw from tangent
     -> solid F1-style car, rotating tyres and optional service crew
 
 Static sampled route -> raised track/kerbs, barriers and parkland
@@ -32,20 +32,24 @@ state directly without replaying old start cues. There is no Monza lap 54.
 
 ## Meshes and world coordinates
 
-`scene3d.hpp` converts the existing 2D path into an X/Z ground plane with Y up.
-It builds actual volume: track sides and raised kerb rings, guardrails, garages,
-a pit wall, grandstands, trees and a start gantry. Road and tyre contact share
-the same surface height. Raised kerb pieces that fold into the sampled road
-are omitted; the original layered track surface fills tight corners.
+`physical_scale.hpp` calibrates the CP2 Monza centreline to 5,793 metres.
+`scene3d.hpp` converts it into metre-space X/Z positions with Y up. Road width,
+car wheelbase, tyres and scenery use explicit physical dimensions. The 12 m
+road and representative 2 m car width therefore share the same scale. See
+[Physical scale](physical-scale.md) for sources, estimates and accuracy limits.
 
-The car is a procedural solid model with a lofted monocoque/nose, front and rear
-wings, suspension rods, cylindrical tyres, six-spoke rims, a cockpit, helmet,
-airbox and halo. Local geometry and normals are rotated into the path tangent.
-Race wheel rotation uses reconstructed metres and nominal 2025 tyre radius,
-independent of the exaggerated rendering scale. The old fixed-body inspector
-remains available as a separate educational overlay. Procedural crew figures
-are visible during stationary service; loaded tyre radius, slip and differential
-wheel speed are not simulated.
+The car is a procedural solid model with a lofted monocoque/nose, wings,
+suspension rods, 720 mm cylindrical tyres, 18-inch rims, cockpit, helmet,
+airbox and halo. The artistic body template is resized into a representative
+2025 envelope; normals use the inverse scale before tangent rotation. Tyres
+are constructed directly in metres and placed at a 3.6 m wheelbase.
+
+`RaceMotion` integrates the reconstructed pit path once. Rendered wheel spin
+and the inspector RPM use its travelled metres, including the bay excursion;
+service time freezes both. The fast-lane mesh and the separate car trajectory
+are built from the same pit model. Procedural crouched crew figures appear
+during stationary service. Loaded tyre deformation and differential wheel
+speeds are not simulated.
 
 The road's course elevation is intentionally planar. Raised surfaces and buildings
 are model geometry, not a surveyed Monza elevation/architecture dataset. No new
@@ -112,3 +116,30 @@ Switching back to Monza restarts its lights and documented race schedule.
 Hosted CI, lecturer-rubric alignment, group review and submission remain separate
 from the verified local implementation. The visualization uses procedural assets
 and reconstructed motion rather than production simulator physics or telemetry.
+
+## Recorded telemetry and the podium extension
+
+`recorded_motion.hpp` integrates each driver's archived speed trace, then
+normalizes it within the exact sector/pit timing keys. `race_field.hpp` provides
+independent Norris and Piastri timelines, sourced sector data and pit visits.
+Their orange cars share the same metre-scale geometry. `driver_focus.hpp`
+selects one driver for camera framing, lap/pit state and the graphic telemetry panel. `race_telemetry.hpp` holds the last source observation for
+the speed/gear/engine-RPM panel, with an explicit stale-sample limit. Engine
+RPM is not derived from wheel RPM or multiplied by playback rate.
+
+The grandstand CSV generates the 37-entry placement table, keyed to the official
+2025 map's corner areas and sides. Footprints remain modeled estimates. Overview
+markers project each car through the current camera matrix into the actual
+scene viewport, with a constant screen size; the focused marker draws last.
+Zooming the overview moves its target towards the focus car before reaching
+close scale. See `podium-telemetry-grandstands.md` for sources and limitations.
+
+`WindowInput` stores the selected driver and queues discrete HUD actions from
+the mouse callback. Podium rows have their own bounds and hover/selection state.
+Focus changes invalidate camera smoothing without seeking or changing playback.
+Only one overview marker is submitted. `race_telemetry.hpp` reads the selected
+archive, and gauge geometry uses the same exact observation as the numbers.
+
+`tyre_state.hpp` selects the archived stint at modeled service completion and
+combines its prior age with completed laps on that set. The inspector, dashboard
+compound and 3D tyre marker all read this same state.

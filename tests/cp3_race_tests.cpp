@@ -1,5 +1,8 @@
 #include "../include/apex3d/cp3_hud.hpp"
 #include "../include/apex3d/cp3_start_audio.hpp"
+#include "../include/apex3d/race_field.hpp"
+#include "../include/apex3d/driver_focus.hpp"
+#include "../include/apex3d/race_telemetry.hpp"
 #include <iostream>
 #include <stdexcept>
 
@@ -57,12 +60,83 @@ int main()
         const auto sample = race.sample(time);
         CHECK(sample.progress >= previous.progress);
         CHECK(sample.velocity >= 0.0);
+        CHECK(sample.travelledMetres>=previous.travelledMetres);
+        if(sample.servicing && previous.servicing)CHECK(near(sample.travelledMetres,previous.travelledMetres));
         CHECK(std::isfinite(sample.pose.position.x) && std::isfinite(sample.pose.position.y));
         CHECK(std::hypot(sample.pose.position.x-previous.pose.position.x,
                          sample.pose.position.y-previous.pose.position.y) < 0.25);
         previous = sample;
     }
 
+    const OpponentMotion norris(path,race,norrisSpec),piastri(path,race,piastriSpec);
+    for(const auto* driver:{&norris,&piastri}) {
+        double elapsed=0;
+        for(int i=0;i<53;++i){elapsed+=(*driver->spec().laps)[i].milliseconds()/1000.0;
+            CHECK(std::abs(driver->sample(elapsed).progress-(i+1))<1e-6);}
+        CHECK(std::abs(elapsed-driver->spec().finish)<1e-6);
+        auto previous=driver->sample(0);
+        for(double t=0.5;t<=driver->spec().finish;t+=0.5){
+            const auto sample=driver->sample(t);CHECK(sample.progress>=previous.progress);
+            CHECK(std::hypot(sample.pose.position.x-previous.pose.position.x,sample.pose.position.y-previous.pose.position.y)<0.25);
+            previous=sample;
+        }
+        CHECK(driver->sample(driver->spec().entry).inPit);
+        CHECK(driver->sample(driver->spec().boxStart+0.5).servicing);
+        CHECK(!driver->sample(driver->spec().exit).inPit);
+        CHECK(driver->sample(driver->spec().finish).finished);
+    }
+    CHECK(race.sample(1).travelledMetres<10); // observed launch, not a sector-average jump
+    CHECK(race.sample(2).travelledMetres>race.sample(1).travelledMetres);
+    CHECK(near(norrisSpec.finish-raceTotalSeconds,19.207));
+    CHECK(near(piastriSpec.finish-raceTotalSeconds,21.351));
+    CHECK(norris.sample(0).progress<race.sample(0).progress);
+    CHECK(piastri.sample(0).progress<norris.sample(0).progress);
+    for(const auto& point:verstappenTelemetry){
+        const auto read=telemetryAt(point.raceMs/1000.0+0.000001);
+        CHECK(read.available&&read.speedKmh==point.speedKmh&&read.gear==point.gear&&read.engineRpm==point.engineRpm);
+    }
+    for(std::size_t i=1;i<verstappenTelemetry.size();++i) {
+        const auto& a=verstappenTelemetry[i-1];const auto& b=verstappenTelemetry[i];
+        if(b.raceMs-a.raceMs>1100)CHECK(!telemetryAt(a.raceMs/1000.0+1.01).available);
+    }
+    CHECK(!telemetryAt(-100).available&&!telemetryAt(5000).available);
+    CHECK(!telemetryAt(std::numeric_limits<double>::quiet_NaN()).available);
+    CHECK(telemetryAt(3088).available&&telemetryAt(3088).speedKmh==0&&telemetryAt(3088).engineRpm>0);
+
+    for(const auto& info:podiumDrivers) {
+        for(const auto& point:recordedSeries(static_cast<int>(info.focus))) {
+            const auto read=telemetryAt(point.raceMs/1000.0+0.000001,static_cast<int>(info.focus));
+            CHECK(read.available&&read.speedKmh==point.speedKmh&&read.gear==point.gear&&read.engineRpm==point.engineRpm);
+        }
+        int boundary=0;
+        for(int lap=0;lap<53;++lap){boundary+=(*info.laps)[lap].milliseconds();
+            CHECK(driverClock(info.focus,boundary/1000.0).completed==lap+1);}
+        CHECK(near(nextDriverLap(info.focus,0),(*info.laps)[0].milliseconds()/1000.0));
+    }
+    CHECK(driverClock(DriverFocus::Norris,87.5).lap==2);
+    CHECK(driverClock(DriverFocus::Piastri,87.5).lap==1);
+    const auto selected=focusedSample(DriverFocus::Norris,race.sample(120),norris.sample(120),piastri.sample(120));
+    CHECK(near(selected.pose.position.x,norris.sample(120).pose.position.x));
+    CHECK(selected.velocity>0);
+    CHECK(focusedSample(DriverFocus::Piastri,race.sample(piastriSpec.boxStart+0.5),norris.sample(piastriSpec.boxStart+0.5),
+        piastri.sample(piastriSpec.boxStart+0.5)).velocity==0);
+
+    for(const auto& info:podiumDrivers) {
+        const auto start=tyreState(info.focus,0);
+        CHECK(start.stint->compound=="MEDIUM"&&start.completedLaps==0&&start.priorLaps==0);
+        const auto before=tyreState(info.focus,info.boxStart+info.service-0.001);
+        CHECK(before.stint->number==1&&before.changing&&before.completedLaps==info.pitLap);
+        const auto fitted=tyreState(info.focus,info.boxStart+info.service);
+        CHECK(fitted.stint->number==2&&!fitted.changing&&fitted.raceLaps==0);
+        CHECK(fitted.stint->compound==(info.focus==DriverFocus::Verstappen?"HARD":"SOFT"));
+        CHECK(fitted.priorLaps==(info.focus==DriverFocus::Verstappen?0:info.focus==DriverFocus::Norris?2:3));
+        CHECK(fitted.completedLaps==fitted.priorLaps);
+        int lapEnd=0;for(int i=0;i<info.pitLap+1;++i)lapEnd+=(*info.laps)[i].milliseconds();
+        const auto next=tyreState(info.focus,lapEnd/1000.0);
+        CHECK(next.raceLaps==1&&next.completedLaps==fitted.priorLaps+1);
+        CHECK(tyreState(info.focus,info.finish).completedLaps==53-info.pitLap+fitted.priorLaps);
+        CHECK(tyreState(info.focus,0).stint->number==1); // seek/restart restores the original set
+    }
     Playback playback;
     CHECK(!playback.playing && playback.muted && playback.elapsed == 0.0);
     playback.advance(100.0, path.back().distance);
