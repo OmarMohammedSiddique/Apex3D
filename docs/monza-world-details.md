@@ -57,7 +57,7 @@ ODbL attribution in the application and its data licence file.
 
 The official winner's race timer remains fixed at 1:13:24.325. A separate
 post-race clock lets the remaining drivers complete their own recorded race
-laps, followed by an illustrative 180-second in-lap and a pit/apron parking
+laps, followed by an illustrative in-lap (at least 180 seconds, staggered for safe arrivals) and a pit/apron parking
 sequence. The top three park at boards 1, 2 and 3, with first place in the middle,
 second on the far side and third nearest the pit wall. The remaining finishers
 use the separate parking area. Alonso and Hülkenberg do not reappear.
@@ -67,6 +67,8 @@ control, weighing, the podium and pit wall. Exact building dimensions, individua
 post-race paths, parking coordinates and durations are reconstructed. No recorded
 post-race speed, gear or RPM is invented; gauges show placeholders after each
 driver's race telemetry ends. Playback stops once the final car has parked.
+
+The traffic-spacing update reserves apron arrivals and fills bays in arrival order; see [race safety](race-safety-and-atmosphere.md).
 
 `E` jumps directly to the parked scene for inspection. `R` restarts with the
 lights. Space pauses/resumes the in-lap and parking sequence. Driver selection,

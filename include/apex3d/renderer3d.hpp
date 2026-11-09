@@ -1,6 +1,7 @@
 #pragma once
 #include <glad/gl.h>
 #include "scene3d.hpp"
+#include "sky_shader.hpp"
 #include <cstddef>
 #include <iostream>
 
@@ -51,7 +52,9 @@ void main(){
     vec3 lit=linearColor*(0.38+(1.0-shadow*0.82)*diffuse*0.85)+vec3(spec*(1.0-shadow)*0.32);
     // Red gantry lamps remain legible in shadow without an engine/bloom effect.
     if(color.r>0.98&&color.g<0.04)lit=max(lit,linearColor*0.8);
-    fragmentColor=vec4(pow(max(lit,vec3(0.0)),vec3(1.0/2.2)),1.0);
+    vec3 surface=pow(max(lit,vec3(0.0)),vec3(1.0/2.2));
+    float haze=1.0-exp(-max(length(worldPosition-eyePosition)-6000.0,0.0)/16000.0);
+    fragmentColor=vec4(mix(surface,vec3(.83,.88,.90),haze),1.0);
 })";
 inline constexpr char depthVertex[] = R"(
 #version 330 core
@@ -90,14 +93,15 @@ struct Buffer {
         count=static_cast<GLsizei>(mesh.size());glBindBuffer(GL_ARRAY_BUFFER,vbo);
         glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(mesh.size()*sizeof(Vertex)),mesh.data(),usage);
     }
-    void draw() const {glBindVertexArray(vao);glDrawArrays(GL_TRIANGLES,0,count);}
+    void draw(GLsizei first=0) const {glBindVertexArray(vao);glDrawArrays(GL_TRIANGLES,first,std::max(GLsizei{0},count-first));}
     void destroy(){glDeleteBuffers(1,&vbo);glDeleteVertexArrays(1,&vao);}
 };
 class Renderer {
 public:
     bool initialize() {
         lit_=program(litVertex,litFragment);depth_=program(depthVertex,depthFragment);
-        if(!lit_||!depth_)return false;
+        sky_=program(skyVertex,skyFragment);glGenVertexArrays(1,&skyVao_);
+        if(!lit_||!depth_||!sky_)return false;
         world_.create();car_.create();lights_.create();crew_.create();anchors_.create();
         glGenFramebuffers(1,&shadowFbo_);glGenTextures(1,&shadowTexture_);glBindTexture(GL_TEXTURE_2D,shadowTexture_);
         glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,shadowSize,shadowSize,0,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
@@ -125,12 +129,22 @@ public:
             glBindFramebuffer(GL_FRAMEBUFFER,shadowFbo_);glViewport(0,0,shadowSize,shadowSize);glClear(GL_DEPTH_BUFFER_BIT);
             glUseProgram(depth_);glUniformMatrix4fv(glGetUniformLocation(depth_,"lightMatrix"),1,GL_FALSE,lightMatrix_.values.data());
             glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(1.1F,2.0F);
-            world_.draw();car_.draw();crew_.draw();glDisable(GL_POLYGON_OFFSET_FILL);
+            // The flat ground receives shadows but cannot cast one; exclude its first six vertices to avoid self-shadow precision artifacts.
+            world_.draw(6);car_.draw();crew_.draw();glDisable(GL_POLYGON_OFFSET_FILL);
             glBindFramebuffer(GL_FRAMEBUFFER,0);
         }
         glViewport(0,0,width,height);glClearColor(0.025F,0.045F,0.055F,1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
         glEnable(GL_SCISSOR_TEST);glScissor(0,0,sceneWidth,height);glClearColor(0.68F,0.76F,0.80F,1);glClear(GL_COLOR_BUFFER_BIT);
         glDisable(GL_SCISSOR_TEST);glViewport(0,0,sceneWidth,height);
+        glDisable(GL_DEPTH_TEST);glDepthMask(GL_FALSE);glUseProgram(sky_);glBindVertexArray(skyVao_);
+        const auto forward=unit(camera.target-camera.eye),right=unit(cross(forward,{0,1,0})),up=cross(right,forward);
+        glUniform3f(glGetUniformLocation(sky_,"forwardDirection"),float(forward.x),float(forward.y),float(forward.z));
+        glUniform3f(glGetUniformLocation(sky_,"rightDirection"),float(right.x),float(right.y),float(right.z));
+        glUniform3f(glGetUniformLocation(sky_,"upDirection"),float(up.x),float(up.y),float(up.z));
+        glUniform1f(glGetUniformLocation(sky_,"aspectRatio"),float(sceneWidth)/height);
+        glUniform1f(glGetUniformLocation(sky_,"tanHalfFov"),float(camera.tanHalfFov));
+        glUniform3f(glGetUniformLocation(sky_,"eyePosition"),float(camera.eye.x),float(camera.eye.y),float(camera.eye.z));
+        glDrawArrays(GL_TRIANGLES,0,3);glDepthMask(GL_TRUE);glEnable(GL_DEPTH_TEST);
         glUseProgram(lit_);glUniformMatrix4fv(glGetUniformLocation(lit_,"viewProjection"),1,GL_FALSE,camera.viewProjection.values.data());
         glUniformMatrix4fv(glGetUniformLocation(lit_,"lightMatrix"),1,GL_FALSE,lightMatrix_.values.data());
         glUniform3f(glGetUniformLocation(lit_,"eyePosition"),static_cast<float>(camera.eye.x),static_cast<float>(camera.eye.y),static_cast<float>(camera.eye.z));
@@ -141,9 +155,10 @@ public:
     }
     void destroy() {
         world_.destroy();car_.destroy();lights_.destroy();crew_.destroy();anchors_.destroy();
-        glDeleteFramebuffers(1,&shadowFbo_);glDeleteTextures(1,&shadowTexture_);glDeleteProgram(lit_);glDeleteProgram(depth_);
+        glDeleteFramebuffers(1,&shadowFbo_);glDeleteTextures(1,&shadowTexture_);glDeleteProgram(lit_);glDeleteProgram(depth_);glDeleteProgram(sky_);glDeleteVertexArrays(1,&skyVao_);
     }
 private:
+    GLuint sky_{},skyVao_{};
     static constexpr int shadowSize=4096;
     GLuint lit_{},depth_{},shadowFbo_{},shadowTexture_{};bool shadows_{};
     M4 lightMatrix_{};Buffer world_,car_,lights_,crew_,anchors_;
