@@ -95,7 +95,8 @@ inline void controlBar(std::vector<cp3::Vertex>& mesh,const cp3::Playback& p,cp3
 }
 // Colour key for the track heatmap. The bar uses the same ramp as the road,
 // with per-vertex colours blended by the GPU in exactly the same way.
-inline void heatLegend(std::vector<cp3::Vertex>& mesh,cp3::HeatLayer layer,cp3::DriverFocus focus,int lap,bool hasData) {
+inline void heatLegend(std::vector<cp3::Vertex>& mesh,cp3::HeatLayer layer,cp3::DriverFocus focus,int lap,bool hasData,
+                       const cp3::RecordedTelemetry& live={}) {
     constexpr cp3::Color panel{0.035F,0.075F,0.11F},white{0.94F,0.97F,0.97F},muted{0.55F,0.68F,0.72F};
     const double left=-0.975,right=-0.530; // fits "GABRIEL BORTOLETO / LAP 53 OF 53"
     if(layer==cp3::HeatLayer::Off) {
@@ -104,7 +105,7 @@ inline void heatLegend(std::vector<cp3::Vertex>& mesh,cp3::HeatLayer layer,cp3::
         return;
     }
     const auto& info=cp3::driverInfo(focus);
-    cp3::hudRectangle(mesh,left,0.495,right,0.745,panel);
+    cp3::hudRectangle(mesh,left,0.462,right,0.745,panel);
     cp3::hudText(mesh,left+0.020,0.728,0.0022,std::string("TRACK HEATMAP / ")+cp3::heatLayerName(layer),white);
     cp3::hudText(mesh,left+0.020,0.690,0.0020,hasData?std::string(info.name)+" / LAP "+std::to_string(lap)+" OF "+std::to_string(info.totalLaps):
         std::string(info.name)+" / NO RECORDED LAP",info.color);
@@ -118,11 +119,14 @@ inline void heatLegend(std::vector<cp3::Vertex>& mesh,cp3::HeatLayer layer,cp3::
         v(xa,bottom,ca);v(xb,bottom,cb);v(xb,top,cb);v(xa,bottom,ca);v(xb,top,cb);v(xa,top,ca);
     }
     const auto scale=cp3::heatScale(layer);
-    cp3::hudText(mesh,barLeft,0.588,0.0019,scale.lowLabel,white);
-    const std::string high=std::string(scale.highLabel)+" "+scale.unit;
-    cp3::hudText(mesh,barRight-high.size()*6*0.0019,0.588,0.0019,high,white);
-    cp3::hudText(mesh,barLeft,0.558,0.0017,"SLOW / BRAKING",muted);
-    cp3::hudText(mesh,barRight-4*6*0.0017,0.558,0.0017,"FAST",muted);
-    cp3::hudText(mesh,barLeft,0.522,0.0017,"V CHANGE LAYER",muted);
+    const auto alignRight=[&](double top,double size,const std::string& text,cp3::Color c){
+        cp3::hudText(mesh,barRight-text.size()*6*size,top,size,text,c);};
+    cp3::hudText(mesh,barLeft,0.588,0.0019,scale.redLabel,white);alignRight(0.588,0.0019,scale.greenLabel,white);
+    cp3::hudText(mesh,barLeft,0.558,0.0017,scale.redNote,muted);alignRight(0.558,0.0017,scale.greenNote,muted);
+    // Live pedal readings for the selected driver (the proposal's legend stats).
+    const std::string pedals=live.available&&live.controlsValid?
+        "LIVE  THROTTLE "+std::to_string(live.throttlePct)+"%  BRAKE "+(live.braking?"ON":"OFF"):"LIVE  THROTTLE --  BRAKE --";
+    cp3::hudText(mesh,barLeft,0.522,0.0019,pedals,live.available&&live.braking?cp3::Color{0.96F,0.40F,0.32F}:white);
+    cp3::hudText(mesh,barLeft,0.490,0.0017,"V NEXT LAYER",muted);
 }
 } // namespace apex3d::three

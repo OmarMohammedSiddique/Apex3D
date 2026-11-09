@@ -343,8 +343,11 @@ int main(int argc, char** argv)
             else if(arg=="--heatmap") {
                 const auto value=next();
                 if(value=="speed")initialHeat=apex3d::cp3::HeatLayer::Speed;
+                else if(value=="throttle")initialHeat=apex3d::cp3::HeatLayer::Throttle;
+                else if(value=="brake")initialHeat=apex3d::cp3::HeatLayer::Brake;
+                else if(value=="pedals")initialHeat=apex3d::cp3::HeatLayer::Pedals;
                 else if(value=="off")initialHeat=apex3d::cp3::HeatLayer::Off;
-                else throw std::invalid_argument("Heatmap must be speed or off");
+                else throw std::invalid_argument("Heatmap must be speed, throttle, brake, pedals or off");
             }
             else if (arg == "--bezier") initialBezier = true;
             else if (arg == "--wheels") showWheels = true;
@@ -373,7 +376,7 @@ int main(int argc, char** argv)
     } catch (const std::exception& error) {
         std::cerr << error.what() << "\nUsage: Apex3D [--bezier] [--wheels] [--speed 0.25..64]\n"
                      "  [--driver surname|number] [--camera overview|chase|cockpit] [--zoom 0.008..3] [--race-time seconds]\n"
-                     "  [--heatmap speed|off]\n"
+                     "  [--heatmap speed|throttle|brake|pedals|off]\n"
                      "  [--screenshot file.ppm |\n"
                      "   --screenshot-at 0..1 file.ppm | --screenshot-time seconds file.ppm |\n"
                      "   --screenshot-start 0..6.5 file.ppm | --screenshot-post 0..600 file.ppm]\n";
@@ -627,7 +630,13 @@ int main(int argc, char** argv)
         if(playback.isRace()){
             const double buffered=traffic.cachedFraction()*(apex3d::cp3::raceTotalSeconds+apex3d::cp3::postRaceDuration)/apex3d::cp3::raceTotalSeconds;
             apex3d::three::controlBar(overlay,playback,input.focus,input.hudVisible,buffered);
-            apex3d::three::heatLegend(overlay,input.heat,input.focus,heatLap,heatHasData);
+            {
+                const double t=playback.simulationSeconds();
+                const auto& info=apex3d::cp3::driverInfo(input.focus);
+                auto live=apex3d::cp3::telemetryAt(t,static_cast<int>(input.focus));
+                if(!playback.started||playback.starting()||!apex3d::cp3::driverActive(input.focus,t)||t>=info.finish)live={};
+                apex3d::three::heatLegend(overlay,input.heat,input.focus,heatLap,heatHasData,live);
+            }
         }
         hud.update(overlay,GL_DYNAMIC_DRAW);
         glUseProgram(shaderProgram);
