@@ -1,7 +1,7 @@
 # Checkpoint 3 progress
 
 Current local milestone: an interactive 3D OpenGL visualization with a documented Monza 2025
-race replay and the separate CP2 Bezier teaching circuit.
+race replay and the Monza Bézier teaching circuit.
 
 | Item | Status | Evidence |
 | --- | --- | --- |
@@ -30,3 +30,7 @@ The course elevation remains planar; no surveyed elevation or continuous GPS
 telemetry is provided. The car, scenery and pit crew are procedural low-poly
 models. Lecturer-specific acceptance and any telemetry requirement remain
 separate from local rendering and timing verification.
+
+## Integration with the latest CP3 contributions
+
+The 3D renderer retains the Monza Bézier route from #20, including its continuous arc-length parameter and regression checks. `B` selects this route as a teaching demo; historical race timing remains on the Catmull–Rom route. The original CP2 demo geometry remains available as `makeDemoBezierPath()` for regression checks. The wheel hierarchy and tests from #21 remain available, and the 3D front tyres reuse its curvature-based steering while rolling follows the historical race distance. The overview, chase and cockpit cameras replace the old 2D close-up. See [Bézier algorithm](algorithms/bezier-route.md).

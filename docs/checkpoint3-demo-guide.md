@@ -38,7 +38,7 @@ checkpoint2/verify_all.sh
    box and at the race finish. High wheel speeds or fast playback can alias spokes.
 7. Use 64x to inspect the entire race, or capture the finish with the command
    below. The race stops at lap 53 of 53 and 1:13:24.325. Replay restarts lights.
-8. Press `B` for the distinct CP2 Bezier teaching circuit. Show tangent heading,
+8. Press `B` for the Monza Bézier teaching circuit. Show tangent heading,
    shared transformations, anchor points, optional scaling and demo looping.
 
 ## Evidence capture
