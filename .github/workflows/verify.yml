@@ -17,6 +17,8 @@ jobs:
       - name: Install Linux window-system headers
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y xorg-dev libgl1-mesa-dev
+      - name: Verify embedded race data and CC0 sound samples
+        run: python3 tools/generate_race_assets.py --check
       - name: Configure release build
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGLFW_BUILD_WAYLAND=OFF
       - name: Build OpenGL application and scene tests

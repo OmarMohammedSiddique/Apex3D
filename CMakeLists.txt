@@ -46,14 +46,26 @@ target_link_libraries(Apex3D
 
 target_compile_definitions(Apex3D PRIVATE GLFW_INCLUDE_NONE)
 
+if(APPLE)
+    target_link_libraries(Apex3D PRIVATE "-framework AudioToolbox")
+endif()
+
 enable_testing()
 add_executable(Apex3DSceneTests tests/cp3_scene_tests.cpp)
 add_test(NAME cp3_scene COMMAND Apex3DSceneTests)
+add_executable(Apex3DRaceTests tests/cp3_race_tests.cpp)
+add_test(NAME cp3_race COMMAND Apex3DRaceTests)
+add_executable(Apex3DRenderTests tests/scene3d_tests.cpp)
+add_test(NAME scene3d COMMAND Apex3DRenderTests)
 
 if(MSVC)
     target_compile_options(Apex3D PRIVATE /W4 /permissive-)
     target_compile_options(Apex3DSceneTests PRIVATE /W4 /permissive-)
+    target_compile_options(Apex3DRaceTests PRIVATE /W4 /permissive-)
+    target_compile_options(Apex3DRenderTests PRIVATE /W4 /permissive-)
 else()
     target_compile_options(Apex3D PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(Apex3DSceneTests PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(Apex3DRaceTests PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(Apex3DRenderTests PRIVATE -Wall -Wextra -Wpedantic)
 endif()
