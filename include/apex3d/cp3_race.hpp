@@ -1,6 +1,8 @@
 #pragma once
 
 #include "cp3_scene.hpp"
+#include "physical_scale.hpp"
+#include "recorded_motion.hpp"
 #include "generated/monza_2025.hpp"
 
 namespace apex3d::cp3 {
@@ -24,18 +26,18 @@ struct RaceClock {
         completed == 53};
 }
 
-// Pit entry is aligned to FIA's whole-second 15:54:52 report using the race
-// start derived from the classification. Sub-second position is an estimate.
-inline constexpr double pitEntrySeconds = 3077.249;
+// OpenF1 pit completion minus its 24.545 s duration, aligned to FIA lap
+// boundaries. Approximate UTC feed timestamps limit sub-second accuracy.
+inline constexpr double pitEntrySeconds = 3077.895;
 inline constexpr double pitExitSeconds = pitEntrySeconds + pitLaneSeconds;
-inline constexpr double pitBoxStartSeconds = pitEntrySeconds + 10.0; // interpolated arrival
+inline constexpr double pitBoxStartSeconds = 3086.597; // first stationary sample bracket; +/- 0.2 s
 inline constexpr double pitBoxEndSeconds = pitBoxStartSeconds + pitServiceSeconds;
 inline constexpr double pitEntryProgress = 36.0 + 5707.0 / circuitMetres;
 inline constexpr double pitExitProgress = 37.0 + 332.0 / circuitMetres;
-inline constexpr double pitBoxProgress = 37.022;
+inline constexpr double pitBoxProgress = 37.0 + 75.0 / circuitMetres;
 
 // Nominal 2025 slick diameter is 720 mm (FIA tyre technical targets).
-// Rendering exaggerates the car size; use physical units for race wheel spin.
+// The 3D tyres and race wheel spin use the same physical dimensions.
 inline constexpr double raceTyreRadiusMetres = 0.360;
 inline constexpr double raceTyreCircumference = 2.0 * std::numbers::pi * raceTyreRadiusMetres;
 [[nodiscard]] inline double raceWheelTurns(double progress)
@@ -53,12 +55,24 @@ struct RaceSample {
     double velocity; // scene distance / race second, zero at the pit box
     bool inPit;
     bool servicing;
+    double travelledMetres;
 };
 
 class RaceMotion {
 public:
     explicit RaceMotion(const std::vector<PathSample>& path) : path_(path)
     {
+        // Integrate the reconstructed pit path once so the visible wheels roll
+        // over its actual length, including the lateral service-bay excursion.
+        pitArc_.push_back({pitEntryProgress,0.0});
+        auto previous=pitPose(pitEntryProgress).position;
+        double distance=0;
+        for(int i=1;i<=1024;++i) {
+            const double progress=pitEntryProgress+(pitExitProgress-pitEntryProgress)*i/1024.0;
+            const auto p=pitPose(progress).position;
+            distance+=std::hypot(p.x-previous.x,p.y-previous.y)*physical::metresPerSceneUnit();
+            pitArc_.push_back({progress,distance});previous=p;
+        }
         // Sector lines are located schematically on the existing hand-authored
         // circuit using the FIA map. All sector and lap crossing times are exact.
         const double s1 = nearestProgress({-1.33, -0.12});
@@ -84,19 +98,28 @@ public:
         const auto upper = std::upper_bound(keys_.begin(), keys_.end(), time,
             [](double t, const Key& k) { return t < k.time; });
         if (upper == keys_.end()) {
-            return {poseAtProgress(path_, 0.0), 53.0, 0.0, false, false};
+            return {poseAtProgress(path_, 0.0), 53.0, 0.0, false, false, travelledMetres(53.0)};
         }
         const auto& before = *(upper - 1);
         const auto& after = *upper;
-        const double rate = (after.progress - before.progress) / (after.time - before.time);
-        const double progress = before.progress + (time - before.time) * rate;
+        const double delta = after.progress-before.progress;
+        const double rate = delta*profile_.rate(time,before.time,after.time);
+        const double progress = before.progress+delta*profile_.fraction(time,before.time,after.time);
         const bool inPit = time >= pitEntrySeconds && time < pitExitSeconds;
         return {inPit ? pitPose(progress) : poseAtProgress(path_, progress), progress,
-            rate * path_.back().distance, inPit,
-            time >= pitBoxStartSeconds && time < pitBoxEndSeconds};
+            rate * distancePerProgress(progress) / physical::metresPerSceneUnit(), inPit,
+            time >= pitBoxStartSeconds && time < pitBoxEndSeconds, travelledMetres(progress)};
     }
 
-    [[nodiscard]] Pose pitPose(double progress) const
+    [[nodiscard]] double travelledMetres(double progress) const
+    {
+        const double lapMetres=path_.back().distance*physical::metresPerSceneUnit();
+        if(progress<=pitEntryProgress)return (progress-gridOffset)*lapMetres;
+        const double after=std::max(0.0,progress-pitExitProgress)*lapMetres;
+        return (pitEntryProgress-gridOffset)*lapMetres+pitDistance(progress)+after;
+    }
+
+    [[nodiscard]] Pose pitPose(double progress, bool serviceBay = true, double bayProgress = pitBoxProgress) const
     {
         const auto pointAt = [&](double p) {
             auto pose = poseAtProgress(path_, p);
@@ -104,7 +127,10 @@ public:
                 (p - pitEntryProgress) / 0.021,
                 (pitExitProgress - p) / 0.024), 0.0, 1.0);
             // Raised inside the main straight; smooth joins at both gates.
-            pose.position.y += 0.135 * blend * blend * (3.0 - 2.0 * blend);
+            const double bayBlend = std::clamp(1.0-std::abs(p-bayProgress)/0.008,0.0,1.0);
+            const double bay = bayBlend*bayBlend*(3.0-2.0*bayBlend);
+            pose.position.y += physical::sceneUnits(physical::pitOffset * blend * blend *
+                (3.0 - 2.0 * blend) + (serviceBay ? physical::pitBayOffset * bay : 0.0));
             return pose.position;
         };
         const auto a = pointAt(progress - 1e-6);
@@ -161,6 +187,25 @@ private:
     struct Key { double time; double progress; };
     std::vector<PathSample> path_;
     std::vector<Key> keys_;
+    RecordedDistance profile_;
+    struct ArcPoint {double progress,distance;};
+    std::vector<ArcPoint> pitArc_;
+    double pitDistance(double progress) const {
+        if(progress>=pitExitProgress)return pitArc_.back().distance;
+        const auto upper=std::upper_bound(pitArc_.begin(),pitArc_.end(),progress,
+            [](double p,const ArcPoint& a){return p<a.progress;});
+        if(upper==pitArc_.begin())return 0;
+        const auto& a=*(upper-1);const auto& b=*upper;
+        return a.distance+(progress-a.progress)*(b.distance-a.distance)/(b.progress-a.progress);
+    }
+    double distancePerProgress(double progress) const {
+        if(progress<pitEntryProgress||progress>=pitExitProgress)
+            return path_.back().distance*physical::metresPerSceneUnit();
+        const auto upper=std::upper_bound(pitArc_.begin(),pitArc_.end(),progress,
+            [](double p,const ArcPoint& a){return p<a.progress;});
+        const auto& a=*(upper-1);const auto& b=*upper;
+        return (b.distance-a.distance)/(b.progress-a.progress);
+    }
 
     double nearestProgress(Vec2 target) const
     {

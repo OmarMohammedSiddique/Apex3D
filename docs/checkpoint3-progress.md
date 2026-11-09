@@ -34,3 +34,21 @@ separate from local rendering and timing verification.
 ## Integration with the latest CP3 contributions
 
 The 3D renderer retains the Monza Bézier route from #20, including its continuous arc-length parameter and regression checks. `B` selects this route as a teaching demo; historical race timing remains on the Catmull–Rom route. The original CP2 demo geometry remains available as `makeDemoBezierPath()` for regression checks. The wheel hierarchy and tests from #21 remain available, and the 3D front tyres reuse its curvature-based steering while rolling follows the historical race distance. The overview, chase and cockpit cameras replace the old 2D close-up. See [Bézier algorithm](algorithms/bezier-route.md).
+
+## Physical scale update
+
+The 3D scene uses metres throughout, calibrated to a 5,793 m lap. Road width, car wheelbase, tyre dimensions, pit facilities, crew, scenery, cameras and shadows share that scale. The default chase view keeps the correctly sized car visible; overview no longer exaggerates it. Rendered wheel travel includes the reconstructed service-bay excursion. Sources and estimated dimensions are recorded in `physical-scale.md`.
+
+## Local podium and telemetry extension
+
+Norris and Piastri have independently verified 53-lap sector data and recorded
+speed profiles. The dashboard displays the selected driver's archived speed, gear and engine RPM. Readable overview markers, much closer zoom and 37 mapped
+grandstand sections with spectators are implemented locally. The exact corner
+areas/sides come from the operator's 2025 map; footprints and trajectories
+remain reconstructed. Driver selection and graphic telemetry have been verified in the native preview.
+
+## Tyre inspector
+
+Recorded medium/hard/soft stints and reused-set ages drive the selected driver's inspector and sidewall markers. Completed lap age includes prior use and resets
+when the fitted set changes. Tests cover pit transitions, lap boundaries and rewind.
+See `tyre-inspector.md` for sources and counting conventions.
