@@ -92,7 +92,7 @@ def telemetry_source():
     for entry,data in telemetry_tables():
         text+=f'const std::array<TelemetryPoint,{len(data)}> {entry["slug"]}Telemetry{{{{\n'
         for i in range(0,len(data),6):
-            text+='    '+''.join('{'+', '.join(map(str,r))+'}, 'for r in data[i:i+6])+'\n'
+            text+='    '+(' '.join('{'+', '.join(map(str,r))+'},'for r in data[i:i+6]))+'\n'
         text+='}};\n'
     text+='std::span<const TelemetryPoint> recordedSeries(int number) {switch(number){\n'
     for e in entries():text+=f'case {e["number"]}:return {e["slug"]}Telemetry;\n'
