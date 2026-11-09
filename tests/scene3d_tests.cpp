@@ -40,6 +40,15 @@ int main(){
         if(!near(car0[i].x,car90[i].x)||!near(car0[i].y,car90[i].y))spokeMoved=true;
     }
     CHECK(spokeMoved);
+    const auto steered=makeCar(straight,0,false,0.25);
+    finiteMesh(steered);CHECK(steered.size()==car0.size());
+    bool frontMoved=false;
+    for(std::size_t i=0;i<car0.size();++i){
+        // Steering transforms only the front tyres; rear axle and body stay fixed.
+        if(car0[i].x<0)CHECK(near(car0[i].x,steered[i].x)&&near(car0[i].z,steered[i].z));
+        if(!near(car0[i].x,steered[i].x)||!near(car0[i].z,steered[i].z))frontMoved=true;
+    }
+    CHECK(frontMoved);
     Mesh round; sphere(round,{0,0,0},{1,1,1},{1,1,1});
     for(const auto& v:round)CHECK(v.x*v.nx+v.y*v.ny+v.z*v.nz>0.5); // outward sphere normals
     finiteMesh(makeCrew(straight,true));CHECK(makeCrew(straight,false).empty());

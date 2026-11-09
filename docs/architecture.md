@@ -84,7 +84,7 @@ retina/targeted desktop input. Sticky key/mouse states preserve short presses.
 
 ## Separate Bezier teaching route
 
-`B` switches to the original CP2 Bezier curve and resets playback. That route
+`B` switches to the Monza Bézier chain and resets playback. That route
 also renders in 3D but retains its separate 18-second teaching lap, optional
 looping, scaling and anchors. It has no historical race timings or pit visit.
 Switching back to Monza restarts its lights and documented race schedule.

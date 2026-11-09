@@ -34,7 +34,7 @@ This is a **timing-based, schematic reconstruction**. Lap and sector crossings
 match the reports; positions within sectors, pit geometry and box-arrival
 splits are interpolated. See [research and assumptions](docs/monza-race-research.md)
 for primary sources and the distinction between qualifying, race-lap and
-full-race records. The original CP2 Bezier route remains a separate teaching demo.
+full-race records. The Monza Bézier route remains a separate teaching demo.
 
 ![3D Monza: overview, chase, pit service and cockpit views](docs/evidence/apex3d-3d-views.png)
 
@@ -76,7 +76,7 @@ On Windows the executable may be under `build/Release/Apex3D.exe`.
 | Scroll in the scene | Zoom the overview/chase camera |
 | `F` | Reset the current camera |
 | `H` | Hide/show the dashboard |
-| `B` | Switch Monza race / CP2 Bezier demonstration |
+| `B` | Switch Monza race / Monza Bézier demonstration |
 | `L` | Toggle looping in the Bezier demonstration only |
 | `T` | Toggle scaling in the Bezier demonstration only |
 | `Esc` | Quit |

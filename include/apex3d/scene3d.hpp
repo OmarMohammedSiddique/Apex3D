@@ -208,7 +208,7 @@ inline void tyre(Mesh& mesh,V3 centre,double spin,bool hard) {
             {0.0012,0.0012,0.0005},hard?Color{0.95F,0.95F,0.93F}:Color{0.95F,0.77F,0.15F},4,6);
     }
 }
-inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false) {
+inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false,double steer=0.0) {
     Mesh mesh;constexpr Color blue{0.10F,0.23F,0.52F},carbon{0.055F,0.065F,0.075F},gold{0.95F,0.74F,0.15F};
     // Lofted monocoque/nose: real volume with separate top and side normals.
     struct Section { double x,w,h; };
@@ -229,7 +229,9 @@ inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false) {
         box(mesh,{-0.072,0.035,z-0.001},{-0.055,0.052,z+0.001},blue);
         for(double x:{-0.044,0.045}) {
             const V3 wheel{x,0.012,side*0.025};
-            tyre(mesh,wheel,std::fmod(turns,1.0)*2*std::numbers::pi,hard);
+            const auto tyreStart=mesh.size();
+            tyre(mesh,{0,0,0},std::fmod(turns,1.0)*2*std::numbers::pi,hard);
+            place(mesh,tyreStart,wheel,x>0?steer:0.0);
             tube(mesh,{x-0.014,0.014,side*0.011},wheel,0.0012,carbon,6);
             tube(mesh,{x+0.013,0.014,side*0.010},wheel,0.0012,carbon,6);
         }

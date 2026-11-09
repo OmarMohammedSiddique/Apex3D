@@ -1,3 +1,4 @@
+#include "../include/apex3d/cp3_wheels.hpp"
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
@@ -399,6 +400,7 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
+    const auto wheelMounts = apex3d::cp3::wheelMountsFrom(apex3d::car::carModel());
     const auto monzaPath = apex3d::cp3::makePath();
     const auto bezierPath = apex3d::cp3::makeBezierPath();
     const auto initialRoute = initialBezier ? apex3d::cp3::Route::BezierDemo
@@ -472,7 +474,9 @@ int main(int argc, char** argv)
         const double wheelTurns=playback.isRace()?apex3d::cp3::raceWheelTurns(raceSample.progress):
             apex3d::cp3::wheelTurnsForDistance(playback.travelled);
         auto carVertices=apex3d::three::makeCar(pose,wheelTurns,
-            playback.isRace()&&playback.elapsed>=apex3d::cp3::pitBoxEndSeconds);
+            playback.isRace()&&playback.elapsed>=apex3d::cp3::pitBoxEndSeconds,
+            playback.isRace()&&raceSample.inPit ? 0.0 : apex3d::cp3::steeringRadians(
+                activePath,wheelMounts,playback.isRace()?raceSample.progress:playback.progress));
         if(!playback.isRace()&&playback.scaleDemo) {
             const double scale=1.0+0.22*std::sin(playback.elapsed*3.0);
             const auto centre=apex3d::three::world(pose.position,0.016);
