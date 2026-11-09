@@ -2,6 +2,7 @@
 
 #include "cp3_scene.hpp"
 #include "bitmap_font.hpp"
+#include "generated/monza_safety.hpp"
 #include "race_identity.hpp"
 #include "cp3_playback.hpp"
 #include "driver_focus.hpp"
@@ -248,18 +249,21 @@ enum class HudAction { None, Play, Mute, FieldPrevious, FieldNext, FocusVerstapp
     hudText(mesh, 0.21, -0.40, 0.0032, "PATH / PIT ARRIVAL INTERPOLATED", secondary);
 
     // Five double red lamps; the start is signalled by all lamps going out.
-    hudRectangle(mesh, -0.96, 0.60, -0.17, 0.95, panel);
+    hudRectangle(mesh, -0.96, 0.54, -0.17, 0.995, panel);
+    const double logoWidth=.22*std::min(1.0,1.8/aspect),logoScale=logoWidth/introWidth;
+    for(const auto& run:introLogo){const double x=-.565-logoWidth/2+run.x*logoScale,y=.98-run.y*logoScale*aspect;
+        hudRectangle(mesh,x,y-logoScale*aspect,x+run.width*logoScale,y,{.96F,.06F,.08F});}
     for (int i = 0; i < 5; ++i) {
         const Color color = i < playback.redLights() ? Color{0.96F, 0.08F, 0.10F} : Color{0.18F, 0.07F, 0.08F};
-        for (double y : {0.85, 0.76}) {
+        for (double y : {0.81, 0.68}) {
             const Vec2 centre{-0.87 + i * 0.145, y};
             const auto first = mesh.size();
-            disk(mesh, centre, 0.026, color);
+            disk(mesh, centre, 0.026*std::min(1.0,1.8/aspect), color);
             for (auto j = first; j < mesh.size(); ++j)
                 mesh[j].y = static_cast<float>(centre.y + (mesh[j].y-centre.y) * aspect);
         }
     }
-    hudText(mesh, -0.90, 0.66, 0.0040,
+    hudText(mesh, -0.90, 0.57, 0.0034,
         !playback.started ? "SPACE OR START TO BEGIN" : playback.starting() ? "WAIT FOR LIGHTS OUT" : "LIGHTS OUT / RACE STARTED", white);
     if (playback.showWheels) {
         const auto first = mesh.size();

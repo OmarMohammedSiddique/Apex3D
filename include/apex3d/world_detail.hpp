@@ -1,6 +1,7 @@
 #pragma once
 // Included after the scene mesh primitives.
 #include "generated/monza_world.hpp"
+#include "generated/monza_safety.hpp"
 #include "bitmap_font.hpp"
 #include <cstdint>
 namespace apex3d::three {
@@ -76,6 +77,9 @@ inline std::vector<TreePlacement> woodlandTrees(const std::vector<cp3::PathSampl
             else if(insideFootprint(x,y,f))blocked=true;}
         // Preserve the pit/paddock apron and spectator facilities.
         if(!woods||blocked||(y<-.87&&x>-.55))continue;
+        bool runoff=false;
+        for(const auto& f:cp3::gravelPatches){bool inside=false;for(int a=0,b=f.count-1;a<f.count;b=a++){const auto u=cp3::gravelPoints[f.first+a],v=cp3::gravelPoints[f.first+b];if((u.y>y)!=(v.y>y)&&x<(v.x-u.x)*(y-u.y)/(v.y-u.y)+u.x)inside=!inside;}if(inside)runoff=true;}
+        if(runoff)continue;
         const V3 p{x*scale,0,-y*scale};if(roadDistance(p,path)<23)continue;
         for(const auto& stand:monzaStands){const auto centre=world({stand.x,stand.y});
             if(length(p-centre)<stand.length/2+stand.setback+12){blocked=true;break;}}

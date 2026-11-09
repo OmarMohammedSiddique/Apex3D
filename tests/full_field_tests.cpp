@@ -44,8 +44,8 @@ int main(){
             CHECK(nextDriverLap(focus,3000)==3000);
             CHECK(std::abs(driverClock(focus,entry.retire+100).lapElapsed-(entry.retire-entry.elapsed))<1e-6);}
         else {CHECK(car.sample(entry.elapsed+1).cooldown);
-            CHECK(car.sample(entry.elapsed+cooldownDuration+parkingDuration+1).parked);
-            const auto parked=car.sample(entry.elapsed+cooldownDuration+parkingDuration+1);
+            CHECK(car.sample(parkingRelease(entry)+parkingDuration+1).parked);
+            const auto parked=car.sample(parkingRelease(entry)+parkingDuration+1);
             const auto target=parcFermePose(path,entry.rank);
             CHECK(std::hypot(parked.pose.position.x-target.position.x,parked.pose.position.y-target.position.y)<1e-8);}
         if(entry.pitStart){CHECK(car.sample(0).inPit);const auto start=car.sample(0);
