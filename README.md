@@ -22,18 +22,17 @@ prior use of reused sets.
 
 ## Track heatmap and timeline
 
-The track surface itself is coloured by the selected driver's recorded speed on
-their current lap: red where they are slow or braking, through amber and yellow,
-to green on the fastest straights. The fixed 70–350 km/h colour key sits in the
-top-left corner. Press **V** to turn the heatmap off or on. Clicking another driver
-or moving to a new lap repaints the track for that lap.
+The track surface itself is coloured by the selected driver's recorded telemetry on
+their current lap. Press **V** to cycle the layers: **speed** (red slow, green fast),
+**throttle**, **brake**, **pedals** (red braking, green full throttle) and off. The
+colour key in the top-left corner shows the scale and the driver's live throttle %
+and brake state. Clicking another driver or moving to a new lap repaints the track.
 
 A playback bar under the scene has a play/pause button, the current lap time and
 a timeline of the whole race. Drag the timeline to scrub through the race. It shows
 a tick for each lap of the selected driver and an amber marker at their pit stop.
-The speed slider picks 0.25x–64x. Throttle and brake layers from the original proposal are
-still to come: they need throttle/brake data that the project does not yet hold.
-See [Track heatmap](docs/telemetry-heatmap.md) for how it works and its accuracy limits.
+The speed slider picks 0.25x–64x. Throttle and brake come from the same hash-verified
+OpenF1 car data as speed; OpenF1 brake is on/off, not pressure. See [Track heatmap](docs/telemetry-heatmap.md) for how it works and its accuracy limits.
 
 ![Speed heatmap on the Monza track](docs/evidence/apex3d-track-heatmap.png)
 
@@ -118,7 +117,7 @@ On Windows the executable may be under `build/Release/Apex3D.exe`.
 | `Space` / playback button | Start, pause, resume or replay after the finish |
 | Drag the timeline | Scrub to any moment of the race |
 | Speed slider | Choose 0.25x–64x playback |
-| `V` | Show/hide the track-surface speed heatmap |
+| `V` | Cycle the track heatmap: speed, throttle, brake, pedals, off |
 | `R` | Restart with the light sequence |
 | `+` / `-` | Double/halve playback rate, between 0.25x and 64x |
 | `1` | Restore real-time playback |
@@ -160,7 +159,7 @@ race timer. Seeking jumps directly to a race state without replaying old cues.
 retains the old 0..1 lap-progress capture option (first lap for Monza).
 `--camera overview|chase|cockpit` sets the initial perspective.
 `--speed 0.25..64` sets the initial rate; `--wheels` opens the inspector.
-`--driver surname|number` picks the followed driver; `--heatmap speed|off`
+`--driver surname|number` picks the followed driver; `--heatmap speed|throttle|brake|pedals|off`
 sets the initial track heatmap.
 
 To verify or regenerate embedded data after editing the CSV/WAV inputs:

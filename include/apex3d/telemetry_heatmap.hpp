@@ -21,10 +21,12 @@
 // Position accuracy follows the replay: lap and sector gates are exact, positions
 // between them are reconstructed from the recorded speed, not GPS.
 namespace apex3d::cp3 {
-enum class HeatLayer { Off, Speed };
-inline constexpr std::array<HeatLayer,2> heatLayers{HeatLayer::Speed,HeatLayer::Off};
+enum class HeatLayer { Off, Speed, Throttle, Brake, Pedals };
+// V cycles through these in order.
+inline constexpr std::array<HeatLayer,5> heatLayers{HeatLayer::Speed,HeatLayer::Throttle,HeatLayer::Brake,HeatLayer::Pedals,HeatLayer::Off};
 inline const char* heatLayerName(HeatLayer layer) {
-    switch(layer){case HeatLayer::Speed:return "SPEED";case HeatLayer::Off:return "OFF";}
+    switch(layer){case HeatLayer::Speed:return "SPEED";case HeatLayer::Throttle:return "THROTTLE";
+        case HeatLayer::Brake:return "BRAKE";case HeatLayer::Pedals:return "PEDALS";case HeatLayer::Off:return "OFF";}
     return "OFF";
 }
 inline HeatLayer nextHeatLayer(HeatLayer layer) {
@@ -33,8 +35,16 @@ inline HeatLayer nextHeatLayer(HeatLayer layer) {
     return HeatLayer::Speed;
 }
 // A fixed scale lets laps and drivers be compared by colour alone.
-struct HeatScale { double low,high;const char* unit;const char* lowLabel;const char* highLabel; };
-inline HeatScale heatScale(HeatLayer) { return {70,350,"KM/H","70","350"}; }
+// invert: a high value means "red" (used for braking).
+struct HeatScale { double low,high;bool invert;const char* redLabel;const char* greenLabel;const char* redNote;const char* greenNote; };
+inline HeatScale heatScale(HeatLayer layer) {
+    switch(layer){
+    case HeatLayer::Throttle:return {0,100,false,"0%","100%","LIFT / COAST","FULL THROTTLE"};
+    case HeatLayer::Brake:return {0,100,true,"ON","OFF","BRAKING","NOT BRAKING"};
+    case HeatLayer::Pedals:return {0,100,false,"BRAKE","100%","HEAVY BRAKING","FULL THROTTLE"};
+    default:return {70,350,false,"70","350 KM/H","SLOW / BRAKING","FAST"};
+    }
+}
 
 // Red = slow / braking, through amber and yellow, to green = fast / full throttle,
 // matching the proposal's "green for throttle, red for braking" convention.
@@ -57,7 +67,8 @@ inline Color roadHeatColor(double t) {
 }
 inline double heatFraction(double value,HeatLayer layer) {
     const auto scale=heatScale(layer);
-    return std::clamp((value-scale.low)/(scale.high-scale.low),0.0,1.0);
+    const double t=std::clamp((value-scale.low)/(scale.high-scale.low),0.0,1.0);
+    return scale.invert?1.0-t:t;
 }
 
 struct LapWindow { double start{},end{};int lap{}; };
@@ -76,7 +87,21 @@ inline int heatmapLap(DriverFocus focus,double seconds) {
     return std::clamp(driverClock(focus,seconds).lap,1,info.totalLaps);
 }
 
-inline double layerValue(const TelemetryPoint& point,HeatLayer) { return point.speedKmh; }
+// The value a sample contributes to a layer, or NaN when it has no valid reading.
+// OpenF1 brake is on/off (0/100), so the brake layer shows how often the brake was on;
+// the 104 glitch code is skipped rather than drawn.
+inline double layerValue(const TelemetryPoint& point,HeatLayer layer) {
+    const double missing=std::numeric_limits<double>::quiet_NaN();
+    if(layer==HeatLayer::Speed)return point.speedKmh;
+    if(point.throttlePct>100||point.brake==104)return missing;
+    switch(layer){
+    case HeatLayer::Throttle:return point.throttlePct;
+    case HeatLayer::Brake:return point.brake>=100?100:0;
+    // Pedals: braking sits at the red end; otherwise throttle runs from amber (coasting) to green.
+    case HeatLayer::Pedals:return point.brake>=100?0:30+0.70*point.throttlePct;
+    default:return missing;
+    }
+}
 
 // One value per centreline sample (path index). NaN means "no recorded data".
 inline std::vector<double> lapProfile(const std::vector<PathSample>& path,const FieldMotion& motion,
@@ -98,7 +123,9 @@ inline std::vector<double> lapProfile(const std::vector<PathSample>& path,const 
             [](const PathSample& p,double d){return p.distance<d;});
         auto index=static_cast<std::size_t>(std::min<std::ptrdiff_t>(next-path.begin(),path.size()-1));
         if(index>0&&along-path[index-1].distance<path[index].distance-along)--index;
-        sum[index]+=layerValue(point,layer);++count[index];
+        const double value=layerValue(point,layer);
+        if(!std::isfinite(value))continue;
+        sum[index]+=value;++count[index];
     }
     // The last sample closes the loop at the first point; keep them as one location.
     const std::size_t loop=path.size()-1;

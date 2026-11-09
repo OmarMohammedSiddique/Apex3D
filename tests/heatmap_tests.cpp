@@ -16,7 +16,25 @@ try{
         CHECK(std::abs(a.r-b.r)<0.01F&&std::abs(a.g-b.g)<0.01F&&std::abs(a.b-b.b)<0.01F);}
     CHECK(near(heatFraction(70,HeatLayer::Speed),0));CHECK(near(heatFraction(350,HeatLayer::Speed),1));
     CHECK(near(heatFraction(210,HeatLayer::Speed),0.5));CHECK(near(heatFraction(500,HeatLayer::Speed),1));
-    CHECK(nextHeatLayer(HeatLayer::Speed)==HeatLayer::Off&&nextHeatLayer(HeatLayer::Off)==HeatLayer::Speed);
+    // V cycles speed -> throttle -> brake -> pedals -> off -> speed.
+    CHECK(nextHeatLayer(HeatLayer::Speed)==HeatLayer::Throttle&&nextHeatLayer(HeatLayer::Throttle)==HeatLayer::Brake);
+    CHECK(nextHeatLayer(HeatLayer::Brake)==HeatLayer::Pedals&&nextHeatLayer(HeatLayer::Pedals)==HeatLayer::Off);
+    CHECK(nextHeatLayer(HeatLayer::Off)==HeatLayer::Speed);
+    // Braking is drawn red (inverted scale); full throttle green.
+    CHECK(near(heatFraction(100,HeatLayer::Brake),0)&&near(heatFraction(0,HeatLayer::Brake),1));
+    CHECK(near(heatFraction(100,HeatLayer::Throttle),1)&&near(heatFraction(0,HeatLayer::Throttle),0));
+    // Pedal samples: brake on -> red end; coasting amber; full throttle green. 104 glitch skipped.
+    CHECK(near(layerValue({0,300,8,11000,0,100},HeatLayer::Pedals),0));
+    CHECK(near(layerValue({0,300,8,11000,100,0},HeatLayer::Pedals),100));
+    CHECK(near(layerValue({0,300,8,11000,0,0},HeatLayer::Pedals),30));
+    CHECK(!std::isfinite(layerValue({0,342,8,11993,104,104},HeatLayer::Throttle)));
+    CHECK(!std::isfinite(layerValue({0,314,8,11094,99,104},HeatLayer::Brake)));
+    CHECK(near(layerValue({0,314,8,11094,99,104},HeatLayer::Speed),314));
+    // Live readings expose throttle and brake, and refuse the glitch code.
+    bool sawBrake=false,sawThrottle=false;
+    for(double t=60;t<160;t+=0.25){const auto d=telemetryAt(t,1);if(!d.available)continue;
+        CHECK(d.throttlePct>=0&&d.throttlePct<=100);sawBrake|=d.braking;sawThrottle|=d.throttlePct>=99;}
+    CHECK(sawBrake&&sawThrottle);
 
     // Official lap windows.
     const auto& ver=driverInfo(DriverFocus::Verstappen);
@@ -43,6 +61,15 @@ try{
     // Every lap of every classified driver, including pit laps, covers the whole circuit.
     for(const auto& d:raceDrivers){if(d.archive->dns)continue;
         for(int lap=1;lap<=d.totalLaps;++lap)for(double v:profile(d.focus,lap))CHECK(std::isfinite(v));}
+
+    // Pedal layers: throttle in range; braking happens on part of the lap, not all of it.
+    for(auto layer:{HeatLayer::Throttle,HeatLayer::Brake,HeatLayer::Pedals}){
+        const auto lap=profile(DriverFocus::Verstappen,6,layer);int braking=0;
+        for(double v:lap){CHECK(std::isfinite(v));CHECK(v>=0&&v<=100);if(layer==HeatLayer::Brake&&v>50)++braking;}
+        if(layer==HeatLayer::Brake){CHECK(braking>0);CHECK(braking<static_cast<int>(lap.size())/4);}
+    }
+    for(const auto& d:raceDrivers){if(d.archive->dns)continue;
+        for(int lap=1;lap<=d.totalLaps;lap+=13)for(double v:profile(d.focus,lap,HeatLayer::Pedals))CHECK(std::isfinite(v));}
 
     // No recorded race, or layer switched off: nothing is painted.
     for(double v:profile(DriverFocus::Hulkenberg,1))CHECK(!std::isfinite(v));

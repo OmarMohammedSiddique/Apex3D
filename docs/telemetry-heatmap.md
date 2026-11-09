@@ -1,20 +1,32 @@
 # Track heatmap and timeline
 
-This delivers two promises from the original proposal: **colouring the track surface
-with telemetry** and **scrubbing through the replay with a timeline**. The
-throttle and brake layers are not built yet (see "Still to do").
+This delivers three promises from the original proposal: **colouring the track
+surface with telemetry**, **switching between telemetry layers**, and **scrubbing
+through the replay with a timeline**. The legend also shows the live **throttle %**
+the proposal listed.
 
 ![Verstappen lap 6 speed heatmap, overview camera](evidence/apex3d-track-heatmap.png)
 
+![Verstappen lap 6 pedals layer: red braking zones before the chicanes and Parabolica](evidence/apex3d-pedal-heatmap.png)
+
 ## What you see
 
-- The 12 m road is painted by the selected driver's recorded **speed** on the lap
-  they are currently driving. Red means slow or braking, and the colour moves through
-  amber and yellow to green for the fastest sections.
-- The key in the top-left corner shows the colour scale: a fixed **70–350 km/h**, so
-  laps and drivers can be compared by colour alone.
-- **V** turns the heatmap off or on. The track repaints when you select another
-  driver or when the driver starts a new lap.
+- The 12 m road is painted by the selected driver's recorded telemetry on the lap
+  they are currently driving. **V** cycles through the layers:
+
+  | Layer | Red end | Green end |
+  | --- | --- | --- |
+  | **Speed** | 70 km/h (slow / braking) | 350 km/h (fast) |
+  | **Throttle** | 0% (lifting / coasting) | 100% (full throttle) |
+  | **Brake** | brake on | brake off |
+  | **Pedals** | braking | full throttle (coasting shows amber) |
+  | **Off** | no colour | |
+
+  **Pedals** is the proposal's own example: "green for throttle, red for braking".
+- The key in the top-left corner shows the scale, the driver and lap, and a **live**
+  line with the selected driver's throttle % and brake state at this moment. The scales
+  are fixed, so laps and drivers can be compared by colour alone.
+- The track repaints when you select another driver, start a new lap or change layer.
 - The bar under the scene has a **play/pause button**, the **lap time**, a **race
   timeline** and a **speed slider**. Drag the timeline to scrub through the race.
   Small ticks mark each of the selected driver's laps (taller every 10 laps) and an
@@ -34,8 +46,9 @@ Code: `include/apex3d/telemetry_heatmap.hpp`, `include/apex3d/replay_controls.hp
 3. **Fill the gaps.** Samples are about 20 m apart at racing speed. Every centreline
    point between two samples gets a value by **linear interpolation along the track
    distance**, wrapping across the start/finish line.
-4. **Map values to colours.** The value becomes a 0–1 fraction of the 70–350 km/h
-   scale. A **piecewise-linear colour ramp** with four stops (red → amber → yellow →
+4. **Map values to colours.** The value becomes a 0–1 fraction of the layer's
+   scale (70–350 km/h for speed, 0–100% for the pedal layers; brake is reversed so
+   "on" is red). A **piecewise-linear colour ramp** with four stops (red → amber → yellow →
    green) turns that fraction into RGB. A quarter of the asphalt colour is mixed back in
    so the surface still reads as tarmac.
 5. **Build the mesh.** One thin strip per centreline segment sits 5 mm above the
@@ -59,7 +72,15 @@ order as a normal seek.
 
 ## Accuracy limits
 
-- Speed values are the **archived OpenF1 car-data readings**, not estimates.
+- Speed, throttle and brake values are the **archived OpenF1 car-data readings**, not
+  estimates.
+- **OpenF1 brake is on/off** (0 or 100), not brake pressure. The brake layer shows
+  where the brake was on, so it cannot show "heavy" versus "light" braking. Where
+  colours blend between samples, the edges of a braking zone fade over a few metres.
+- OpenF1 occasionally reports **104** in throttle and/or brake on normal full-throttle
+  samples (52 of 305,348 rows across the field). That is a source glitch code.
+  It is kept unchanged in the CSV files for traceability and skipped by the pedal layers
+  and the live readout.
 - **Where** each reading lands on the track follows the replay reconstruction: lap and
   sector crossings are exact, and positions between them are shaped by recorded speed,
   not GPS. So a red patch is at the right corner, but its exact start metre is
@@ -69,18 +90,29 @@ order as a normal seek.
 - Lap 1 includes the standing start, so the grid area shows red.
 - Hülkenberg (DNS) has no recorded lap, so his heatmap is empty.
 
-## Still to do
+## Where the throttle and brake data came from
 
-- **Throttle and brake layers.** The project's telemetry CSVs hold only
-  `race_ms,speed_kmh,gear,engine_rpm`. Throttle and brake must first be added from
-  OpenF1 `car_data` (session 9912) through `tools/generate_race_assets.py`, with
-  provenance and hashes like the other inputs. The proposal's legend also lists a live
-  **throttle %**, which depends on the same data.
+The telemetry CSVs now have two extra columns: `throttle_pct` and `brake`.
+`tools/add_car_controls.py` added them from the same OpenF1 `car_data` responses
+(session 9912) that the original speed/gear/RPM columns came from:
+
+- Each driver's response was downloaded again. Its **SHA-256 matched the hash already
+  recorded** in `data/monza-2025-full-field-provenance.json`, so it is byte-for-byte the
+  same source.
+- For every existing row, race time, speed, gear and RPM were checked to be
+  **identical** to the raw sample before throttle and brake were added. No existing
+  value changed, so earlier timing, alignment and tests are unaffected.
+- Hülkenberg's file stays header-only (he did not start).
+
+`python3 tools/add_car_controls.py --check` re-verifies the columns offline. The raw
+downloads are cached in the ignored `tmp/openf1/` folder.
 
 ## Verify
 
 ```bash
 ctest --test-dir build -R heatmap --output-on-failure
 ./build/Apex3D --camera overview --zoom 0.6 --screenshot-time 500 heatmap.ppm
+./build/Apex3D --heatmap pedals --camera overview --zoom 0.6 --screenshot-time 500 pedals.ppm
 ./build/Apex3D --heatmap off --screenshot-time 500 no_heatmap.ppm
+python3 tools/add_car_controls.py --check
 ```
