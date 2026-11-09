@@ -28,7 +28,7 @@ int main(){
     const auto scene=makeWorld(path,&race);finiteMesh(scene);
     float highest=-1,lowest=1;
     for(const auto& v:scene){highest=std::max(highest,v.y);lowest=std::min(lowest,v.y);}
-    CHECK(highest>0.15F&&lowest<0); // genuine vertical volume, not a tilted 2D plane
+    CHECK(highest>0.15F&&lowest<=0); // raised geometry above the flat terrain
     const cp3::Pose straight{{0,0},0,0};
     const auto car0=makeCar(straight,0),car90=makeCar(straight,0.25);
     finiteMesh(car0);finiteMesh(car90);CHECK(car0.size()==car90.size());

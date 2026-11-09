@@ -1,4 +1,4 @@
-#include "../include/apex3d/field_simulation.hpp"
+#include "../include/apex3d/traffic_replay.hpp"
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
@@ -338,7 +338,7 @@ int main(int argc, char** argv)
                 if (capture) throw std::invalid_argument("Choose one screenshot mode");
                 capture = true;
                 if (arg == "--screenshot-at") { initialProgress = bounded(next(), 0.0, 1.0); ++timingOptions; }
-                if(arg=="--screenshot-post"){initialPostTime=std::min(bounded(next(),0.0,360.0),apex3d::cp3::postRaceDuration);initialRaceTime=apex3d::cp3::raceTotalSeconds;++timingOptions;}
+                if(arg=="--screenshot-post"){initialPostTime=std::min(bounded(next(),0.0,600.0),apex3d::cp3::postRaceDuration);initialRaceTime=apex3d::cp3::raceTotalSeconds;++timingOptions;}
                 else if (arg == "--screenshot-time") { initialRaceTime = bounded(next(), 0.0, apex3d::cp3::raceTotalSeconds); ++timingOptions; }
                 if (arg == "--screenshot-start") { initialStartTime = bounded(next(), 0.0, apex3d::cp3::startSequenceSeconds); ++timingOptions; }
                 outputPath = next();
@@ -357,7 +357,7 @@ int main(int argc, char** argv)
                      "  [--driver surname|number] [--camera overview|chase|cockpit] [--zoom 0.008..3] [--race-time seconds]\n"
                      "  [--screenshot file.ppm |\n"
                      "   --screenshot-at 0..1 file.ppm | --screenshot-time seconds file.ppm |\n"
-                     "   --screenshot-start 0..6.5 file.ppm | --screenshot-post 0..360 file.ppm]\n";
+                     "   --screenshot-start 0..6.5 file.ppm | --screenshot-post 0..600 file.ppm]\n";
         return EXIT_FAILURE;
     }
 #ifdef __APPLE__
@@ -437,8 +437,7 @@ int main(int argc, char** argv)
         : apex3d::cp3::Route::Monza;
     const auto& path = initialBezier ? bezierPath : monzaPath;
     const apex3d::cp3::RaceMotion race(monzaPath);
-    std::vector<apex3d::cp3::FieldMotion> field;
-    for(const auto& entry:apex3d::cp3::archivedEntries)field.emplace_back(monzaPath,race,entry);
+    apex3d::cp3::TrafficReplay traffic(monzaPath,race);
     apex3d::three::Renderer renderer;
     if(!renderer.initialize()) {
         std::cerr<<"Failed to initialize the 3D renderer.\n";
@@ -496,8 +495,7 @@ int main(int argc, char** argv)
             if (wasStarting && !playback.starting()) audio.trigger(2);
             else if (playback.redLights() > previousLights) audio.trigger(1);
         }
-        std::vector<apex3d::cp3::RaceSample> samples;
-        for(const auto& car:field)samples.push_back(car.sample(playback.simulationSeconds()));
+        auto samples=traffic.sample(playback.simulationSeconds());
         const auto& raceSample=samples.front();
         const auto& focusSample=samples[apex3d::cp3::driverIndex(input.focus)];
         if (now - lastTitleTime >= 0.2) {
@@ -550,7 +548,10 @@ int main(int argc, char** argv)
                     crew.insert(crew.end(),team.begin(),team.end());}
             }
         }
-        renderer.update(carVertices,playback.isRace()?apex3d::three::gantry(activePath,playback.redLights(),false):apex3d::three::Mesh{},crew);
+        auto sceneEffects=playback.isRace()?apex3d::three::gantry(activePath,playback.redLights(),false):apex3d::three::Mesh{};
+        if(playback.isRace()){const auto birds=apex3d::three::birds(monzaPath,playback.simulationSeconds()+playback.startElapsed);
+            sceneEffects.insert(sceneEffects.end(),birds.begin(),birds.end());}
+        renderer.update(carVertices,sceneEffects,crew);
 
         int width = 0;
         int height = 0;
