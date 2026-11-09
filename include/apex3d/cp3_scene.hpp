@@ -254,7 +254,7 @@ inline void ribbonSegment(std::vector<Vertex>& mesh, const PathSample& a,
 
 inline void disk(std::vector<Vertex>& mesh, Vec2 centre, double radius, Color color)
 {
-    constexpr int sides = 10;
+    constexpr int sides = 24;
     for (int side = 0; side < sides; ++side) {
         const double first = 2.0 * std::numbers::pi * side / sides;
         const double second = 2.0 * std::numbers::pi * (side + 1) / sides;
@@ -403,11 +403,12 @@ inline void triangulate(std::vector<Vertex>& mesh,
              polygon[remaining[2]], fill);
 }
 
+inline constexpr double carModelScale = 0.00070;
+
 [[nodiscard]] inline Mat3 carTransform(const Pose& pose,
                                        double scaleMultiplier = 1.0)
 {
-    constexpr double baseScale = 0.00070;
-    const double scale = baseScale * scaleMultiplier;
+    const double scale = carModelScale * scaleMultiplier;
     // The CP2 model points its nose along local -Y. A quarter turn aligns it
     // with the direction of the circuit tangent.
     return Mat3::translation(pose.position.x, pose.position.y) *

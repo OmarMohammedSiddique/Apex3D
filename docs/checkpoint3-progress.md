@@ -1,48 +1,32 @@
-# Checkpoint 3 Progress
+# Checkpoint 3 progress
 
-Checkpoint 3 asks the group to integrate previous components into an OpenGL
-prototype. The current branch contains the extended integration milestone.
+Current local milestone: an interactive 3D OpenGL visualization with a documented Monza 2025
+race replay and the separate CP2 Bezier teaching circuit.
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| OpenGL application window and shaders | Complete | `src/main.cpp` creates a GLFW window and OpenGL 3.3 context. |
-| Filled Monza surface | Complete | `include/apex3d/cp3_scene.hpp` builds a layered triangle mesh from the original Monza points. |
-| CP2 curve integration | Complete | The scene calls the CP2 Catmull-Rom position and tangent functions. |
-| CP2 transformation integration | Complete | The car's pose uses the shared 3 x 3 matrix for translation, rotation and optional scaling. |
-| CP2 polygon-car integration | Complete | The CP2 car components are triangulated and rendered in OpenGL. |
-| Live lap animation | Complete | Distance-based path lookup updates the car every frame, approximately evenly along the circuit. |
-| Interaction and feedback | Complete | Play/pause, restart, speed, scale demonstration, points toggle and an in-window lap display. |
-| Source and visual verification | Complete | `ctest --test-dir build --output-on-failure` and `docs/evidence/cp3-opengl-prototype.png`. |
-| Wheel hierarchy in the live scene | Complete | Live side-view inset uses CP2 body placement and wheel poses, driven by accumulated travel; `W` toggles visibility. |
-| Bézier path as a selectable live route | Complete | `B` switches to the original CP2 Bézier demo circuit with a matching road, tangent-oriented car and anchor display. |
-| Group explanation and evidence | Prepared | `docs/checkpoint3-demo-guide.md` and two real OpenGL screenshots; final rubric alignment and submission remain pending. |
-| Automated regression checks | Configured | GitHub Actions builds Release and runs CP3/CP2 checks on Linux and macOS; hosted results are pending until pushed. |
+| 3D rendering | Implemented locally | Perspective matrices, depth testing, solid car/scene meshes, normals, directional lighting and filtered sun shadows |
+| 3D environment | Implemented locally | Raised track/kerbs, garages, pit wall, gantry, grandstands and trees |
+| Cameras | Implemented locally | Overview/orbit, chase, cockpit, drag/zoom/reset and full-width view |
+| CP2 curves and transformations | Integrated | Catmull-Rom / Bezier paths, tangent heading and shared Mat3 |
+| Monza full race | Implemented locally | 53 FIA lap/sector triplets; exact 4,404.325-second finish |
+| Timing dashboard | Implemented locally | Lap counter, race/current/last lap clocks, race progress |
+| Pit lane and stop | Reconstructed | 24.545-second visit and 2.3-second stationary service; geometry/arrival interpolated |
+| Starting lights | Implemented locally | Five double-red columns, lights-out starts race clock |
+| Starting-light cues | Implemented locally | Embedded CC0 samples, muted initially, clickable mute and M; macOS output |
+| Playback controls | Implemented locally | Click/Space start-pause-resume-replay, restart, 0.25x–64x, real-time reset, seek, next lap, pit seek |
+| Wheel hierarchy | Integrated | Fixed body, metre-based distance / nominal 2025 tyre radius, computed rolling RPM and pause/service freeze |
+| Bezier teaching route | Preserved | B switches route; demo scaling, anchors and optional looping remain available |
+| Regression checks | Passing locally | CTest scene/race/3D checks, data/header verification, strict CP2 tests |
+| Visual evidence and walkthrough | Prepared | OpenGL stage captures and `checkpoint3-demo-guide.md` |
+| Cross-platform CI | Configured | Linux/macOS builds, CTest, data consistency and CP2 checks; new hosted run not claimed |
+| Final rubric / group review / submission | Pending | Lecturer requirements and human acceptance still needed |
 
-## Run the prototype
+The detailed source trail and every reconstruction assumption are in
+`monza-race-research.md`. Data-backed timings must not be described as a GPS,
+continuous telemetry, vehicle-physics or full-field race simulation.
 
-```bash
-cmake -S . -B build
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-./build/Apex3D
-```
-
-The app is currently a 2D top-down prototype, not the final 3D visualisation.
-Its path and car are simplified and hand-authored; telemetry, perspective,
-lighting and detailed scene assets are still future work.
-
-## Verification for this integration
-
-Local macOS build and expanded CTest pass. Real OpenGL frames were captured
-on Apple M4 / OpenGL 4.1. Live interaction confirmed pause, route switching
-while paused, anchor display, wheel inset visibility, restart and speed change.
-The Bézier route uses its own original CP2 circuit rather than claiming to
-reproduce Monza. The track and HUD have separate horizontal areas.
-
-The wheel inset is a repeating side-view teaching demonstration. Its parent
-translation and local rotation are derived from the same travelled distance;
-its placement repeats every revolution. It freezes when playback is paused
-and resets on restart or route switch. The top-down car remains unchanged.
-
-The lecturer's latest rubric has not yet been supplied. No final submission,
-assessment compliance, or completed 3D scene is claimed.
+The course elevation remains planar; no surveyed elevation or continuous GPS
+telemetry is provided. The car, scenery and pit crew are procedural low-poly
+models. Lecturer-specific acceptance and any telemetry requirement remain
+separate from local rendering and timing verification.

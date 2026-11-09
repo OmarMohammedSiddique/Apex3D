@@ -1,4 +1,5 @@
 #include "../include/apex3d/cp3_hud.hpp"
+#include "../include/apex3d/cp3_playback.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -15,6 +16,64 @@
 int main()
 {
     using namespace apex3d;
+    cp3::Playback playback;
+    playback.route = cp3::Route::BezierDemo;
+    playback.playing = true;
+    CHECK(!playback.looping && !playback.showWheels);
+    CHECK(!playback.advance(17.9, 10.0));
+    CHECK(playback.advance(0.2, 10.0));
+    CHECK(playback.progress == 1.0 && !playback.playing);
+    CHECK(std::abs(playback.travelled - 10.0) < 1e-10);
+    CHECK(!playback.advance(10.0, 10.0));
+    CHECK(playback.progress == 1.0);
+    playback.togglePlaying();
+    CHECK(playback.playing && playback.progress == 0.0 && playback.travelled == 0.0);
+    playback.togglePlaying();
+    CHECK(!playback.advance(5.0, 10.0));
+    CHECK(playback.progress == 0.0);
+    playback.restart();
+    playback.looping = true;
+    CHECK(playback.advance(19.0, 10.0));
+    CHECK(playback.playing && std::abs(playback.progress - 1.0 / 18.0) < 1e-10);
+    CHECK(playback.travelled > 10.0);
+    playback.looping = false;
+    CHECK(playback.advance(18.0, 10.0));
+    CHECK(!playback.playing && playback.progress == 1.0);
+    playback.restart();
+    playback.speed = 4.0;
+    CHECK(playback.advance(4.5, 10.0));
+    CHECK(playback.progress == 1.0 && !playback.playing);
+
+    // No-slip rotation must follow travel and tyre radius at every speed.
+    CHECK(std::abs(cp3::wheelTurnsForDistance(cp3::wheelCircumference) - 1.0) < 1e-10);
+    CHECK(std::abs(cp3::wheelTurnsForDistance(cp3::wheelRadius * std::numbers::pi) - 0.5) < 1e-10);
+    CHECK(std::abs(cp3::wheelRpm(cp3::wheelCircumference) - 60.0) < 1e-10);
+    CHECK(std::abs(cp3::wheelRpm(2.0 * cp3::wheelCircumference) - 120.0) < 1e-10);
+    CHECK(cp3::wheelRpm(0.0) == 0.0);
+    cp3::Playback rolling;
+    rolling.route = cp3::Route::BezierDemo;
+    rolling.playing = true;
+    rolling.advance(1.0, 10.0);
+    const double oneSecondTurns = cp3::wheelTurnsForDistance(rolling.travelled);
+    rolling.playing = false;
+    rolling.advance(1.0, 10.0);
+    CHECK(cp3::wheelTurnsForDistance(rolling.travelled) == oneSecondTurns);
+    rolling.restart();
+    rolling.speed = 2.0;
+    rolling.advance(1.0, 10.0);
+    CHECK(std::abs(cp3::wheelTurnsForDistance(rolling.travelled) - 2.0 * oneSecondTurns) < 1e-10);
+
+    // Crossing a wheel revolution must be visually continuous: no body reset.
+    const auto beforeTurn = cp3::makeHudMesh(0.5, 1.0, true, false,
+        cp3::Route::Monza, true, cp3::wheelCircumference * 0.999999);
+    const auto afterTurn = cp3::makeHudMesh(0.5, 1.0, true, false,
+        cp3::Route::Monza, true, cp3::wheelCircumference * 1.000001);
+    CHECK(beforeTurn.size() == afterTurn.size());
+    for (std::size_t i = 0; i < beforeTurn.size(); ++i) {
+        CHECK(std::abs(beforeTurn[i].x - afterTurn[i].x) < 0.001F);
+        CHECK(std::abs(beforeTurn[i].y - afterTurn[i].y) < 0.001F);
+    }
+
     const auto controls = cp3::evenlySpacedControls();
     const auto path = cp3::makePath();
     CHECK(cp3::monzaControls.size() == 62);
