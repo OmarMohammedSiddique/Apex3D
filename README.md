@@ -20,14 +20,26 @@ prior use of reused sets.
 
 ![Full-field Monza replay](docs/evidence/apex3d-full-field.png)
 
+## Race detail and Monza surroundings
+
+Selected labels show live position (such as **LEC P3**); race numbers are on the
+cars, alongside all ten teams' 2025 logos. Recorded DRS opens the rear flap and
+adds a dashboard indicator and subtle airflow effect. Both DRS zones are marked.
+The scene now has mapped buildings and thousands of broadleaf trees. After the
+finish, the cars take an illustrative in-lap and park in parc fermé, with the
+top three at the 1–2–3 boards. Press **E** to inspect the parked field.
+
+Sources and the distinction between recorded data and reconstructed scenery or
+post-race motion are documented in [Monza world details](docs/monza-world-details.md).
+
 ## Current milestone: 3D Monza race visualization
 
 The 3D OpenGL application follows **Max Verstappen's 53-lap 2025 Italian Grand Prix**
 using the FIA lap and sector timings. F1 reported this as its fastest race:
 **1:13:24.325**. The first lap takes **1:27.159**, not a repeated qualifying
 record. A race timer, current/last lap times, lap counter and progress bar
-follow the same clock. The replay ends at lap 53 with the clock fixed at the
-official result.
+follow the same clock. The race timer stops at lap 53 at the official result; the post-race return
+and parking animation then continues on a separate clock.
 
 A five-light start precedes the race clock. The drawn pit lane includes the
 winner's documented **24.545-second visit**, with a **2.3-second stationary tyre

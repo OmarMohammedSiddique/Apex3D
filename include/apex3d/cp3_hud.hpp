@@ -1,6 +1,8 @@
 #pragma once
 
 #include "cp3_scene.hpp"
+#include "bitmap_font.hpp"
+#include "race_identity.hpp"
 #include "cp3_playback.hpp"
 #include "driver_focus.hpp"
 #include "tyre_state.hpp"
@@ -14,57 +16,6 @@
 #include <vector>
 
 namespace apex3d::cp3 {
-
-[[nodiscard]] inline std::array<unsigned char, 7> glyph(char letter)
-{
-    switch (letter) {
-    case 'A': return {14, 17, 17, 31, 17, 17, 17};
-    case 'B': return {30, 17, 17, 30, 17, 17, 30};
-    case 'C': return {15, 16, 16, 16, 16, 16, 15};
-    case 'D': return {30, 17, 17, 17, 17, 17, 30};
-    case 'E': return {31, 16, 16, 30, 16, 16, 31};
-    case 'F': return {31, 16, 16, 30, 16, 16, 16};
-    case 'G': return {15, 16, 16, 19, 17, 17, 15};
-    case 'H': return {17, 17, 17, 31, 17, 17, 17};
-    case 'I': return {31, 4, 4, 4, 4, 4, 31};
-    case 'J': return {7, 2, 2, 2, 18, 18, 12};
-    case 'K': return {17, 18, 20, 24, 20, 18, 17};
-    case 'L': return {16, 16, 16, 16, 16, 16, 31};
-    case 'M': return {17, 27, 21, 21, 17, 17, 17};
-    case 'N': return {17, 25, 21, 19, 17, 17, 17};
-    case 'O': return {14, 17, 17, 17, 17, 17, 14};
-    case 'P': return {30, 17, 17, 30, 16, 16, 16};
-    case 'Q': return {14, 17, 17, 17, 21, 18, 13};
-    case 'R': return {30, 17, 17, 30, 20, 18, 17};
-    case 'S': return {15, 16, 16, 14, 1, 1, 30};
-    case 'T': return {31, 4, 4, 4, 4, 4, 4};
-    case 'U': return {17, 17, 17, 17, 17, 17, 14};
-    case 'V': return {17, 17, 17, 17, 17, 10, 4};
-    case 'W': return {17, 17, 17, 21, 21, 21, 10};
-    case 'X': return {17, 17, 10, 4, 10, 17, 17};
-    case 'Y': return {17, 17, 10, 4, 4, 4, 4};
-    case 'Z': return {31, 1, 2, 4, 8, 16, 31};
-    case '0': return {14, 17, 19, 21, 25, 17, 14};
-    case '1': return {4, 12, 4, 4, 4, 4, 14};
-    case '2': return {14, 17, 1, 2, 4, 8, 31};
-    case '3': return {30, 1, 1, 14, 1, 1, 30};
-    case '4': return {2, 6, 10, 18, 31, 2, 2};
-    case '5': return {31, 16, 16, 30, 1, 1, 30};
-    case '6': return {14, 16, 16, 30, 17, 17, 14};
-    case '7': return {31, 1, 2, 4, 8, 8, 8};
-    case '8': return {14, 17, 17, 14, 17, 17, 14};
-    case '9': return {14, 17, 17, 15, 1, 1, 14};
-    case '/': return {1, 1, 2, 4, 8, 16, 16};
-    case '+': return {0, 4, 4, 31, 4, 4, 0};
-    case '-': return {0, 0, 0, 31, 0, 0, 0};
-    case '.': return {0, 0, 0, 0, 0, 12, 12};
-    case ':': return {0, 12, 12, 0, 12, 12, 0};
-    case '<': return {1, 2, 4, 8, 4, 2, 1};
-    case '>': return {16, 8, 4, 2, 4, 8, 16};
-    case '%': return {17, 2, 4, 4, 8, 16, 17};
-    default: return {0, 0, 0, 0, 0, 0, 0};
-    }
-}
 
 inline void hudText(std::vector<Vertex>& mesh, double x, double top,
                     double pixel, const std::string& text, Color color)
@@ -240,8 +191,8 @@ enum class HudAction { None, Play, Mute, FieldPrevious, FieldNext, FocusVerstapp
     constexpr Color cyan{0.22F, 0.86F, 0.91F};
     constexpr Color gold{0.96F, 0.74F, 0.28F};
     const auto& info=driverInfo(focus);
-    const auto clock = driverClock(focus,playback.elapsed);
-    const auto tyres=tyreState(focus,playback.elapsed);
+    const auto clock = driverClock(focus,playback.simulationSeconds());
+    const auto tyres=tyreState(focus,playback.simulationSeconds());
     std::vector<Vertex> mesh;
     hudRectangle(mesh, 0.17, -0.45, 0.95, 0.94, panel);
     hudText(mesh, 0.21, 0.88, 0.008, "APEX3D", white);
@@ -257,7 +208,7 @@ enum class HudAction { None, Play, Mute, FieldPrevious, FieldNext, FocusVerstapp
     rate << std::fixed << std::setprecision(2) << playback.speed << "X  "
         << (playback.speed == 1.0 ? "REAL TIME" : "FAST/SLOW PLAYBACK");
     hudText(mesh, 0.21, 0.25, 0.0035, rate.str(), secondary);
-    const char* state = sample.dns ? "DNS / NO RACE RUNNING" : sample.retired ? "RETIRED / 24 COMPLETED LAPS" : playback.finished()&&!clock.finished ? "WINNER FINISHED / REPLAY ENDED" : clock.finished ? "CHEQUERED FLAG / FINISHED" : !playback.started ? "READY TO START" :
+    const char* state = sample.dns ? "DNS / NO RACE RUNNING" : sample.retired ? "RETIRED / 24 COMPLETED LAPS" : sample.parked ? "PARKED / PARC FERME" : sample.cooldown ? "POST RACE / RETURNING TO PITS" : playback.finished()&&!clock.finished ? "WINNER FINISHED / FIELD ACTIVE" : clock.finished ? "CHEQUERED FLAG / FINISHED" : !playback.started ? "READY TO START" :
         playback.starting() ? (playback.playing ? "START SEQUENCE" : "START / PAUSED") :
         sample.servicing ? (playback.playing ? "PIT BOX / TYRE CHANGE" : "PIT BOX / PAUSED") :
         sample.inPit ? (playback.playing ? "IN PIT LANE" : "PIT LANE / PAUSED") :
@@ -269,6 +220,8 @@ enum class HudAction { None, Play, Mute, FieldPrevious, FieldNext, FocusVerstapp
         hudText(mesh,0.21,0.12,0.0035,"NO RACE PIT STOP",secondary);
     } else if (sample.retired) {
         hudText(mesh,0.21,0.12,0.0035,"SUSPENSION FAILURE / LAP 25",secondary);
+    } else if (sample.cooldown) {
+        hudText(mesh,0.21,0.12,0.0033,sample.parked?"OFFICIAL RESULT / "+driverLabel(focus,playback.simulationSeconds()):"COOLDOWN / PIT RETURN",secondary);
     } else if (sample.inPit) {
         hudText(mesh, 0.21, 0.12, 0.0033, "PIT " + clockText(playback.elapsed-info.pitEntry) + " / "+duration, gold);
     } else {
@@ -284,13 +237,13 @@ enum class HudAction { None, Play, Mute, FieldPrevious, FieldNext, FocusVerstapp
     hudText(mesh, 0.21, -0.07, 0.0035, "+/- SPEED  1 REAL TIME", secondary);
     hudText(mesh, 0.21, -0.12, 0.0035, "< > SEEK 10S  N NEXT LAP", secondary);
     hudText(mesh, 0.21, -0.17, 0.0035, "J PIT STOP  R RESTART  B DEMO", secondary);
-    hudText(mesh, 0.21, -0.22, 0.0035, "W WHEELS  P POINTS  M MUTE", secondary);
+    hudText(mesh, 0.21, -0.22, 0.0030, "W WHEELS  P POINTS  M MUTE  E PARKING", secondary);
     const auto button = [&](double left, double right, const std::string& label, HudAction action) {
         hudRectangle(mesh, left, -0.34, right, -0.26,
             hover == action ? Color{0.13F, 0.32F, 0.36F} : Color{0.08F, 0.20F, 0.24F});
         hudText(mesh, left + 0.022, -0.282, 0.0041, label, white);
     };
-    button(0.21, 0.54, playback.finished() ? "REPLAY" : !playback.started ? "START" : playback.playing ? "PAUSE" : "RESUME", HudAction::Play);
+    button(0.21, 0.54, playback.finished()&&playback.postRaceElapsed>=postRaceDuration ? "REPLAY" : !playback.started ? "START" : playback.playing ? "PAUSE" : "RESUME", HudAction::Play);
     button(0.58, 0.91, !audioAvailable ? "NO AUDIO" : playback.muted ? "UNMUTE" : "MUTE", HudAction::Mute);
     hudText(mesh, 0.21, -0.40, 0.0032, "PATH / PIT ARRIVAL INTERPOLATED", secondary);
 

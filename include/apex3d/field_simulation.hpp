@@ -1,5 +1,6 @@
 #pragma once
 #include "driver_focus.hpp"
+#include "post_race.hpp"
 
 namespace apex3d::cp3 {
 // Sector and pit gates are measured; the intervening racing line is schematic.
@@ -51,6 +52,7 @@ public:
     RaceSample sample(double seconds)const {
         if(!std::isfinite(seconds))seconds=0;
         if(entry_.dns)return {geometry_.pitPose(37+240/circuitMetres),0,0,false,false,0,false,false,true};
+        if(!entry_.dnf&&seconds>=entry_.elapsed)return postRaceSample(path_,geometry_,entry_,seconds);
         const double end=entry_.dnf?entry_.retire:entry_.elapsed;
         const double t=std::clamp(seconds,0.0,end);
         double p=keys_.back().progress,velocity=0;

@@ -1,0 +1,24 @@
+{
+  "positions": {
+    "source": "https://api.openf1.org/v1/position?session_key=9912",
+    "response_sha256": "afac7f7f6adbb79fe856bf329208506a0b772cdf5df6c726ba96f2bfc8b0827f"
+  },
+  "drs": {
+    "source": "OpenF1 car_data session 9912; original response hashes in monza-2025-full-field-provenance.json",
+    "active_codes": [
+      10,
+      12,
+      14
+    ],
+    "gap_limit_ms": 1000
+  },
+  "circuit_map": "https://www.fia.com/system/files/decision-document/2025_italian_grand_prix_-_event_notes_-_circuit_map_pit_lane_emergency_exit_map_quarantine_zone_and_red_zones.pdf",
+  "parking": {
+    "source": "https://www.fia.com/system/files/decision-document/2025_italian_grand_prix_-_post-race_procedure.pdf",
+    "sha256": "dc9489cc1ca29df39e8294cc8f2510f7cbc244e9750315d64ef2143ada834b34",
+    "notes": "FIA procedure and 1-2-3 placement; in-lap, withdrawal and parking animations are schematic, not recorded post-race telemetry."
+  },
+  "trees": "https://reggiadimonza.it/natura/",
+  "building_data": "monza-scenery.json: extracted OSM geometries, anchors and raw source hash",
+  "logos": "team-logo-pixels.json: all ten 2025 official CDN image URLs and response hashes"
+}
