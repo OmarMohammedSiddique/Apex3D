@@ -7,19 +7,24 @@ struct TyreState {
     const TyreStint* stint;
     int raceLaps,priorLaps,completedLaps;
     bool changing;
+    bool available{true};
 };
 inline TyreState tyreState(DriverFocus driver,double seconds) {
     const auto& info=driverInfo(driver);
-    // The timing feed describes whole-lap stints. Switch the actual fitted set
-    // at service completion, since the timing line is crossed inside this pit visit.
-    const int set=seconds>=info.boxStart+info.service?2:1;
-    const TyreStint* stint=nullptr;
+    static constexpr TyreStint missing{0,0,0,0,"UNAVAILABLE",0};
+    if(info.archive->dns)return {&missing,0,0,0,false,false};
+    int set=1;bool changing=false;
+    for(const auto& pit:archivedPits)if(pit.driver==static_cast<int>(info.focus)){
+        if(seconds>=pit.boxStart+pit.service)++set;
+        if(seconds>=pit.boxStart&&seconds<pit.boxStart+pit.service)changing=true;
+    }
+    const TyreStint* stint=&missing;
     for(const auto& candidate:tyreStints)
         if(candidate.driver==static_cast<int>(info.focus)&&candidate.number==set)stint=&candidate;
     const int completed=driverClock(driver,seconds).completed;
     const int onSet=std::max(0,completed-(stint->firstLap-1));
     return {stint,onSet,stint->priorLaps,onSet+stint->priorLaps,
-        seconds>=info.boxStart&&seconds<info.boxStart+info.service};
+        changing,stint!=&missing};
 }
 inline Color compoundColor(std::string_view compound) {
     if(compound=="SOFT")return {0.96F,0.17F,0.20F};

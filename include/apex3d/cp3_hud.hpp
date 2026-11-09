@@ -117,7 +117,9 @@ inline void wheelInspector(std::vector<Vertex>& mesh, double travelled, double a
     constexpr Color cyan{0.22F, 0.86F, 0.91F};
         hudRectangle(mesh, 0.17, -0.20, 0.95, tyre?0.34:0.20, panel);
         hudText(mesh, 0.21, tyre?0.30:0.17, 0.0042, "WHEEL INSPECTOR", white);
-        if(tyre) {
+        if(tyre&&!tyre->available) {
+            hudText(mesh,0.21,0.245,0.0038,"DNS / NO RACE TYRE SET",secondary);
+        } else if(tyre) {
             hudText(mesh,0.21,0.245,0.0038,"TYRE: "+tyreCompoundText(tyre->stint->compound)+" / SET "+std::to_string(tyre->stint->number),compoundColor(tyre->stint->compound));
             hudText(mesh,0.21,0.195,0.0033,"AGE: "+std::to_string(tyre->completedLaps)+" COMPLETED LAPS",white);
             hudText(mesh,0.21,0.15,0.0030,tyre->changing?"TYRE CHANGE IN PROGRESS":
@@ -219,7 +221,7 @@ inline void wheelInspector(std::vector<Vertex>& mesh, double travelled, double a
     return out.str();
 }
 
-enum class HudAction { None, Play, Mute, FocusVerstappen, FocusNorris, FocusPiastri };
+enum class HudAction { None, Play, Mute, FieldPrevious, FieldNext, FocusVerstappen=101, FocusNorris=104, FocusPiastri=181 };
 [[nodiscard]] inline HudAction hudActionAt(double x, double y)
 {
     if (y < -0.34 || y > -0.26) return HudAction::None;
@@ -245,17 +247,17 @@ enum class HudAction { None, Play, Mute, FocusVerstappen, FocusNorris, FocusPias
     hudText(mesh, 0.21, 0.88, 0.008, "APEX3D", white);
     hudText(mesh, 0.21, 0.77, 0.0038, std::string("MONZA 2025 / ")+info.name, secondary);
     hudText(mesh, 0.21, 0.71, 0.0036, "TIMING-BASED RACE REPLAY", secondary);
-    hudText(mesh, 0.21, 0.63, 0.0065, "LAP " + std::to_string(clock.lap) + " OF 53", white);
+    hudText(mesh, 0.21, 0.63, 0.0065, info.archive->dns ? "DID NOT START" : "LAP " + std::to_string(clock.lap) + " OF 53", white);
     hudText(mesh, 0.21, 0.53, 0.0038, "RACE TIME", secondary);
     hudText(mesh, 0.21, 0.47, 0.006, clockText(playback.elapsed, true), white);
-    hudText(mesh, 0.21, 0.37, 0.0042, "LAP  " + clockText(clock.lapElapsed), cyan);
+    hudText(mesh, 0.21, 0.37, 0.0042, info.archive->dns ? "LAP  --:--.---" : "LAP  " + clockText(clock.lapElapsed), cyan);
     hudText(mesh, 0.21, 0.31, 0.0038,
         clock.completed ? "LAST " + clockText(clock.lastLap) : "LAST --:--.---", secondary);
     std::ostringstream rate;
     rate << std::fixed << std::setprecision(2) << playback.speed << "X  "
         << (playback.speed == 1.0 ? "REAL TIME" : "FAST/SLOW PLAYBACK");
     hudText(mesh, 0.21, 0.25, 0.0035, rate.str(), secondary);
-    const char* state = playback.finished()&&!clock.finished ? "WINNER FINISHED / REPLAY ENDED" : clock.finished ? "CHEQUERED FLAG / FINISHED" : !playback.started ? "READY TO START" :
+    const char* state = sample.dns ? "DNS / NO RACE RUNNING" : sample.retired ? "RETIRED / 24 COMPLETED LAPS" : playback.finished()&&!clock.finished ? "WINNER FINISHED / REPLAY ENDED" : clock.finished ? "CHEQUERED FLAG / FINISHED" : !playback.started ? "READY TO START" :
         playback.starting() ? (playback.playing ? "START SEQUENCE" : "START / PAUSED") :
         sample.servicing ? (playback.playing ? "PIT BOX / TYRE CHANGE" : "PIT BOX / PAUSED") :
         sample.inPit ? (playback.playing ? "IN PIT LANE" : "PIT LANE / PAUSED") :
@@ -263,7 +265,11 @@ enum class HudAction { None, Play, Mute, FocusVerstappen, FocusNorris, FocusPias
     hudText(mesh, 0.21, 0.19, 0.0040, state, sample.inPit ? gold : cyan);
     const auto durationText=[](double seconds){std::ostringstream out;out<<std::fixed<<std::setprecision(3)<<seconds<<"S";return out.str();};
     const std::string duration=durationText(info.pitExit-info.pitEntry),service=durationText(info.service);
-    if (sample.inPit) {
+    if(info.archive->dns) {
+        hudText(mesh,0.21,0.12,0.0035,"NO RACE PIT STOP",secondary);
+    } else if (sample.retired) {
+        hudText(mesh,0.21,0.12,0.0035,"SUSPENSION FAILURE / LAP 25",secondary);
+    } else if (sample.inPit) {
         hudText(mesh, 0.21, 0.12, 0.0033, "PIT " + clockText(playback.elapsed-info.pitEntry) + " / "+duration, gold);
     } else {
         hudText(mesh, 0.21, 0.12, 0.0035,
@@ -272,7 +278,7 @@ enum class HudAction { None, Play, Mute, FocusVerstappen, FocusNorris, FocusPias
     }
     hudText(mesh, 0.21, 0.07, 0.0033, sample.servicing ?
         "BOX " + clockText(playback.elapsed-info.boxStart) + " / "+service :
-        std::string(tyres.stint->compound)+" TYRES / BOX "+service, secondary);
+        info.archive->dns ? "NO RECORDED RACE RUNNING" : std::string(tyres.stint->compound)+" TYRES / BOX "+service, secondary);
     hudRectangle(mesh, 0.21, -0.025, 0.91, -0.005, {0.08F, 0.16F, 0.20F});
     hudRectangle(mesh, 0.21, -0.025, 0.21 + 0.70 * playback.elapsed / raceTotalSeconds, -0.005, cyan);
     hudText(mesh, 0.21, -0.07, 0.0035, "+/- SPEED  1 REAL TIME", secondary);
