@@ -36,9 +36,9 @@ retired/DNS entries are labelled NC rather than assigned classified positions.
   approximate withdrawal instant, not an official retirement timestamp.
 - Ocon, Gasly, Colapinto and Stroll completed 52 laps. Their records are not
   padded with an invented 53rd lap.
-- The shared replay still stops at Verstappen's 1:13:24.325 finish. Other cars
-  freeze where their own timing places them at that instant; their later
-  individual finish crossings are not played beyond the winner's clock.
+- The race timer stops at Verstappen's 1:13:24.325 finish. A separate post-race
+  clock lets the other finishers complete their recorded race laps before an
+  illustrative in-lap and parking sequence. See [world details](monza-world-details.md).
 
 ## Data and reconstruction
 

@@ -56,7 +56,7 @@ struct RaceSample {
     bool inPit;
     bool servicing;
     double travelledMetres;
-    bool visible{true},retired{false},dns{false};
+    bool visible{true},retired{false},dns{false},cooldown{false},parked{false};
 };
 
 class RaceMotion {
