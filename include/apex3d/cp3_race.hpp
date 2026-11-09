@@ -56,6 +56,7 @@ struct RaceSample {
     bool inPit;
     bool servicing;
     double travelledMetres;
+    bool visible{true},retired{false},dns{false};
 };
 
 class RaceMotion {
@@ -125,7 +126,7 @@ public:
             auto pose = poseAtProgress(path_, p);
             const double blend = std::clamp(std::min(
                 (p - pitEntryProgress) / 0.021,
-                (pitExitProgress - p) / 0.024), 0.0, 1.0);
+                (pitExitProgress - p) / 0.006), 0.0, 1.0);
             // Raised inside the main straight; smooth joins at both gates.
             const double bayBlend = std::clamp(1.0-std::abs(p-bayProgress)/0.008,0.0,1.0);
             const double bay = bayBlend*bayBlend*(3.0-2.0*bayBlend);

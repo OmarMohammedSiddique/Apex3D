@@ -2,6 +2,7 @@
 #include "math3d.hpp"
 #include "cp3_race.hpp"
 #include "generated/monza_stands_2025.hpp"
+#include "generated/monza_entries_2025.hpp"
 #include <vector>
 
 namespace apex3d::three {
@@ -82,12 +83,12 @@ inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
     quad(mesh,edge(a,left,height),edge(a,right,height),edge(b,right,height),edge(b,left,height),color);
 }
 inline void garageBlock(Mesh& mesh,V3 p,Color team) {
-    // Six 6 m bays, a 15 m deep building, and a working apron.
-    box(mesh,p+V3{-18,0,-21},p+V3{18,physical::garageHeight,-6},{0.51F,0.54F,0.55F});
-    box(mesh,p+V3{-18.3,6,-21.3},p+V3{18.3,6.3,-5.7},{0.24F,0.28F,0.31F});
-    box(mesh,p+V3{-18,-0.10,-6},p+V3{18,-0.001,5.5},{0.31F,0.34F,0.35F});
-    for(int i=0;i<6;++i) {
-        const double x=-17.5+i*6;
+    // Two representative 6 m bays per team, with a 15 m deep building.
+    box(mesh,p+V3{-6,0,-21},p+V3{6,physical::garageHeight,-6},{0.51F,0.54F,0.55F});
+    box(mesh,p+V3{-6.3,6,-21.3},p+V3{6.3,6.3,-5.7},{0.24F,0.28F,0.31F});
+    box(mesh,p+V3{-6,-0.10,-6},p+V3{6,-0.001,5.5},{0.31F,0.34F,0.35F});
+    for(int i=0;i<2;++i) {
+        const double x=-5.5+i*6;
         box(mesh,p+V3{x,0,-5.98},p+V3{x+5,3.5,-5.90},{0.055F,0.075F,0.085F});
         box(mesh,p+V3{x,4.0,-5.97},p+V3{x+5,4.25,-5.88},team);
     }
@@ -98,9 +99,16 @@ inline void garageBlock(Mesh& mesh,V3 p,Color team) {
     }
 }
 inline void garage(Mesh& mesh,const cp3::RaceMotion& race) {
-    garageBlock(mesh,world(race.pitPose(cp3::pitBoxProgress).position,physical::roadHeight),{0.10F,0.23F,0.52F});
-    const double mclarenBox=37.0+34.0/cp3::circuitMetres;
-    garageBlock(mesh,world(race.pitPose(mclarenBox,true,mclarenBox).position,physical::roadHeight),{1.0F,0.43F,0.05F});
+    std::vector<std::string_view> teams;
+    for(const auto& entry:cp3::archivedEntries){
+        if(std::find(teams.begin(),teams.end(),entry.team)!=teams.end())continue;
+        teams.push_back(entry.team);double metres=0;int count=0;
+        for(const auto& teammate:cp3::archivedEntries)if(std::string_view(teammate.team)==entry.team)
+            for(const auto& pit:cp3::archivedPits)if(pit.driver==teammate.number){metres+=pit.boxMetres;++count;}
+        if(!count)continue;
+        const double progress=37+metres/count/cp3::circuitMetres;
+        garageBlock(mesh,world(race.pitPose(progress,true,progress).position,physical::roadHeight),entry.color);
+    }
     const auto mainPath=cp3::makePath();
     for(int i=0;i<96;++i) {
         const double a=cp3::pitEntryProgress+0.021+(cp3::pitExitProgress-cp3::pitEntryProgress-0.045)*i/96;
