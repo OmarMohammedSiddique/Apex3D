@@ -2,3 +2,4 @@
 include/apex3d/generated/** linguist-generated=true
 data/*-telemetry.csv linguist-generated=true
 src/generated/** linguist-generated=true
+data/team-logo-pixels.json linguist-generated=true

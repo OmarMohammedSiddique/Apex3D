@@ -82,6 +82,46 @@ inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
     if(left>right)std::swap(left,right);
     quad(mesh,edge(a,left,height),edge(a,right,height),edge(b,right,height),edge(b,left,height),color);
 }
+} // namespace apex3d::three
+#include "world_detail.hpp"
+namespace apex3d::three {
+inline double nearestLandmark(const std::vector<cp3::PathSample>& path,Vec2 target){
+    const auto p=std::min_element(path.begin(),path.end(),[&](const auto& a,const auto& b){return std::hypot(a.point.x-target.x,a.point.y-target.y)<std::hypot(b.point.x-target.x,b.point.y-target.y);});
+    return p->distance/path.back().distance;
+}
+inline void drsZones(Mesh& mesh,const std::vector<cp3::PathSample>& path){
+    const double t7=nearestLandmark(path,{-.95,.90}),t8=nearestLandmark(path,{.33,-.39}),t1=nearestLandmark(path,{-.49,-.84});
+    const std::array<std::pair<double,double>,2> zones{{{t7+170/cp3::circuitMetres,t8-70/cp3::circuitMetres},{12/cp3::circuitMetres,t1-70/cp3::circuitMetres}}};
+    for(const auto& zone:zones){
+        // Thin cyan verge guides identify the DRS zones; they are a visualization overlay.
+        for(double p=zone.first;p<zone.second;p+=20/cp3::circuitMetres){const auto a=cp3::poseAtProgress(path,p),b=cp3::poseAtProgress(path,std::min(zone.second,p+10/cp3::circuitMetres));
+            roadStrip(mesh,a,b,-8.7,-8.3,.02,{.13F,.58F,.52F});}
+        const auto pose=cp3::poseAtProgress(path,zone.first);const auto start=mesh.size();
+        box(mesh,{-.08,0,-11},{.08,2.4,-10.84},{.48F,.51F,.51F});
+        box(mesh,{-.08,1.5,-12.2},{.08,2.7,-10.0},{.025F,.045F,.055F});
+        surfaceText(mesh,{-.09,1.70,-11.95},{0,0,1},{0,1,0},.10,"DRS",{1,1,1});
+        place(mesh,start,world(pose.position),pose.headingRadians);
+    }
+}
+inline void parcFermeScene(Mesh& mesh,const std::vector<cp3::PathSample>& path){
+    const auto start=mesh.size();
+    box(mesh,{-14,-.015,7},{22,.01,65},{.32F,.35F,.36F});
+    box(mesh,{20,-.015,45},{145,.01,70},{.32F,.35F,.36F});
+    // Race control / weighing facilities and a podium bridge at the pit-wall end.
+    box(mesh,{-30,0,24},{-13,11,40},{.80F,.79F,.73F});
+    box(mesh,{-30.2,8.0,23.8},{-12.8,10.2,40.2},{.21F,.32F,.37F});
+    box(mesh,{-31,11,23},{-12,11.5,41},{.66F,.67F,.63F});
+    box(mesh,{-27,0,10},{-20,4.5,24},{.70F,.71F,.69F});
+    box(mesh,{-29,4.5,5},{-18,5,25},{.40F,.43F,.44F});
+    surfaceText(mesh,{-12.9,6.2,26},{0,0,1},{0,1,0},.14,"CONTROL",{.05F,.10F,.12F});
+    for(int rank=1;rank<=3;++rank){const double along=rank==1?6:8,lateral=rank==1?18:rank==2?22:14;
+        const Color c=rank==1?Color{.94F,.72F,.21F}:rank==2?Color{.72F,.77F,.79F}:Color{.74F,.43F,.25F};
+        box(mesh,{along+3.7,0,lateral-.65},{along+3.9,1.35,lateral+.65},{.05F,.07F,.08F});
+        surfaceText(mesh,{along+3.69,.23,lateral-.29},{0,0,1},{0,1,0},.12,std::to_string(rank),c);
+        for(double side:{-1.,1.})box(mesh,{along-3,.015,lateral+side*1.45-.04},{along+3,.025,lateral+side*1.45+.04},c);
+    }
+    const auto origin=cp3::poseAtProgress(path,0);place(mesh,start,world(origin.position,physical::roadHeight),origin.headingRadians);
+}
 inline void garageBlock(Mesh& mesh,V3 p,Color team) {
     // Two representative 6 m bays per team, with a 15 m deep building.
     box(mesh,p+V3{-6,0,-21},p+V3{6,physical::garageHeight,-6},{0.51F,0.54F,0.55F});
@@ -209,24 +249,12 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
             roadStrip(mesh,pa,pb,-physical::pitWidth/2,physical::pitWidth/2,physical::roadHeight,asphalt);
             for(double side:{-1.0,1.0})roadStrip(mesh,pa,pb,side*1.90,side*2.0,physical::roadHeight+0.01,white);
         }
-        garage(mesh,*race);grandstands(mesh,path);
+        garage(mesh,*race);grandstands(mesh,path);drsZones(mesh,path);parcFermeScene(mesh,path);
         auto structure=gantry(path,0,true);mesh.insert(mesh.end(),structure.begin(),structure.end());
     }
-    // Trees: 10-18 m high with 0.4 m trunks, clear of road and pit facilities.
-    for(int i=0;i<400;++i) {
-        const double x=(-1.94+3.92*std::fmod(i*0.61803398875,1.0))*scale;
-        const double z=(-1.20+2.39*std::fmod(i*0.41421356237+0.2,1.0))*scale;
-        double nearest=1e9;
-        for(std::size_t j=0;j+1<path.size();++j){
-            const auto a=world(path[j].point),b=world(path[j+1].point),d=b-a;
-            const double t=std::clamp(dot(V3{x,0,z}-a,d)/dot(d,d),0.0,1.0);
-            nearest=std::min(nearest,length(V3{x,0,z}-(a+d*t)));
-        }
-        if(nearest<55)continue;
-        const double h=10+8*std::fmod(i*0.73,1.0);
-        tube(mesh,{x,0,z},{x,h*0.50,z},0.20,{0.31F,0.23F,0.15F},6);
-        cone(mesh,{x,h*0.27,z},3.0,h*0.65,{0.16F,0.30F,0.18F});
-        cone(mesh,{x,h*0.52,z},2.1,h*0.48,{0.20F,0.37F,0.21F});
+    if(race){
+        mappedBuildings(mesh,path);
+        for(const auto& tree:woodlandTrees(path))broadleafTree(mesh,tree);
     }
     // 0.75 m Armco, estimated 5 m beyond the kerb. Omit pit-entry region.
     for(std::size_t i=0;i+1<path.size();++i) {
@@ -270,8 +298,8 @@ inline double pitSteering(const cp3::RaceMotion& race,double progress,double bay
     const double delta=std::atan2(std::sin(b.headingRadians-a.headingRadians),std::cos(b.headingRadians-a.headingRadians));
     return std::clamp(std::atan(physical::wheelbase*delta/std::max(metres,0.01)),-0.436332313,0.436332313);
 }
-inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false,double steer=0.0,Color bodyColor={0.10F,0.23F,0.52F},Color helmet={0.95F,0.74F,0.15F},Color tyreMarker={-1,-1,-1}) {
-    Mesh mesh;const Color blue=bodyColor;constexpr Color carbon{0.055F,0.065F,0.075F},gold{0.95F,0.74F,0.15F};
+inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false,double steer=0.0,Color bodyColor={0.10F,0.23F,0.52F},Color helmet={0.95F,0.74F,0.15F},Color tyreMarker={-1,-1,-1},int number=0,double drs=0,bool airflow=false) {
+    Mesh mesh;const Color blue=bodyColor;constexpr Color carbon{0.055F,0.065F,0.075F};
     // Lofted monocoque/nose: real volume with separate top and side normals.
     struct Section { double x,w,h; };
     constexpr std::array<Section,6> sections{{{-0.060,0.012,0.017},{-0.032,0.016,0.030},
@@ -297,8 +325,9 @@ inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false,double st
         box(mesh,{-0.066,0.012,side*0.006-0.001},{-0.063,0.044,side*0.006+0.001},carbon);
     }
     box(mesh,{-0.072,0.044,-0.029},{-0.056,0.048,0.029},carbon);
-    box(mesh,{-0.070,0.049,-0.028},{-0.056,0.052,0.028},blue);
-    box(mesh,{-0.070,0.052,-0.026},{-0.058,0.053,0.026},gold);
+    const auto flapStart=mesh.size();
+    box(mesh,{-0.070,0.052,-0.026},{-0.058,0.053,0.026},carbon);
+    const auto flapEnd=mesh.size();
     sphere(mesh,{-0.008,0.026,0},{0.017,0.004,0.009},carbon,6,16);
     sphere(mesh,{-0.010,0.033,0},{0.0042,0.0089,0.00465},helmet,8,12);
     box(mesh,{-0.031,0.025,-0.006},{-0.022,0.042,0.006},blue);
@@ -313,6 +342,28 @@ inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false,double st
         const auto n=unit({v.nx/36.0,v.ny/18.0,v.nz/(physical::carWidth/0.062)});
         v.nx=static_cast<float>(n.x);v.ny=static_cast<float>(n.y);v.nz=static_cast<float>(n.z);
     }
+    const double angle=(1-drs)*.45,hinge=-.070*36,height=.052*18,flapHeight=.75+drs*.16;
+    for(auto i=flapStart;i<flapEnd;++i){auto& v=mesh[i];const double x=v.x-hinge,y=v.y-height;
+        v.x=static_cast<float>(hinge+x*std::cos(angle)-y*std::sin(angle));
+        v.y=static_cast<float>(flapHeight+x*std::sin(angle)+y*std::cos(angle));
+        const double nx=v.nx,ny=v.ny;v.nx=static_cast<float>(nx*std::cos(angle)-ny*std::sin(angle));v.ny=static_cast<float>(nx*std::sin(angle)+ny*std::cos(angle));}
+    if(number){
+        const auto label=std::to_string(number);const double cell=.040;
+        // Rear-facing race number for chase view, plus a number on the upper nose.
+        box(mesh,{-2.62,.53,-.32},{-2.60,.84,.32},carbon);
+        surfaceText(mesh,{-2.625,.55,-double(label.size()*6-1)*cell/2},{0,0,1},{0,1,0},cell,label,{1,1,1});
+        surfaceText(mesh,{1.28,.364,-.19},{0,0,1},{-1,.097,0},.038,label,{1,1,1});
+        for(double side:{-1.,1.}){
+            const double z=side*.54;
+            box(mesh,{-.55,.18,z-.003},{.48,.47,z+.003},{.035F,.045F,.055F});
+            logoDecal(mesh,number,side>0?V3{-.51,.20,z+.004}:V3{.44,.20,z-.004},side>0?V3{1,0,0}:V3{-1,0,0},{0,1,0},.95,.25);
+        }
+        // A second logo on the engine cover remains readable from above.
+        logoDecal(mesh,number,{-1.65,.59,.20},{1,0,0},{0,0,-1},.70,.40);
+    }
+    if(drs>.1)tube(mesh,{-2.52,flapHeight+.025,-.84},{-2.52,flapHeight+.025,.84},.008,{.12F,.90F,.75F},5);
+    if(airflow&&drs>.1)for(double side:{-1.,1.})for(int i=0;i<3;++i){const double y=.82+i*.10,z=side*(.50+i*.12);
+        quad(mesh,{-2.6,y,z},{-2.6,y+.018,z},{-5.3-i*.45,y+.15,z+side*.15},{-5.3-i*.45,y+.14,z+side*.15},{.12F,.74F,.65F});}
     for(double x:{-physical::wheelbase/2,physical::wheelbase/2})for(double side:{-1.0,1.0}) {
         const double width=x>0?physical::frontTyreWidth:physical::rearTyreWidth;
         const auto tyreStart=mesh.size();

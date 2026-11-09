@@ -56,10 +56,13 @@ inline void speedGauge(std::vector<cp3::Vertex>& mesh,const cp3::RecordedTelemet
 inline void telemetryGraphic(std::vector<cp3::Vertex>& mesh,cp3::DriverFocus focus,double seconds,
                              bool waiting,double aspect) {
     const auto& info=cp3::driverInfo(focus);
-    const auto data=cp3::telemetryAt(seconds,static_cast<int>(focus));const bool valid=data.available&&!waiting&&cp3::driverActive(focus,seconds);
+    const auto data=cp3::telemetryAt(seconds,static_cast<int>(focus));const bool valid=data.available&&!waiting&&cp3::driverActive(focus,seconds)&&seconds<info.finish;
     const auto level=gaugeLevels(data);
     constexpr cp3::Color white{0.94F,0.97F,0.97F},muted{0.55F,0.68F,0.72F};
-    cp3::hudText(mesh,0.475,-0.468,0.0025,std::string(info.tag)+" / RECORDED TELEMETRY",info.color);
+    cp3::hudText(mesh,0.475,-0.468,0.0025,cp3::driverLabel(focus,seconds)+" / TELEMETRY",info.color);
+    const bool drs=cp3::drsActive(static_cast<int>(focus),seconds)&&!waiting&&seconds<info.finish;
+    cp3::hudRectangle(mesh,.805,-.495,.95,-.458,drs?cp3::Color{.08F,.35F,.29F}:cp3::Color{.08F,.14F,.17F});
+    cp3::hudText(mesh,.815,-.468,.0021,drs?"DRS OPEN":"DRS OFF",drs?cp3::Color{.35F,1.F,.78F}:muted);
     speedGauge(mesh,data,valid,aspect,info.color);
     cp3::hudText(mesh,0.798,-0.513,0.0027,"GEAR",muted);
     cp3::hudRectangle(mesh,0.78,-0.685,0.94,-0.54,{0.075F,0.14F,0.18F});
@@ -70,7 +73,7 @@ inline void telemetryGraphic(std::vector<cp3::Vertex>& mesh,cp3::DriverFocus foc
             valid&&i<level.gear?info.color:cp3::Color{0.15F,0.23F,0.27F});
     }
     cp3::hudText(mesh,0.475,-0.728,0.0022,valid?"ENGINE "+std::to_string(data.engineRpm)+" RPM":
-        info.archive->dns?"DID NOT START":!cp3::driverActive(focus,seconds)?"RETIRED":waiting?"WAITING FOR LIGHTS":"TELEMETRY GAP",white);
+        info.archive->dns?"DID NOT START":!cp3::driverActive(focus,seconds)?"RETIRED":seconds>=info.finish?"POST RACE / TELEMETRY ENDED":waiting?"WAITING FOR LIGHTS":"TELEMETRY GAP",white);
     cp3::hudText(mesh,0.905,-0.728,0.0018,"15K",muted);
     for(int i=0;i<20;++i) {
         const double left=0.475+i*0.0235;
@@ -99,7 +102,7 @@ inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSa
     }
     if(p.isRace()&&visible) {
         cp3::hudRectangle(result,0.45,-0.975,0.97,-0.455,{0.035F,0.075F,0.11F});
-        telemetryGraphic(result,focus,p.elapsed,!p.started||p.starting(),aspect);
+        telemetryGraphic(result,focus,p.simulationSeconds(),!p.started||p.starting(),aspect);
         page=std::clamp(page,0,6);
         cp3::hudText(result,0.475,-0.790,0.0020,"FINAL CLASSIFICATION "+std::to_string(page+1)+"/7",{0.55F,0.68F,0.72F});
         cp3::hudText(result,0.86,-0.790,0.0025,"<   >",{0.94F,0.97F,0.97F});
@@ -124,7 +127,7 @@ inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSa
     }
     if(p.isRace()&&p.showWheels&&visible) {
         std::vector<cp3::Vertex> diagram;
-        const auto tyres=cp3::tyreState(focus,p.elapsed);
+        const auto tyres=cp3::tyreState(focus,p.simulationSeconds());
         cp3::wheelInspector(diagram,sample.travelledMetres/cp3::raceTyreCircumference*cp3::wheelCircumference,aspect,
             p.playing&&!p.starting()?cp3::raceWheelRpm(sample.velocity*p.speed,pathLength):0,cp3::driverInfo(focus).color,&tyres);
         for(auto v:diagram){v.x=static_cast<float>((v.x-0.17)*0.75-0.97);v.y=static_cast<float>(v.y*0.75-0.60);result.push_back(v);}
@@ -132,6 +135,7 @@ inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSa
     cp3::hudRectangle(result,-0.985,-0.985,visible?0.42:0.985,-0.825,{0.035F,0.075F,0.11F});
     cp3::hudText(result,-0.95,-0.85,0.0040,std::string("1 UNIT = 1 M / ")+cameraName(camera)+"   C SWITCH CAMERA",{0.94F,0.97F,0.97F});
     cp3::hudText(result,-0.95,-0.925,0.0035,"DRAG ORBIT  SCROLL ZOOM  F RESET  H DASHBOARD",{0.62F,0.73F,0.76F});
+    cp3::hudText(result,-.95,-.970,.0017,"MAP DATA: OPENSTREETMAP CONTRIBUTORS / ODBL",{.55F,.68F,.72F});
     return result;
 }
 struct MarkerPosition {double x,y;bool onScreen;};
