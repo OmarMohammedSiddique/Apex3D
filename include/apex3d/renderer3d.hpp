@@ -34,8 +34,8 @@ out vec4 fragmentColor;
 float shade(vec3 n,vec3 sun){
     if(!shadowsEnabled)return 0.0;
     vec3 p=lightPosition.xyz/lightPosition.w*0.5+0.5;
-    if(p.z>1.0||p.z<0.0)return 0.0;
-    float bias=max(0.00065*(1.0-dot(n,sun)),0.00030);
+    if(p.z>1.0||p.z<0.0||p.x<0.0||p.x>1.0||p.y<0.0||p.y>1.0)return 0.0;
+    float bias=max(0.00025*(1.0-dot(n,sun)),0.00010);
     vec2 texel=1.0/vec2(textureSize(shadowMap,0));
     float blocked=0.0;
     for(int x=-1;x<=1;++x)for(int y=-1;y<=1;++y)
@@ -108,13 +108,19 @@ public:
         glDrawBuffer(GL_NONE);glReadBuffer(GL_NONE);shadows_=glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE;
         glBindFramebuffer(GL_FRAMEBUFFER,0);
         if(!shadows_)std::cerr<<"Shadow buffer unavailable; directional lighting remains enabled.\n";
-        lightMatrix_=orthographic(-3.2,3.2,-3.2,3.2,0.5,12.0)*lookAt({-3.5,6,3.0},{0,0,0});
+
         return true;
     }
     void setWorld(const Mesh& mesh,const Mesh& anchors){world_.update(mesh,GL_STATIC_DRAW);anchors_.update(anchors,GL_STATIC_DRAW);}
     void update(const Mesh& car,const Mesh& lights,const Mesh& crew){car_.update(car);lights_.update(lights);crew_.update(crew);}
     void draw(const CameraFrame& camera,int width,int height,int sceneWidth,bool points) {
         glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LEQUAL);glDepthMask(GL_TRUE);glDisable(GL_BLEND);glDisable(GL_CULL_FACE);
+        const double extent=camera.shadowExtent;
+        // Follow the car at metre precision; overview uses a whole-circuit map.
+        const auto sun=unit(V3{-3.5,6,3.0});
+        const auto centre=camera.target;
+        lightMatrix_=orthographic(-extent,extent,-extent,extent,0.5,extent*5)*
+            lookAt(centre+sun*(extent*2),centre);
         if(shadows_) {
             glBindFramebuffer(GL_FRAMEBUFFER,shadowFbo_);glViewport(0,0,shadowSize,shadowSize);glClear(GL_DEPTH_BUFFER_BIT);
             glUseProgram(depth_);glUniformMatrix4fv(glGetUniformLocation(depth_,"lightMatrix"),1,GL_FALSE,lightMatrix_.values.data());

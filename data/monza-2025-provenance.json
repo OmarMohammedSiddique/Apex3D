@@ -1,0 +1,102 @@
+{
+  "session_key": 9912,
+  "meeting_key": 1268,
+  "race_origin_utc": "2025-09-07T13:03:35.207000+00:00",
+  "alignment": "Median of OpenF1 lap starts 2-53 minus FIA cumulative lap time. Approximate timestamps; not millisecond-exact telemetry.",
+  "alignment_range_seconds": 0.371,
+  "sources": {
+    "laps-max": {
+      "sha256": "e844f28a4bd0d4ad27a73ab13cae74d4ec0abd2f49cb75168dc87f0f7589e4db",
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=1"
+    },
+    "laps-norris": {
+      "sha256": "713adc317c8b478e2594531fec8e54a98b14f835d7fcf6a5952cd440e96566cd",
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=4"
+    },
+    "laps-piastri": {
+      "sha256": "cab7f755fa8784b73c60fbb571342e85bf8dd0eb3f26457580fa45aba02180c2",
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=81"
+    },
+    "car-max": {
+      "sha256": "6ff42419ce5d39a0ca77d8fca0836676328f1456bf187028e94771acf621d36e",
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=1"
+    },
+    "pits": {
+      "sha256": "3ce2d68abcd3c6eae0fa99323de8ec2ce22a8b04d49473649caed455088bae90",
+      "url": "https://api.openf1.org/v1/pit?session_key=9912"
+    },
+    "result": {
+      "sha256": "4267a9651688afb2aa5bfdcf1dcc7a47b12bcfa77848788b0340a7ef03aa30ae",
+      "url": "https://api.openf1.org/v1/session_result?session_key=9912"
+    },
+    "control": {
+      "sha256": "b138137eadc17c3d10d1b1bfe7f5fe8beddf033753b0a5adad79904a5693fa25",
+      "url": "https://api.openf1.org/v1/race_control?session_key=9912"
+    },
+    "car-norris": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=4",
+      "sha256": "9ed72c1fbbce6a4e462dcf1cb6d93e75813896aa1b5bfc8598df60de82ac1a40"
+    },
+    "car-piastri": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=81",
+      "sha256": "e5602058235c7336f1a33a139e4f067a1b1b57e99f1ebaa80cd519edd930ad21"
+    },
+    "stints": {
+      "url": "https://api.openf1.org/v1/stints?session_key=9912",
+      "sha256": "9e08ee692a82aed8d2490451ee867dbaf3c7b5204aa610a930b77ef30905690c"
+    }
+  },
+  "drivers": [
+    {
+      "driver_number": 4,
+      "finish_ms": 4423532,
+      "first_lap_ms": 87430,
+      "source": "OpenF1 laps, checked against FIA sector analysis; first sector derived from official classification total."
+    },
+    {
+      "driver_number": 81,
+      "finish_ms": 4425676,
+      "first_lap_ms": 87992,
+      "source": "OpenF1 laps, checked against FIA sector analysis; first sector derived from official classification total."
+    }
+  ],
+  "pits": [
+    {
+      "driver": 1,
+      "entry_ms": 3077895,
+      "exit_ms": 3102440,
+      "service_ms": 2300,
+      "entry_lap": 37
+    },
+    {
+      "driver": 81,
+      "entry_ms": 3748148,
+      "exit_ms": 3771750,
+      "service_ms": 1900,
+      "entry_lap": 45
+    },
+    {
+      "driver": 4,
+      "entry_ms": 3827924,
+      "exit_ms": 3855422,
+      "service_ms": 5900,
+      "entry_lap": 46
+    }
+  ],
+  "telemetry_rows": 16394,
+  "grandstands": {
+    "source": "https://www.monzanet.it/wp-content/uploads/2025/03/GP_F1_2025_LISTINO_PREZZI_02_25.pdf",
+    "count": 37,
+    "mapping": "Official numbered sections interpreted onto the hand-authored route; corner area and side source-backed, footprints/setbacks/roofs estimated."
+  },
+  "estimated_box_starts_seconds": {
+    "1": 3086.597,
+    "4": 3834.279,
+    "81": 3754.639
+  },
+  "estimated_box_metres_after_control_line": {
+    "1": 75,
+    "4": 34,
+    "81": 34
+  }
+}
