@@ -1,5 +1,6 @@
 #pragma once
 #include "cp3_hud.hpp"
+#include "race_flags.hpp"
 #include "scene3d.hpp"
 #include "race_telemetry.hpp"
 namespace apex3d::three {
@@ -135,6 +136,21 @@ inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSa
     cp3::hudRectangle(result,-0.985,-0.985,visible?0.42:0.985,-0.825,{0.035F,0.075F,0.11F});
     cp3::hudText(result,-0.95,-0.85,0.0040,std::string("1 UNIT = 1 M / ")+cameraName(camera)+"   C SWITCH CAMERA",{0.94F,0.97F,0.97F});
     cp3::hudText(result,-0.95,-0.925,0.0035,"DRAG ORBIT  SCROLL ZOOM  F RESET  H DASHBOARD",{0.62F,0.73F,0.76F});
+    if(p.isRace()&&p.started&&!p.starting()){
+        const auto flag=cp3::raceFlagAt(p.simulationSeconds());
+        if(flag.severity){const cp3::Color color=flag.severity==1?cp3::Color{.2F,.8F,.4F}:flag.severity==4?cp3::Color{.2F,.5F,1.F}:flag.severity>=5?cp3::Color{.93F,.95F,.95F}:cp3::Color{1.F,.79F,.12F};
+            cp3::hudRectangle(result,-.93,.78,.35,.97,{.03F,.06F,.08F});
+            cp3::hudRectangle(result,-.93,.78,-.915,.97,color);
+            cp3::hudRectangle(result,-.88,.82,-.876,.945,{.72F,.75F,.76F});
+            if(flag.severity==6){for(int row=0;row<4;++row)for(int col=0;col<5;++col)
+                cp3::hudRectangle(result,-.875+col*.021,.87+row*.018,-.854+col*.021,.888+row*.018,(row+col)%2?cp3::Color{.03F,.04F,.05F}:color);}
+            else if(flag.severity==5){cp3::hudRectangle(result,-.875,.87,-.77,.942,color);cp3::triangle(result,{-.875,.87},{-.77,.87},{-.77,.942},{.025F,.03F,.04F});}
+            else{cp3::quad(result,{-.875,.87},{-.82,.88},{-.77,.87},{-.77,.932},color);cp3::triangle(result,{-.875,.87},{-.77,.932},{-.875,.942},color);
+                if(flag.severity==3)cp3::hudRectangle(result,-.875,.82,-.77,.85,color);}
+            cp3::hudText(result,-.72,.94,.0043,flag.title,color);
+            cp3::hudText(result,-.72,.86,.0026,flag.detail,{.91F,.94F,.94F});
+        }
+    }
     cp3::hudText(result,-.95,-.970,.0017,"MAP DATA: OPENSTREETMAP CONTRIBUTORS / ODBL",{.55F,.68F,.72F});
     return result;
 }

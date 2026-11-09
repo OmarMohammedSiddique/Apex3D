@@ -1,6 +1,6 @@
 # Map data attribution
 
-`monza-scenery.json` contains adapted data from © OpenStreetMap contributors,
+`monza-scenery.json` and `monza-gravel.json` contain adapted data from © OpenStreetMap contributors,
 available under the Open Data Commons Open Database License (ODbL) 1.0.
 
 - https://www.openstreetmap.org/copyright

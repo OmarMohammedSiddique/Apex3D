@@ -31,10 +31,10 @@ int main(){using namespace apex3d;using namespace cp3;using namespace three;
     int woods=0,buildings=0;for(const auto& f:mapFootprints){woods+=f.wood;buildings+=!f.wood;CHECK(f.count>=3);}
     CHECK(woods==19&&buildings==77);
     for(const auto& e:archivedEntries){const FieldMotion car(path,geometry,e);
-        if(e.dns||e.dnf){CHECK(!car.sample(4800).visible);continue;}
-        const auto final=car.sample(4800);CHECK(final.parked&&final.velocity==0);CHECK(final.cooldown);
+        if(e.dns||e.dnf){CHECK(!car.sample(raceTotalSeconds+postRaceDuration).visible);continue;}
+        const auto final=car.sample(raceTotalSeconds+postRaceDuration);CHECK(final.parked&&final.velocity==0);CHECK(final.cooldown);
         auto previous=car.sample(e.elapsed-.01);
-        for(double t=e.elapsed;t<e.elapsed+cooldownDuration+parkingDuration+1;t+=.05){const auto s=car.sample(t);
+        for(double t=e.elapsed;t<parkingRelease(e)+parkingDuration+1;t+=.05){const auto s=car.sample(t);
             const double metres=std::hypot(s.pose.position.x-previous.pose.position.x,s.pose.position.y-previous.pose.position.y)*physical::metresPerSceneUnit();
             CHECK(metres<5);CHECK(s.travelledMetres+1e-6>=previous.travelledMetres);previous=s;
         }

@@ -32,6 +32,12 @@ top three at the 1–2–3 boards. Press **E** to inspect the parked field.
 Sources and the distinction between recorded data and reconstructed scenery or
 post-race motion are documented in [Monza world details](docs/monza-world-details.md).
 
+Car body spacing now prevents the reconstructed cars from intersecting. The
+start panel has a properly separated F1 logo and individual lamps. Recorded race
+flags appear in a banner, and the environment includes a clouded sky,
+grassland extending to the horizon and two distant birds. See [race safety and atmosphere](docs/race-safety-and-atmosphere.md)
+for the source timeline and reconstruction limits.
+
 ## Current milestone: 3D Monza race visualization
 
 The 3D OpenGL application follows **Max Verstappen's 53-lap 2025 Italian Grand Prix**

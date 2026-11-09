@@ -1,0 +1,73 @@
+{
+  "source": "https://api.openf1.org/v1/race_control?session_key=9912",
+  "response_sha256": "b138137eadc17c3d10d1b1bfe7f5fe8beddf033753b0a5adad79904a5693fa25",
+  "fia_cross_check": "https://www.fia.com/sites/default/files/2025_16_ita_f1_r0_timing_raceracecontrolmessages_v01.pdf",
+  "events": [
+    {
+      "race_ms": 0,
+      "flag": "GREEN",
+      "sector": 0,
+      "driver": 0
+    },
+    {
+      "race_ms": 2451793,
+      "flag": "BLACK AND WHITE",
+      "sector": 0,
+      "driver": 12
+    },
+    {
+      "race_ms": 2928793,
+      "flag": "BLACK AND WHITE",
+      "sector": 0,
+      "driver": 10
+    },
+    {
+      "race_ms": 3258793,
+      "flag": "BLUE",
+      "sector": 0,
+      "driver": 43
+    },
+    {
+      "race_ms": 3342793,
+      "flag": "DOUBLE YELLOW",
+      "sector": 7,
+      "driver": 0
+    },
+    {
+      "race_ms": 3348793,
+      "flag": "YELLOW",
+      "sector": 6,
+      "driver": 0
+    },
+    {
+      "race_ms": 3352793,
+      "flag": "CLEAR",
+      "sector": 7,
+      "driver": 0
+    },
+    {
+      "race_ms": 3354793,
+      "flag": "CLEAR",
+      "sector": 6,
+      "driver": 0
+    },
+    {
+      "race_ms": 4150793,
+      "flag": "BLUE",
+      "sector": 0,
+      "driver": 43
+    },
+    {
+      "race_ms": 4333793,
+      "flag": "BLUE",
+      "sector": 0,
+      "driver": 31
+    },
+    {
+      "race_ms": 4403793,
+      "flag": "CHEQUERED",
+      "sector": 0,
+      "driver": 0
+    }
+  ]
+}

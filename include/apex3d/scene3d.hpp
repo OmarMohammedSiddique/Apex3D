@@ -84,6 +84,7 @@ inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
 }
 } // namespace apex3d::three
 #include "world_detail.hpp"
+#include "gravel_birds.hpp"
 namespace apex3d::three {
 inline double nearestLandmark(const std::vector<cp3::PathSample>& path,Vec2 target){
     const auto p=std::min_element(path.begin(),path.end(),[&](const auto& a,const auto& b){return std::hypot(a.point.x-target.x,a.point.y-target.y)<std::hypot(b.point.x-target.x,b.point.y-target.y);});
@@ -215,7 +216,8 @@ inline Mesh gantry(const std::vector<cp3::PathSample>& path,int lights,bool fram
 inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMotion* race) {
     Mesh mesh;
     const double scale=physical::metresPerSceneUnit();
-    box(mesh,{-2.02*scale,-2,-1.29*scale},{2.08*scale,0,1.30*scale},{0.24F,0.36F,0.23F});
+    // The detailed ground covers the entire camera frustum; the sky pass extends it analytically to the horizon.
+    quad(mesh,{-50000,0,-50000},{-50000,0,50000},{50000,0,50000},{50000,0,-50000},{0.24F,0.36F,0.23F});
     constexpr Color asphalt{0.17F,0.195F,0.225F},white{0.88F,0.91F,0.91F};
     const double half=physical::trackWidth/2;
     for(std::size_t i=0;i+1<path.size();++i) {
@@ -398,7 +400,7 @@ inline const char* cameraName(CameraMode mode) {
     switch(mode){case CameraMode::Overview:return "OVERVIEW";case CameraMode::Chase:return "CHASE";case CameraMode::Cockpit:return "COCKPIT";}
     return "OVERVIEW";
 }
-struct CameraFrame { M4 viewProjection; V3 eye; V3 target; double shadowExtent{55.0}; };
+struct CameraFrame { M4 viewProjection; V3 eye; V3 target; double shadowExtent{55.0}; double tanHalfFov{0.62}; };
 struct CameraRig {
     CameraMode mode{CameraMode::Overview};
     double yaw{0.35},pitch{0.82},zoom{1.0};
@@ -440,8 +442,8 @@ struct CameraRig {
         }else{smoothEye=eye;smoothTarget=target;}
         previousOrigin=world(pose.position,physical::roadHeight);initialized=true;
         const bool overview=mode==CameraMode::Overview;
-        return {perspective(fov*std::numbers::pi/180,aspect,overview?1.0:0.05,15000.0)*lookAt(smoothEye,smoothTarget),
-            smoothEye,smoothTarget,overview?3.0*physical::metresPerSceneUnit():55.0};
+        return {perspective(fov*std::numbers::pi/180,aspect,overview?std::max(.1,length(smoothEye-smoothTarget)*.01):0.05,15000.0)*lookAt(smoothEye,smoothTarget),
+            smoothEye,smoothTarget,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360)};
     }
 };
 } // namespace apex3d::three
