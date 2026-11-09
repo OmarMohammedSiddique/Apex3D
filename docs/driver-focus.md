@@ -2,12 +2,12 @@
 
 ![Norris selected with graphic telemetry](evidence/apex3d-driver-focus.png)
 
-Click a podium row to follow **Max Verstappen, Lando Norris or Oscar Piastri**.
-The selected row has a colored edge and `FOCUS` badge. Hovering a row highlights
+Use the arrows beneath the telemetry to browse all 20 official entries, then
+click a row to follow that driver. The selected row has a colored edge. Hovering a row highlights
 it. Switching drivers preserves race time, playback rate and pause state, and
 immediately retargets the active camera without changing its orbit or zoom.
 
-Only the selected driver has an overview pointer. All three physical cars remain
+Only the selected driver has an overview pointer. All active physical cars remain
 in the scene. Chase, cockpit and zoomed overview use the selected car's pose.
 The dashboard heading, lap clock, last lap, pit status and wheel inspector also
 follow that driver. The inspector includes recorded [tyre compound and set age](tyre-inspector.md). `J` seeks that driver's pit approach and `N` seeks their next
@@ -31,7 +31,7 @@ source gaps. The existing source/timing limits remain documented in
 Mouse presses are handled as discrete queued events. This avoids losing short
 clicks between frames and keeps one click from toggling playback twice.
 Hidden-dashboard hit targets are disabled. The top playback/mute controls keep
-their existing positions; driver selection uses separate podium-row bounds.
+their existing positions; driver selection uses separate field-row and pagination bounds.
 
 For deterministic local captures:
 
@@ -41,6 +41,8 @@ For deterministic local captures:
 ```
 
 Tests cover all row hit targets, hidden and gap areas, gauge limits and
-midpoints, every telemetry observation for all three drivers, selected-driver
+midpoints, telemetry observations and full-field race states, selected-driver
 lap boundaries and source identity, camera framing and panel bounds across
 window aspect ratios. Native previews verify the actual click behavior.
+
+See [Full field](full-field.md) for pit starts, retirement, DNS and source limits.

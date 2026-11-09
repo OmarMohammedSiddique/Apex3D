@@ -3,13 +3,20 @@
 #include "scene3d.hpp"
 #include "race_telemetry.hpp"
 namespace apex3d::three {
-inline constexpr std::array<cp3::HudAction,3> driverActions{
-    cp3::HudAction::FocusVerstappen,cp3::HudAction::FocusNorris,cp3::HudAction::FocusPiastri};
+inline cp3::HudAction focusAction(cp3::DriverFocus focus){return static_cast<cp3::HudAction>(100+static_cast<int>(focus));}
 inline constexpr double driverRowTop(int row){return -0.815-row*0.053;}
-inline cp3::HudAction overlayAction(double x,double y,bool visible=true) {
+inline cp3::HudAction overlayAction(double x,double y,bool visible=true,int page=0) {
     if(!visible||x<0.45)return cp3::HudAction::None;
-    if(x>=0.465&&x<=0.955)for(int row=0;row<3;++row)
-        if(y<=driverRowTop(row)&&y>=driverRowTop(row)-0.043)return driverActions[row];
+    page=std::clamp(page,0,6);
+    if(y>=-0.805&&y<=-0.775){
+        if(x>=0.85&&x<0.90)return cp3::HudAction::FieldPrevious;
+        if(x>=0.90&&x<=0.96)return cp3::HudAction::FieldNext;
+    }
+    if(x>=0.465&&x<=0.955)for(int row=0;row<3;++row) {
+        const int index=page*3+row;
+        if(index<20&&y<=driverRowTop(row)&&y>=driverRowTop(row)-0.043)
+            return focusAction(cp3::raceDrivers[index].focus);
+    }
     return cp3::hudActionAt(0.17+(x-0.45)*1.5,y);
 }
 struct GaugeLevels {double speed,rpm;int gear;};
@@ -49,7 +56,7 @@ inline void speedGauge(std::vector<cp3::Vertex>& mesh,const cp3::RecordedTelemet
 inline void telemetryGraphic(std::vector<cp3::Vertex>& mesh,cp3::DriverFocus focus,double seconds,
                              bool waiting,double aspect) {
     const auto& info=cp3::driverInfo(focus);
-    const auto data=cp3::telemetryAt(seconds,static_cast<int>(focus));const bool valid=data.available&&!waiting;
+    const auto data=cp3::telemetryAt(seconds,static_cast<int>(focus));const bool valid=data.available&&!waiting&&cp3::driverActive(focus,seconds);
     const auto level=gaugeLevels(data);
     constexpr cp3::Color white{0.94F,0.97F,0.97F},muted{0.55F,0.68F,0.72F};
     cp3::hudText(mesh,0.475,-0.468,0.0025,std::string(info.tag)+" / RECORDED TELEMETRY",info.color);
@@ -63,7 +70,7 @@ inline void telemetryGraphic(std::vector<cp3::Vertex>& mesh,cp3::DriverFocus foc
             valid&&i<level.gear?info.color:cp3::Color{0.15F,0.23F,0.27F});
     }
     cp3::hudText(mesh,0.475,-0.728,0.0022,valid?"ENGINE "+std::to_string(data.engineRpm)+" RPM":
-        waiting?"WAITING FOR LIGHTS":"TELEMETRY GAP",white);
+        info.archive->dns?"DID NOT START":!cp3::driverActive(focus,seconds)?"RETIRED":waiting?"WAITING FOR LIGHTS":"TELEMETRY GAP",white);
     cp3::hudText(mesh,0.905,-0.728,0.0018,"15K",muted);
     for(int i=0;i<20;++i) {
         const double left=0.475+i*0.0235;
@@ -73,7 +80,7 @@ inline void telemetryGraphic(std::vector<cp3::Vertex>& mesh,cp3::DriverFocus foc
     }
 }
 inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSample& sample,
-    double pathLength,double aspect,bool audio,CameraMode camera,bool visible,cp3::HudAction hover,cp3::DriverFocus focus=cp3::DriverFocus::Verstappen) {
+    double pathLength,double aspect,bool audio,CameraMode camera,bool visible,cp3::HudAction hover,cp3::DriverFocus focus=cp3::DriverFocus::Verstappen,int page=0) {
     auto displayed=p;displayed.showWheels=false;
     auto source=p.isRace()?cp3::makeRaceHudMesh(displayed,sample,pathLength,aspect,audio,hover,focus):
         cp3::makeHudMesh(p.progress,p.speed,p.playing,p.scaleDemo,p.route,p.showWheels,p.travelled*physical::metresPerSceneUnit()/cp3::raceTyreCircumference*cp3::wheelCircumference,aspect,p.looping,
@@ -93,16 +100,25 @@ inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSa
     if(p.isRace()&&visible) {
         cp3::hudRectangle(result,0.45,-0.975,0.97,-0.455,{0.035F,0.075F,0.11F});
         telemetryGraphic(result,focus,p.elapsed,!p.started||p.starting(),aspect);
-        cp3::hudText(result,0.475,-0.790,0.0022,"FINAL PODIUM / CLICK TO FOCUS",{0.55F,0.68F,0.72F});
+        page=std::clamp(page,0,6);
+        cp3::hudText(result,0.475,-0.790,0.0020,"FINAL CLASSIFICATION "+std::to_string(page+1)+"/7",{0.55F,0.68F,0.72F});
+        cp3::hudText(result,0.86,-0.790,0.0025,"<   >",{0.94F,0.97F,0.97F});
         for(int row=0;row<3;++row) {
-            const auto& info=cp3::podiumDrivers[row];const double top=driverRowTop(row);
+            const int index=page*3+row;if(index>=20)break;
+            const auto& info=cp3::raceDrivers[index];const auto& entry=*info.archive;const double top=driverRowTop(row);
             const bool selected=focus==info.focus;
             cp3::hudRectangle(result,0.465,top-0.043,0.955,top,
-                selected?cp3::Color{0.08F,0.19F,0.23F}:hover==driverActions[row]?cp3::Color{0.10F,0.16F,0.19F}:cp3::Color{0.045F,0.09F,0.12F});
+                selected?cp3::Color{0.08F,0.19F,0.23F}:hover==focusAction(info.focus)?cp3::Color{0.10F,0.16F,0.19F}:cp3::Color{0.045F,0.09F,0.12F});
             if(selected)cp3::hudRectangle(result,0.465,top-0.043,0.47,top,info.color);
-            cp3::hudText(result,0.482,top-0.012,0.00235,std::to_string(row+1)+" "+info.name,
+            cp3::hudText(result,0.482,top-0.012,0.0021,(entry.dnf||entry.dns?std::string("NC"):std::to_string(index+1))+" "+info.name,
                 selected?info.color:cp3::Color{0.72F,0.78F,0.80F});
-            cp3::hudText(result,0.815,top-0.014,0.00215,selected?"FOCUS":row==0?"WINNER":row==1?"+19.207S":"+21.351S",
+            std::ostringstream resultText;resultText<<std::fixed<<std::setprecision(3);
+            if(entry.dns)resultText<<"DNS";
+            else if(entry.dnf)resultText<<"DNF";
+            else if(entry.totalLaps<53)resultText<<"+1 LAP";
+            else if(index==0)resultText<<"WINNER";
+            else resultText<<"+"<<entry.classified-cp3::raceTotalSeconds<<"S";
+            cp3::hudText(result,0.82,top-0.014,0.0019,resultText.str(),
                 selected?info.color:cp3::Color{0.55F,0.68F,0.72F});
         }
     }

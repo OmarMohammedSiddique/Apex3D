@@ -1,0 +1,194 @@
+{
+  "session_key": 9912,
+  "race_origin_utc": "2025-09-07T13:03:35.207000+00:00",
+  "sources": {
+    "laps-1": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=1",
+      "sha256": "e844f28a4bd0d4ad27a73ab13cae74d4ec0abd2f49cb75168dc87f0f7589e4db"
+    },
+    "car-1": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=1",
+      "sha256": "6ff42419ce5d39a0ca77d8fca0836676328f1456bf187028e94771acf621d36e"
+    },
+    "laps-4": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=4",
+      "sha256": "713adc317c8b478e2594531fec8e54a98b14f835d7fcf6a5952cd440e96566cd"
+    },
+    "car-4": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=4",
+      "sha256": "9ed72c1fbbce6a4e462dcf1cb6d93e75813896aa1b5bfc8598df60de82ac1a40"
+    },
+    "laps-81": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=81",
+      "sha256": "cab7f755fa8784b73c60fbb571342e85bf8dd0eb3f26457580fa45aba02180c2"
+    },
+    "car-81": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=81",
+      "sha256": "e5602058235c7336f1a33a139e4f067a1b1b57e99f1ebaa80cd519edd930ad21"
+    },
+    "laps-16": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=16",
+      "sha256": "94711ca2c74c17dfbbf94f2441b3e2d7e5631436c9602469f696599f75d1f5a5"
+    },
+    "car-16": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=16",
+      "sha256": "2ebd1162e7fae04023a339619522d2f1c7b4bc14c3693f1b0a65aa9efa9aacb4"
+    },
+    "laps-63": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=63",
+      "sha256": "e83352585a49c8f6da30664fc97c47afb53c4f7a38ae1b12f654755a5705242a"
+    },
+    "car-63": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=63",
+      "sha256": "23389c4ee9eab6ea41d7c8a16b0e45b5c731e8bce031b5c0b069f734d9e54fc1"
+    },
+    "laps-44": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=44",
+      "sha256": "5d68f6223fadbe0d34bd0e23456f4fb72042687103b279ca047f4f9557468c6c"
+    },
+    "car-44": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=44",
+      "sha256": "4732e631a8de283b618de7e7a50cd5a67673adb9e6e7babb08e4325e738c680f"
+    },
+    "laps-23": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=23",
+      "sha256": "3c7cc72c1fd9f257bfe6f1c15553fc313cc5e58ec52a68c2ace59c244fbe4c53"
+    },
+    "car-23": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=23",
+      "sha256": "9b64edeedfaadfbfaeed62a9673a6dd0ad15c8ad6f81adeccf89b25505c9a531"
+    },
+    "laps-5": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=5",
+      "sha256": "39ff85f3eae38b042ce65c7139575866ec83ba780f0c004f026a2aa78ea036d1"
+    },
+    "car-5": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=5",
+      "sha256": "1a029a5670c17434ae2924cefe960e594bcdd2eaef2ae20f9e232fa415a0b758"
+    },
+    "laps-12": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=12",
+      "sha256": "6f94fd3b3afe5341ff246951e2e777f64b54ff2d0aa3be6538ade4d9d681ed4a"
+    },
+    "car-12": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=12",
+      "sha256": "21604ec811197a63f8246e888e61701852f0a514afcfef01227201baa4b16149"
+    },
+    "laps-6": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=6",
+      "sha256": "bf25b01d6a83b6be361c57302904c9e319537643608b23713c98a7d8ac181b66"
+    },
+    "car-6": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=6",
+      "sha256": "f03cd4f598a0fea8e7dc101f2b161b4619bcca7ff2c596070781c09e462ccfb0"
+    },
+    "laps-55": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=55",
+      "sha256": "55dd4186c1c937888c318b58d0ece2f4dd6b9355be170d915a16b9ec68016eed"
+    },
+    "car-55": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=55",
+      "sha256": "37d5619f9ec71f5f48c3f32d2e0fe501ff16cb121e3907156d60b40bc0827610"
+    },
+    "laps-87": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=87",
+      "sha256": "12200121f09a6114bf58ed5fc2dd7b003271154b7a483fd176a8b7af70da2072"
+    },
+    "car-87": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=87",
+      "sha256": "ed0188a725d976aa476e4baf616642cf9830e6cdac316c33e0f1c1432672b713"
+    },
+    "laps-22": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=22",
+      "sha256": "eff037ff9a6140b6bce0c9efc6ef7cb93231c849e420d0d7ae5aef094fbc3616"
+    },
+    "car-22": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=22",
+      "sha256": "45ae031d226c7cfab361fe1a8da68465ef02c9b6994f2ccf12e69c075fc393f4"
+    },
+    "laps-30": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=30",
+      "sha256": "eef8985004b7732c98ad7f09bea55a594f3f2eb86b58110fc5b8e2a1cdffc246"
+    },
+    "car-30": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=30",
+      "sha256": "68dae9e3d827d550158e2b20e30139c4dfdcb804c4bb8746482eaa3fe99600d5"
+    },
+    "laps-31": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=31",
+      "sha256": "cdb8a720c2b5bb873bc0ecf560046e794aec53b10ad362698bde24f28a990f6a"
+    },
+    "car-31": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=31",
+      "sha256": "f9779f50d34ddb6cf772ebbdad3fc643fc601be42a983a9413b20ae92090ba98"
+    },
+    "laps-10": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=10",
+      "sha256": "cf7080ed46d84bd155cfff77a0310288e5de6b11d7f13a1eabf5cd469bd283a9"
+    },
+    "car-10": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=10",
+      "sha256": "908563ef24d068b1766f8281791b07346a0ada5053759a8b167515f6e74b4c6b"
+    },
+    "laps-43": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=43",
+      "sha256": "acc28c799ab79c03f00e965e8127faa451b13aa795e5e94652214ca5a281f380"
+    },
+    "car-43": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=43",
+      "sha256": "6dd2a4e438ce9354ee6f677b817618c5d0a4a073418427f9d5744d2f5648b14c"
+    },
+    "laps-18": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=18",
+      "sha256": "6e9c814a2f58eda07ede59356724e09636f6ab8ff958f5c15d0275078fa37d1a"
+    },
+    "car-18": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=18",
+      "sha256": "6e39ef5b32b6f7d6c2b7480d6c1a699a42bb4233c8eb68b86474ea54764344da"
+    },
+    "laps-14": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=14",
+      "sha256": "388ee18e7006f8488c6ed5cbb95f4bd5afc776fe97b4a3c242242b465e297c99"
+    },
+    "car-14": {
+      "url": "https://api.openf1.org/v1/car_data?session_key=9912&driver_number=14",
+      "sha256": "9705699ff680a0bd06ff8c60de456671757b802933633f9e55b09700a941a28a"
+    },
+    "laps-27": {
+      "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=27",
+      "sha256": "c8708e9158287cf4c1efacb7dda877fd30b6f25e51bcf525c0f7b77e32cf41b1"
+    },
+    "drivers": {
+      "url": "https://api.openf1.org/v1/drivers?session_key=9912",
+      "sha256": "720d8a8a09e1ce030680266f7a849e480fd5f508f4c3228bfa0ae5d012cddeda"
+    },
+    "fia_history": {
+      "url": "https://www.fia.com/sites/default/files/2025_16_ita_f1_r0_timing_racehistorychart_v01.pdf",
+      "sha256": "3b9b4ce6e86e9a0d11e8380cd50e1eacaad2244b9ee79366a3c794da33d8bd8a"
+    },
+    "fia_classification": {
+      "url": "https://www.fia.com/system/files/decision-document/2025_italian_grand_prix_-_final_race_classification.pdf",
+      "sha256": "87a222cdb89e47d8f2797ab9839be7a79cd8641aa1efc11bbc31e46d74a81337"
+    },
+    "starting_grid": {
+      "url": "https://www.formula1.com/en/results/2025/races/1268/italy/starting-grid"
+    },
+    "pits": {
+      "sha256": "3ce2d68abcd3c6eae0fa99323de8ec2ce22a8b04d49473649caed455088bae90",
+      "url": "https://api.openf1.org/v1/pit?session_key=9912"
+    },
+    "result": {
+      "sha256": "4267a9651688afb2aa5bfdcf1dcc7a47b12bcfa77848788b0340a7ef03aa30ae",
+      "url": "https://api.openf1.org/v1/session_result?session_key=9912"
+    },
+    "stints": {
+      "url": "https://api.openf1.org/v1/stints?session_key=9912",
+      "sha256": "9e08ee692a82aed8d2490451ee867dbaf3c7b5204aa610a930b77ef30905690c"
+    }
+  },
+  "notes": [
+    "FIA lap-1 history times replace approximate OpenF1 session-start durations.",
+    "Final classification includes time penalties; on-track motion does not.",
+    "Car 27 DNS; cars 6 and 10 pit-lane starts; car 14 retired after 24 complete laps."
+  ]
+}
