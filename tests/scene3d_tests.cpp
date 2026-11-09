@@ -33,13 +33,40 @@ int main(){
     const auto car0=makeCar(straight,0),car90=makeCar(straight,0.25);
     finiteMesh(car0);finiteMesh(car90);CHECK(car0.size()==car90.size());
     float tyreBottom=1;for(const auto& v:car0)tyreBottom=std::min(tyreBottom,v.y);
-    CHECK(near(tyreBottom,0.016));
+    CHECK(near(tyreBottom,physical::roadHeight));
     bool spokeMoved=false;
     for(std::size_t i=0;i<car0.size();++i){
         if(i<90)CHECK(near(car0[i].x,car90[i].x)&&near(car0[i].y,car90[i].y)&&near(car0[i].z,car90[i].z));
         if(!near(car0[i].x,car90[i].x)||!near(car0[i].y,car90[i].y))spokeMoved=true;
     }
     CHECK(spokeMoved);
+    // Metre-space relationships prevent independently exaggerated objects.
+    double lapMetres=0;
+    for(std::size_t i=1;i<path.size();++i)lapMetres+=length(world(path[i].point)-world(path[i-1].point));
+    CHECK(std::abs(lapMetres-cp3::circuitMetres)<0.001);
+    const auto bounds=[](const Mesh& mesh){
+        std::array<double,6> b{1e9,1e9,1e9,-1e9,-1e9,-1e9};
+        for(const auto& v:mesh){b[0]=std::min(b[0],double(v.x));b[1]=std::min(b[1],double(v.y));b[2]=std::min(b[2],double(v.z));
+            b[3]=std::max(b[3],double(v.x));b[4]=std::max(b[4],double(v.y));b[5]=std::max(b[5],double(v.z));}return b;
+    };
+    const auto cb=bounds(car0);
+    CHECK(std::abs(cb[3]-cb[0]-5.652)<0.001);
+    CHECK(std::abs(cb[5]-cb[2]-physical::carWidth)<0.001);
+    CHECK(cb[4]-physical::roadHeight<1.0);
+    Mesh road;roadStrip(road,straight,{{10/physical::metresPerSceneUnit(),0},0,0},-6,6,physical::roadHeight,{1,1,1});
+    const auto rb=bounds(road);CHECK(near(rb[5]-rb[2],12));
+    for(const auto& v:road)CHECK(v.ny>0.99);
+    CHECK(near((rb[5]-rb[2])/(cb[5]-cb[2]),6));
+    for(double width:{physical::frontTyreWidth,physical::rearTyreWidth}) {
+        Mesh t;tyre(t,{0,physical::tyreRadius,0},0,false,width);const auto tb=bounds(t);
+        CHECK(near(tb[4]-tb[1],0.720));CHECK(near(tb[3]-tb[0],0.720));
+        CHECK(std::abs(tb[5]-tb[2]-width)<0.012);
+    }
+    const auto crewBounds=bounds(makeCrew(straight,true));
+    CHECK(std::abs(crewBounds[4]-physical::roadHeight-physical::crewHeight)<0.001);
+    const auto box=race.pitPose(cp3::pitBoxProgress),trackPose=cp3::poseAtProgress(path,cp3::pitBoxProgress);
+    CHECK(std::abs(length(world(box.position)-world(trackPose.position))-(physical::pitOffset+physical::pitBayOffset))<0.001);
+    CHECK(near(metricSteering(path,0.02),0));
     const auto steered=makeCar(straight,0,false,0.25);
     finiteMesh(steered);CHECK(steered.size()==car0.size());
     bool frontMoved=false;
@@ -62,21 +89,75 @@ int main(){
         CHECK(frame.eye.y>0);
         for(auto value:frame.viewProjection.values)CHECK(std::isfinite(value));
     }
-    CameraRig camera;camera.orbit(500,-5000);CHECK(camera.pitch>=0.18);camera.dolly(10000);CHECK(camera.zoom>=0.42);
+    CameraRig following;following.mode=CameraMode::Chase;following.reset();
+    const auto f0=following.frame(straight,1.3,0,true);
+    const cp3::Pose translated{{100/physical::metresPerSceneUnit(),0},0,0};
+    const auto f1=following.frame(translated,1.3,1.0/60);
+    CHECK(near(f1.eye.x-f0.eye.x,100));CHECK(near(f1.target.x-f0.target.x,100));
+    CameraRig camera;camera.orbit(500,-5000);CHECK(camera.pitch>=0.18);camera.dolly(10000);CHECK(camera.zoom>=0.008&&camera.zoom<0.01);
+    const auto zoomFocus=camera.frame(race.sample(120).pose,1.3,0,true);
+    CHECK(length(zoomFocus.target-world(race.sample(120).pose.position))<0.01);
     CameraRig cockpit;cockpit.mode=CameraMode::Cockpit;cockpit.reset();
     const auto wide=cockpit.frame(straight,1.3,0,true).viewProjection;
     cockpit.dolly(3);
     const auto zoomed=cockpit.frame(straight,1.3,0,true).viewProjection;
     CHECK(zoomed.values!=wide.values);
+    CHECK(monzaStands.size()==37);
+    for(const auto& stand:monzaStands) {
+        const auto front=standFront(path,stand);const auto pose=standPose(path,stand);
+        CHECK(std::abs(length(front-world(pose.position))-stand.setback)<0.01);
+        CHECK(stand.setback>=16&&stand.length>0&&stand.rows>0);
+        // Independent footprint-to-road distance: no stand occupies the racing surface.
+        for(int x=0;x<9;++x)for(int z=0;z<3;++z) {
+            const auto point=front+rotateY({-stand.length/2+stand.length*x/8,0,stand.rows*0.8*z/2},
+                pose.headingRadians+(stand.side<0?std::numbers::pi:0));
+            double nearest=1e9;
+            for(std::size_t j=0;j+1<path.size();++j){
+                const auto a=world(path[j].point),b=world(path[j+1].point),d=b-a;
+                const double t=std::clamp(dot(point-a,d)/dot(d,d),0.0,1.0);
+                nearest=std::min(nearest,length(point-(a+d*t)));
+            }
+            CHECK(nearest>physical::trackWidth/2+physical::kerbWidth);
+        }
+    }
+    CameraRig map;map.mode=CameraMode::Overview;map.reset();
+    const auto mapFrame=map.frame(straight,1.3,0,true);
+    const auto marker=markerPosition(mapFrame,straight,0.715);
+    CHECK(marker.onScreen&&marker.x<0.43);
+    std::vector<cp3::Vertex> markers;overviewMarker(markers,mapFrame,straight,0.715,1.8,"VER 1",{1,1,1},true);
+    CHECK(!markers.empty());
+    for(const auto& v:markers)CHECK(std::abs(v.x)<=1&&std::abs(v.y)<=1);
     CHECK(overlayAction(0.45+(0.3-0.17)*2/3,-0.3)==cp3::HudAction::Play);
     CHECK(overlayAction(0.45+(0.7-0.17)*2/3,-0.3)==cp3::HudAction::Mute);
     CHECK(overlayAction(0.1,-0.3)==cp3::HudAction::None);
     CHECK(overlayAction(0.8,-0.3,false)==cp3::HudAction::None);
+    CHECK(overlayAction(0.70,-0.83)==cp3::HudAction::FocusVerstappen);
+    CHECK(overlayAction(0.70,-0.885)==cp3::HudAction::FocusNorris);
+    CHECK(overlayAction(0.70,-0.94)==cp3::HudAction::FocusPiastri);
+    CHECK(overlayAction(0.70,-0.862)==cp3::HudAction::None);
+    CHECK(overlayAction(0.70,-0.94,false)==cp3::HudAction::None);
+    CHECK(overlayAction(0.96,-0.94)==cp3::HudAction::None);
+    const auto minGauge=gaugeLevels({true,0,0,0,0}),maxGauge=gaugeLevels({true,400,8,15000,0});
+    CHECK(minGauge.speed==0&&minGauge.rpm==0&&minGauge.gear==0);
+    CHECK(maxGauge.speed==1&&maxGauge.rpm==1&&maxGauge.gear==8);
+    const auto midGauge=gaugeLevels({true,200,4,7500,0});CHECK(midGauge.speed==0.5&&midGauge.rpm==0.5&&midGauge.gear==4);
+    const auto capped=gaugeLevels({true,450,9,18000,0});CHECK(capped.speed==1&&capped.rpm==1&&capped.gear==8);
     cp3::Playback playback;
     for(bool visible:{true,false})for(double t:{0.0,cp3::pitBoxStartSeconds+1,cp3::raceTotalSeconds}){
         playback.seek(t);playback.showWheels=true;
         const auto mesh=overlay(playback,race.sample(t),path.back().distance,16.0/9.0,true,CameraMode::Overview,visible,cp3::HudAction::None);
         for(const auto& v:mesh){CHECK(std::isfinite(v.x)&&std::isfinite(v.y));CHECK(v.x>=-1&&v.x<=1&&v.y>=-1&&v.y<=1);}
+    }
+    const cp3::OpponentMotion norris(path,race,cp3::norrisSpec),piastri(path,race,cp3::piastriSpec);
+    for(const auto& driver:cp3::podiumDrivers)for(double t:{0.0,120.0,driver.boxStart+0.5,cp3::raceTotalSeconds}) {
+        playback.seek(t);const auto sample=cp3::focusedSample(driver.focus,race.sample(t),norris.sample(t),piastri.sample(t));
+        CameraRig selected;selected.mode=CameraMode::Chase;selected.reset();
+        const auto frame=selected.frame(sample.pose,1.3,0,true);
+        CHECK(length(frame.target-world(sample.pose.position))<3.0);
+        for(double aspect:{0.8,16.0/9.0,3.2}) {
+            const auto mesh=overlay(playback,sample,path.back().distance,aspect,true,CameraMode::Chase,true,cp3::HudAction::None,driver.focus);
+            for(const auto& v:mesh){CHECK(std::isfinite(v.x)&&std::isfinite(v.y));CHECK(std::abs(v.x)<=1&&std::abs(v.y)<=1);}
+        }
     }
     std::cout<<"3D: projection, depth geometry, normals, wheel spin, cameras and HUD hit testing: PASS\n";
 }

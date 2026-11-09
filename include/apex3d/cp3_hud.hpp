@@ -2,6 +2,8 @@
 
 #include "cp3_scene.hpp"
 #include "cp3_playback.hpp"
+#include "driver_focus.hpp"
+#include "tyre_state.hpp"
 #include "../../checkpoint2/animation/wheels/include/wheel_animation.hpp"
 
 #include <algorithm>
@@ -107,14 +109,20 @@ inline constexpr double wheelCircumference = 2.0 * std::numbers::pi * wheelRadiu
 }
 
 inline void wheelInspector(std::vector<Vertex>& mesh, double travelled, double aspect, double rpm,
-    Color bodyColor = {0.85F, 0.17F, 0.17F})
+    Color bodyColor = {0.85F, 0.17F, 0.17F},const TyreState* tyre = nullptr)
 {
     constexpr Color panel{0.035F, 0.075F, 0.11F};
     constexpr Color white{0.94F, 0.97F, 0.97F};
     constexpr Color secondary{0.55F, 0.68F, 0.72F};
     constexpr Color cyan{0.22F, 0.86F, 0.91F};
-        hudRectangle(mesh, 0.17, -0.20, 0.95, 0.20, panel);
-        hudText(mesh, 0.21, 0.17, 0.0042, "WHEEL INSPECTOR", white);
+        hudRectangle(mesh, 0.17, -0.20, 0.95, tyre?0.34:0.20, panel);
+        hudText(mesh, 0.21, tyre?0.30:0.17, 0.0042, "WHEEL INSPECTOR", white);
+        if(tyre) {
+            hudText(mesh,0.21,0.245,0.0038,"TYRE: "+tyreCompoundText(tyre->stint->compound)+" / SET "+std::to_string(tyre->stint->number),compoundColor(tyre->stint->compound));
+            hudText(mesh,0.21,0.195,0.0033,"AGE: "+std::to_string(tyre->completedLaps)+" COMPLETED LAPS",white);
+            hudText(mesh,0.21,0.15,0.0030,tyre->changing?"TYRE CHANGE IN PROGRESS":
+                std::to_string(tyre->raceLaps)+" RACE + "+std::to_string(tyre->priorLaps)+" PRIOR LAPS",secondary);
+        }
         hudText(mesh, 0.21, 0.12, 0.0033, "FIXED BODY - LOCAL WHEEL ROTATION", secondary);
         // Wrap only the spin angle. The fixed body never jumps when a tyre
         // completes a revolution; its rotation follows distance = radius * angle.
@@ -144,7 +152,7 @@ inline void wheelInspector(std::vector<Vertex>& mesh, double travelled, double a
             wheelDisk(pose.centre, wheel.tyreRadius * scale, {0.012F, 0.018F, 0.025F});
             wheelDisk(pose.centre, wheel.rimRadius * scale, secondary);
             wheelDisk(pose.centre, 0.0056, white);
-            wheelDisk(pose.marker, 0.0032, {1.0F, 0.8F, 0.25F});
+            wheelDisk(pose.marker, 0.0032, tyre?compoundColor(tyre->stint->compound):Color{1.0F, 0.8F, 0.25F});
             for (std::size_t i = 0; i < pose.spokeOuter.size(); ++i) {
                 const Vec2 a = pose.spokeInner[i];
                 const Vec2 b = pose.spokeOuter[i];
@@ -211,7 +219,7 @@ inline void wheelInspector(std::vector<Vertex>& mesh, double travelled, double a
     return out.str();
 }
 
-enum class HudAction { None, Play, Mute };
+enum class HudAction { None, Play, Mute, FocusVerstappen, FocusNorris, FocusPiastri };
 [[nodiscard]] inline HudAction hudActionAt(double x, double y)
 {
     if (y < -0.34 || y > -0.26) return HudAction::None;
@@ -222,18 +230,20 @@ enum class HudAction { None, Play, Mute };
 
 [[nodiscard]] inline std::vector<Vertex> makeRaceHudMesh(const Playback& playback,
     const RaceSample& sample, double pathLength, double aspect, bool audioAvailable,
-    HudAction hover = HudAction::None)
+    HudAction hover = HudAction::None, DriverFocus focus = DriverFocus::Verstappen)
 {
     constexpr Color panel{0.035F, 0.075F, 0.11F};
     constexpr Color white{0.94F, 0.97F, 0.97F};
     constexpr Color secondary{0.55F, 0.68F, 0.72F};
     constexpr Color cyan{0.22F, 0.86F, 0.91F};
     constexpr Color gold{0.96F, 0.74F, 0.28F};
-    const auto clock = raceClock(playback.elapsed);
+    const auto& info=driverInfo(focus);
+    const auto clock = driverClock(focus,playback.elapsed);
+    const auto tyres=tyreState(focus,playback.elapsed);
     std::vector<Vertex> mesh;
     hudRectangle(mesh, 0.17, -0.45, 0.95, 0.94, panel);
     hudText(mesh, 0.21, 0.88, 0.008, "APEX3D", white);
-    hudText(mesh, 0.21, 0.77, 0.0038, "MONZA 2025 / MAX VERSTAPPEN", secondary);
+    hudText(mesh, 0.21, 0.77, 0.0038, std::string("MONZA 2025 / ")+info.name, secondary);
     hudText(mesh, 0.21, 0.71, 0.0036, "TIMING-BASED RACE REPLAY", secondary);
     hudText(mesh, 0.21, 0.63, 0.0065, "LAP " + std::to_string(clock.lap) + " OF 53", white);
     hudText(mesh, 0.21, 0.53, 0.0038, "RACE TIME", secondary);
@@ -245,21 +255,24 @@ enum class HudAction { None, Play, Mute };
     rate << std::fixed << std::setprecision(2) << playback.speed << "X  "
         << (playback.speed == 1.0 ? "REAL TIME" : "FAST/SLOW PLAYBACK");
     hudText(mesh, 0.21, 0.25, 0.0035, rate.str(), secondary);
-    const char* state = clock.finished ? "CHEQUERED FLAG / FINISHED" : !playback.started ? "READY TO START" :
+    const char* state = playback.finished()&&!clock.finished ? "WINNER FINISHED / REPLAY ENDED" : clock.finished ? "CHEQUERED FLAG / FINISHED" : !playback.started ? "READY TO START" :
         playback.starting() ? (playback.playing ? "START SEQUENCE" : "START / PAUSED") :
         sample.servicing ? (playback.playing ? "PIT BOX / TYRE CHANGE" : "PIT BOX / PAUSED") :
         sample.inPit ? (playback.playing ? "IN PIT LANE" : "PIT LANE / PAUSED") :
         playback.playing ? "ON TRACK" : "PAUSED";
     hudText(mesh, 0.21, 0.19, 0.0040, state, sample.inPit ? gold : cyan);
+    const auto durationText=[](double seconds){std::ostringstream out;out<<std::fixed<<std::setprecision(3)<<seconds<<"S";return out.str();};
+    const std::string duration=durationText(info.pitExit-info.pitEntry),service=durationText(info.service);
     if (sample.inPit) {
-        hudText(mesh, 0.21, 0.12, 0.0033, "PIT " + clockText(playback.elapsed-pitEntrySeconds) + " / 24.545S", gold);
+        hudText(mesh, 0.21, 0.12, 0.0033, "PIT " + clockText(playback.elapsed-info.pitEntry) + " / "+duration, gold);
     } else {
         hudText(mesh, 0.21, 0.12, 0.0035,
-            playback.elapsed >= pitExitSeconds ? "PIT STOP COMPLETE / 24.545S" : "PIT 1 OF 1 / LAP 37 / 24.545S", secondary);
+            playback.elapsed >= info.pitExit ? "PIT STOP COMPLETE / "+duration :
+                "PIT 1 OF 1 / LAP "+std::to_string(info.pitLap)+" / "+duration, secondary);
     }
     hudText(mesh, 0.21, 0.07, 0.0033, sample.servicing ?
-        "BOX " + clockText(playback.elapsed-pitBoxStartSeconds) + " / 2.300S" :
-        playback.elapsed >= pitBoxEndSeconds ? "HARD TYRES / BOX 2.3S" : "MEDIUM TYRES / BOX 2.3S", secondary);
+        "BOX " + clockText(playback.elapsed-info.boxStart) + " / "+service :
+        std::string(tyres.stint->compound)+" TYRES / BOX "+service, secondary);
     hudRectangle(mesh, 0.21, -0.025, 0.91, -0.005, {0.08F, 0.16F, 0.20F});
     hudRectangle(mesh, 0.21, -0.025, 0.21 + 0.70 * playback.elapsed / raceTotalSeconds, -0.005, cyan);
     hudText(mesh, 0.21, -0.07, 0.0035, "+/- SPEED  1 REAL TIME", secondary);
@@ -271,7 +284,7 @@ enum class HudAction { None, Play, Mute };
             hover == action ? Color{0.13F, 0.32F, 0.36F} : Color{0.08F, 0.20F, 0.24F});
         hudText(mesh, left + 0.022, -0.282, 0.0041, label, white);
     };
-    button(0.21, 0.54, clock.finished ? "REPLAY" : !playback.started ? "START" : playback.playing ? "PAUSE" : "RESUME", HudAction::Play);
+    button(0.21, 0.54, playback.finished() ? "REPLAY" : !playback.started ? "START" : playback.playing ? "PAUSE" : "RESUME", HudAction::Play);
     button(0.58, 0.91, !audioAvailable ? "NO AUDIO" : playback.muted ? "UNMUTE" : "MUTE", HudAction::Mute);
     hudText(mesh, 0.21, -0.40, 0.0032, "PATH / PIT ARRIVAL INTERPOLATED", secondary);
 
@@ -291,7 +304,7 @@ enum class HudAction { None, Play, Mute };
         !playback.started ? "SPACE OR START TO BEGIN" : playback.starting() ? "WAIT FOR LIGHTS OUT" : "LIGHTS OUT / RACE STARTED", white);
     if (playback.showWheels) {
         const auto first = mesh.size();
-        const double travel = raceWheelTurns(sample.progress) * wheelCircumference;
+        const double travel = sample.travelledMetres / raceTyreCircumference * wheelCircumference;
         wheelInspector(mesh, travel, aspect,
             playback.playing && !playback.starting() ?
                 raceWheelRpm(sample.velocity * playback.speed, pathLength) : 0.0, {0.16F, 0.28F, 0.56F});

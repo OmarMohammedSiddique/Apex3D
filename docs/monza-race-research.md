@@ -61,9 +61,10 @@ stops at lap 53 of 53 and never advances to lap 54.
 
 The existing hand-authored Monza/Catmull-Rom centreline is retained. Sector
 boundaries are placed schematically from the FIA map, and travel within each
-sector is linearly interpolated in distance. There is no GPS trace, continuous
-speed telemetry, race traffic, braking model, overtaking recreation, or full
-field of opponents. Exact sector times do not imply exact corner-by-corner
+sector is shaped by archived speed samples, normalized to the reconstructed
+sector length. The dashboard uses recorded speed, gear and engine RPM. Norris
+and Piastri have independent timelines. There is no GPS racing line, vehicle
+physics model, or full field of opponents. Exact sector times do not imply exact corner-by-corner
 motion. The procedural 3D car's blue body is a simplified visual identifier, not a licensed
 Red Bull model or livery.
 
@@ -76,8 +77,8 @@ The pit-lane schematic follows the inside of the main straight with smooth
 entry and exit joins and a marked service box. Circuit reference distances
 5,707 m pit-in / 332 m pit-out and 418 m controlled length come from Monza's
 2021 FIA WEC briefing; they are geometric references, not a claim to surveyed
-2025 F1 gate coordinates. The pit line and garage spacing are exaggerated for
-legibility on the current map. The HUD explicitly labels interpolated movement.
+2025 F1 gate coordinates. The pit lane and scenery now use the common metre scale, with
+estimated lateral spacing and garage footprints. The HUD explicitly labels interpolated movement.
 
 - [2025 FIA circuit map and pit-lane drawing](https://www.fia.com/system/files/decision-document/2025_italian_grand_prix_-_event_notes_-_circuit_map_pit_lane_emergency_exit_map_quarantine_zone_and_red_zones.pdf)
 - [Monza circuit information](https://www.monzanet.it/en/circuit/)
@@ -85,14 +86,11 @@ legibility on the current map. The HUD explicitly labels interpolated movement.
 
 ## Wheel rotation
 
-Race wheel speed uses a nominal 720 mm 2025 slick tyre diameter (0.360 m
-radius) and converts circuit progress to metres over the 5,793 m circuit.
-Rotation follows distance / circumference; RPM follows reconstructed linear
-speed / circumference times 60. Rendering size is deliberately exaggerated
-and is kept separate from the physical tyre radius. Loaded rolling radius,
-slip and left/right wheel differentials are not modelled. These are computed
-rolling RPM, not measured telemetry. The Bezier demo retains its model-unit
-wheel calculation. At high playback rates the spokes can visually alias.
+Race wheel speed uses nominal 720 mm 2025 slick tyres. Rendered tyres share
+that diameter. Wheel rotation follows reconstructed path distance/circumference;
+rolling RPM follows its derivative and pauses during service. The new dashboard
+separately displays recorded **engine RPM**. Loaded radius, slip and left/right
+differentials are not modeled. At high replay rates spokes can visually alias.
 
 - [FIA 2025 tyre technical targets, nominal dry sizes](https://legal.fia.com/web/appeloffre.nsf/0F43EC70A0FACADFC1258991006043A9/%24FILE/ITT%20F1%20TYRES%202025-2027%20%28including%20F2%20and%20F3%29_UPDATE%2014.04.2023.pdf?openelement=)
 
@@ -106,22 +104,13 @@ These descriptions are consistent with entering before the timing-line
 crossing and servicing after it. The 24.545 seconds are the whole pit-lane
 visit, not 24.545 seconds standing still.
 
-The reconstruction uses these explicit assumptions:
-
-- Entry is placed at race 3,077.249 s, aligned with the whole-second pit
-  report using the classification-derived race start, approximately
-  15:03:34.751. The source's whole-second precision limits that alignment.
-- The measured control-line crossing remains exactly 3,081.730 s.
-- Arrival at the box is estimated as 10 s after entry: 3,087.249 s.
-- The car stays still for the documented 2.3 s, until 3,089.549 s.
-- Exit is 3,101.794 s, exactly 24.545 s after the modelled entry.
-- It reaches the lap-38 sector-1 line at its published timing and resumes
-  the remaining sector/lap schedule. Seeking reconstructs this state directly.
-
-Entry-to-box and box-to-exit splits are not independently measured. The
-archived live timing endpoint returned 401 and direct PDF downloads returned
-403; the readable FIA reports were inspected through the research browser.
-No access restrictions were bypassed, and no missing telemetry was invented.
+The updated local archive alignment replaces the earlier whole-second estimate.
+Entry is 3,077.895 s and exit is 3,102.440 s, preserving 24.545 s. The box stop
+starts at about 3,086.597 s (between the final moving and first stationary source
+samples) and lasts the documented 2.3 s. The control-line crossing remains
+exactly 3,081.730 s. UTC alignment and box position remain approximate, rather
+than independent millisecond-exact pit measurements. See the detailed
+[podium and telemetry research](podium-telemetry-grandstands.md).
 
 - [FIA Pit Stop Summary](https://www.fia.com/sites/default/files/2025_16_ita_f1_r0_timing_racepitstopsummary_v01.pdf)
 - [FIA classification and time-of-day table](https://api.fia.com/events/fia-formula-one-world-championship/season-2025/italian-grand-prix/race-qualification)
@@ -148,7 +137,7 @@ initialize audio.
 
 ## Local verification
 
-- Release build and both CTest suites pass.
+- Release build and all four CTest suites pass.
 - Every lap/sector crossing, timer formatting, full-race finish, replay,
   pause, seeking and 64x playback are checked deterministically.
 - A complete half-second sweep checks finite, continuous, forward motion.
@@ -165,8 +154,8 @@ remain separate from these local checks.
 
 ## 3D rendering update
 
-The race timing, sector interpolation, pit assumptions and muted start cues
-remain the same. The new renderer places this planar course in a 3D world with
+The historical lap/sector totals and muted start cues remain unchanged.
+The later telemetry update refines intra-sector motion and estimated pit alignment. The new renderer places this planar course in a 3D world with
 raised road/kerb surfaces, pit garages/wall, grandstands, trees and a start
 gantry. The F1-style car has solid body sections, front/rear wings, suspension,
 a cockpit/halo and rotating cylindrical tyres. Procedural crew figures appear
