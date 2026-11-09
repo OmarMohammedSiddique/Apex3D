@@ -8,6 +8,7 @@
 #include "../include/apex3d/cp3_start_audio.hpp"
 #include "../include/apex3d/renderer3d.hpp"
 #include "../include/apex3d/hud3d.hpp"
+#include "../include/apex3d/replay_controls.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -150,7 +151,10 @@ bool pressedOnce(GLFWwindow* window, int key)
 struct WindowInput {
     double x{},y{};
     bool dragging{false},hudVisible{true};
+    bool scrubbing{false},raceMode{true};
     int fieldPage{};
+    apex3d::cp3::HeatLayer heat{apex3d::cp3::HeatLayer::Speed};
+    apex3d::three::BarTarget pendingBar{};
     apex3d::three::CameraRig camera;
     apex3d::cp3::DriverFocus focus{apex3d::cp3::DriverFocus::Verstappen};
     apex3d::cp3::HudAction pendingAction{apex3d::cp3::HudAction::None};
@@ -210,6 +214,7 @@ void processInput(GLFWwindow* window, Playback& playback, bool audioAvailable)
     if(pressedOnce(window,GLFW_KEY_C))input->camera.cycle();
     if(pressedOnce(window,GLFW_KEY_F))input->camera.reset();
     if(pressedOnce(window,GLFW_KEY_H))input->hudVisible=!input->hudVisible;
+    if(pressedOnce(window,GLFW_KEY_V))input->heat=apex3d::cp3::nextHeatLayer(input->heat);
     if(pressedOnce(window,GLFW_KEY_E)&&playback.isRace()){
         playback.seek(apex3d::cp3::raceTotalSeconds);playback.postRaceElapsed=apex3d::cp3::postRaceDuration;
         input->camera.initialized=false;
@@ -224,7 +229,13 @@ void processInput(GLFWwindow* window, Playback& playback, bool audioAvailable)
     }
     const auto action=input->pendingAction;
     input->pendingAction=apex3d::cp3::HudAction::None;
+    const auto bar=input->pendingBar;
+    input->pendingBar={};
     if(playback.isRace()) {
+        using apex3d::three::BarHit;
+        if(bar.hit==BarHit::Play)playback.togglePlaying();
+        if(bar.hit==BarHit::Timeline)playback.seek(bar.fraction*apex3d::cp3::raceTotalSeconds);
+        if(bar.hit==BarHit::Speed)playback.speed=apex3d::three::speedForFraction(bar.fraction);
         if(action==apex3d::cp3::HudAction::Play)playback.togglePlaying();
         if(action==apex3d::cp3::HudAction::Mute&&audioAvailable)playback.muted=!playback.muted;
         const auto before=input->focus;
@@ -291,6 +302,7 @@ int main(int argc, char** argv)
     double initialSpeed = 1.0,initialZoom=1.0;
     apex3d::cp3::DriverFocus initialFocus=apex3d::cp3::DriverFocus::Verstappen;
     apex3d::three::CameraMode initialCamera=apex3d::three::CameraMode::Chase;
+    apex3d::cp3::HeatLayer initialHeat=apex3d::cp3::HeatLayer::Speed;
     try {
         const auto number = [](const std::string& value) {
             std::size_t consumed = 0;
@@ -328,6 +340,12 @@ int main(int argc, char** argv)
                 }
                 if(!found)throw std::invalid_argument("Driver must be an official 2025 Monza surname, abbreviation or number");
             }
+            else if(arg=="--heatmap") {
+                const auto value=next();
+                if(value=="speed")initialHeat=apex3d::cp3::HeatLayer::Speed;
+                else if(value=="off")initialHeat=apex3d::cp3::HeatLayer::Off;
+                else throw std::invalid_argument("Heatmap must be speed or off");
+            }
             else if (arg == "--bezier") initialBezier = true;
             else if (arg == "--wheels") showWheels = true;
             else if (arg == "--zoom") initialZoom=bounded(next(),0.008,3.0);
@@ -355,6 +373,7 @@ int main(int argc, char** argv)
     } catch (const std::exception& error) {
         std::cerr << error.what() << "\nUsage: Apex3D [--bezier] [--wheels] [--speed 0.25..64]\n"
                      "  [--driver surname|number] [--camera overview|chase|cockpit] [--zoom 0.008..3] [--race-time seconds]\n"
+                     "  [--heatmap speed|off]\n"
                      "  [--screenshot file.ppm |\n"
                      "   --screenshot-at 0..1 file.ppm | --screenshot-time seconds file.ppm |\n"
                      "   --screenshot-start 0..6.5 file.ppm | --screenshot-post 0..600 file.ppm]\n";
@@ -385,20 +404,34 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
     WindowInput input;
-    input.focus=initialFocus;input.fieldPage=apex3d::cp3::driverIndex(initialFocus)/3;
+    input.focus=initialFocus;input.heat=initialHeat;input.fieldPage=apex3d::cp3::driverIndex(initialFocus)/3;
     input.camera.mode=initialCamera;input.camera.reset();
     input.camera.zoom=std::clamp(initialZoom,initialCamera==apex3d::three::CameraMode::Overview?0.008:0.18,3.0);
     glfwGetCursorPos(window, &input.x, &input.y);
     glfwSetWindowUserPointer(window, &input);
     glfwSetCursorPosCallback(window, [](GLFWwindow* target, double x, double y) {
         auto* state = static_cast<WindowInput*>(glfwGetWindowUserPointer(target));
-        if(state->dragging)state->camera.orbit(x-state->x,y-state->y);
+        if(state->scrubbing){
+            int w=0;glfwGetWindowSize(target,&w,nullptr);
+            const auto layout=apex3d::three::controlBarLayout(state->hudVisible);
+            if(w>0)state->pendingBar={apex3d::three::BarHit::Timeline,
+                std::clamp((2.0*x/w-1.0-layout.lineLeft)/(layout.lineRight-layout.lineLeft),0.0,1.0)};
+        }
+        else if(state->dragging)state->camera.orbit(x-state->x,y-state->y);
         state->x = x; state->y = y;
     });
     glfwSetMouseButtonCallback(window,[](GLFWwindow* target,int button,int action,int) {
         auto* state=static_cast<WindowInput*>(glfwGetWindowUserPointer(target));
         if(button!=GLFW_MOUSE_BUTTON_LEFT)return;
         int w=0,h=0;glfwGetWindowSize(target,&w,&h);
+        if(action==GLFW_RELEASE)state->scrubbing=false;
+        if(action==GLFW_PRESS&&w>0&&h>0&&state->raceMode){
+            const auto bar=apex3d::three::controlBarAt(2.0*state->x/w-1.0,1.0-2.0*state->y/h,state->hudVisible);
+            if(bar.hit!=apex3d::three::BarHit::None){
+                state->pendingBar=bar;state->scrubbing=bar.hit==apex3d::three::BarHit::Timeline;
+                state->dragging=false;return;
+            }
+        }
         if(action==GLFW_PRESS&&w>0&&h>0)
             state->pendingAction=apex3d::three::overlayAction(2.0*state->x/w-1.0,1.0-2.0*state->y/h,state->hudVisible,state->fieldPage);
         state->dragging=action==GLFW_PRESS && w>0 &&
@@ -473,6 +506,9 @@ int main(int argc, char** argv)
     double lastTitleTime = -1.0;
     bool screenshotSaved = true;
     double previousRaceTime=playback.elapsed;
+    int heatLap=-1;bool heatHasData=false;
+    auto heatLayer=apex3d::cp3::HeatLayer::Off;
+    auto heatFocus=input.focus;
     while (glfwWindowShouldClose(window) == GLFW_FALSE) {
         const double now = glfwGetTime();
         const double deltaSeconds = std::max(now - previousTime, 0.0);
@@ -490,6 +526,21 @@ int main(int argc, char** argv)
             renderedRoute = playback.route;
         }
         playback.advance(deltaSeconds, activePath.back().distance);
+        input.raceMode=playback.isRace();
+        {
+            // Rebuild the coloured road only when the driver, lap or layer changes.
+            const int lap=playback.isRace()?apex3d::cp3::heatmapLap(input.focus,playback.simulationSeconds()):0;
+            const auto layer=playback.isRace()?input.heat:apex3d::cp3::HeatLayer::Off;
+            if(lap!=heatLap||layer!=heatLayer||input.focus!=heatFocus){
+                const auto values=apex3d::cp3::lapProfile(monzaPath,
+                    traffic.motion(static_cast<std::size_t>(apex3d::cp3::driverIndex(input.focus))),input.focus,lap,layer);
+                heatHasData=std::any_of(values.begin(),values.end(),[](double v){return std::isfinite(v);});
+                renderer.setHeatmap(apex3d::three::heatmapMesh(monzaPath,values,layer));
+                heatLap=lap;heatLayer=layer;heatFocus=input.focus;
+            }
+        }
+        // Pre-compute replay spacing a few frames at a time so timeline jumps stay smooth.
+        if(!capture&&playback.isRace())traffic.warm(24);
         audio.mute(playback.muted);
         if (playback.isRace() && playback.playing) {
             if (wasStarting && !playback.starting()) audio.trigger(2);
@@ -572,6 +623,11 @@ int main(int argc, char** argv)
             const auto& driver=apex3d::cp3::driverInfo(input.focus);
             apex3d::three::overviewMarker(overlay,camera,playback.isRace()?focusSample.pose:pose,fraction,aspect,
                 playback.isRace()?apex3d::cp3::driverLabel(input.focus,playback.simulationSeconds()):"BEZIER",driver.color,true);
+        }
+        if(playback.isRace()){
+            const double buffered=traffic.cachedFraction()*(apex3d::cp3::raceTotalSeconds+apex3d::cp3::postRaceDuration)/apex3d::cp3::raceTotalSeconds;
+            apex3d::three::controlBar(overlay,playback,input.focus,input.hudVisible,buffered);
+            apex3d::three::heatLegend(overlay,input.heat,input.focus,heatLap,heatHasData);
         }
         hud.update(overlay,GL_DYNAMIC_DRAW);
         glUseProgram(shaderProgram);
