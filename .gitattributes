@@ -1,3 +1,4 @@
 # Keep reproducible tables and imported samples collapsed in code reviews.
 include/apex3d/generated/** linguist-generated=true
 data/*-telemetry.csv linguist-generated=true
+src/generated/** linguist-generated=true

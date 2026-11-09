@@ -5,19 +5,20 @@ circuit geometry into a progressively richer visualisation. Checkpoints 1 and 2
 demonstrate the underlying graphics algorithms in C++20. The interactive OpenGL
 application now renders a 3D circuit, car and scenery around a documented race replay.
 
-## Podium replay and driver focus
+## Full-field replay and driver focus
 
-The replay includes Norris and Piastri with independent 53-lap timing,
+The replay includes all 20 official entries and 19 starters, with independent lap timing,
 readable overview pointers, deeper zoom, a recorded speed/gear/engine-RPM panel,
 and 37 grandstand sections placed by the official 2025 map's corner areas and
-sides. Click a podium row to follow any driver; only the selected car shows a pointer.
+sides. Page through the field beneath the telemetry and click a driver to follow them; only the selected active car shows a pointer.
 The telemetry panel has a speed dial, gear tile and segmented RPM bar. Scenery footprints and racing lines
 are reconstructed. Sources and accuracy limits are in
-[Podium, telemetry and grandstands](docs/podium-telemetry-grandstands.md). The wheel inspector also shows
+[Full field and special cases](docs/full-field.md) and
+[telemetry and grandstands](docs/podium-telemetry-grandstands.md). The wheel inspector also shows
 [tyre compound, set number and completed laps](docs/tyre-inspector.md), including
 prior use of reused sets.
 
-![Driver focus and recorded telemetry](docs/evidence/apex3d-driver-focus.png)
+![Full-field Monza replay](docs/evidence/apex3d-full-field.png)
 
 ## Current milestone: 3D Monza race visualization
 
@@ -29,7 +30,7 @@ follow the same clock. The replay ends at lap 53 with the clock fixed at the
 official result.
 
 A five-light start precedes the race clock. The drawn pit lane includes the
-single documented **24.545-second visit**, with a **2.3-second stationary tyre
+winner's documented **24.545-second visit**, with a **2.3-second stationary tyre
 change** from Medium to Hard. The car body stays fixed in the optional wheel
 inspector while local tyre rotation follows reconstructed travel and the nominal
 2025 tyre radius.

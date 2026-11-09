@@ -5,11 +5,6 @@
 #include <vector>
 
 namespace apex3d::cp3 {
-inline std::span<const TelemetryPoint> recordedSeries(int number) {
-    if(number==4)return norrisTelemetry;
-    if(number==81)return piastriTelemetry;
-    return verstappenTelemetry;
-}
 // Integrate recorded speeds for the shape of motion between exact timing gates.
 // Each sector is normalized to the simplified route's length; this is not GPS.
 class RecordedDistance {
@@ -21,12 +16,14 @@ public:
         }
     }
     double distance(double seconds)const {
+        if(points_.size()<2)return 0;
         const auto i=segment(seconds);const auto& a=points_[i];const auto& b=points_[i+1];
         const double dt=std::clamp(seconds-a.raceMs/1000.0,0.0,(b.raceMs-a.raceMs)/1000.0);
         const double slope=(b.speedKmh-a.speedKmh)/3.6/((b.raceMs-a.raceMs)/1000.0);
         return metres_[i]+a.speedKmh/3.6*dt+0.5*slope*dt*dt;
     }
     double speed(double seconds)const {
+        if(points_.size()<2)return 0;
         const auto i=segment(seconds);const auto& a=points_[i];const auto& b=points_[i+1];
         const double alpha=std::clamp((seconds*1000-a.raceMs)/(b.raceMs-a.raceMs),0.0,1.0);
         return (a.speedKmh+alpha*(b.speedKmh-a.speedKmh))/3.6;
