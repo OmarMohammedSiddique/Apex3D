@@ -47,9 +47,11 @@ with simple pitched forms get a sloping cap. Footprints that conflict with the
 simplified road are omitted. Existing grandstands and team garage representations
 are retained rather than duplicated from OSM.
 
-The project still uses its hand-authored Monza centreline. Geographic features
-are fitted to that shape using corner landmarks, so this is a source-backed
-reconstruction, not a survey or a complete 2025 photographic digital twin. OSM
+The Monza centreline is now measured from recorded car positions, and buildings,
+woods and gravel are placed from their OSM coordinates with the same transform,
+with no warping ([measured track geometry](real-track-geometry.md)). This is
+still a source-backed reconstruction, not a survey or a complete 2025
+photographic digital twin. OSM
 is a current map, not a frozen map of race weekend. The derived map data carries
 ODbL attribution in the application and its data licence file.
 

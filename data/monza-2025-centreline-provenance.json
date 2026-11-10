@@ -1,0 +1,122 @@
+{
+ "session_key": 9912,
+ "method": "Average driven line of clean green-flag laps from OpenF1 /v1/location, iteratively re-projected in 5 m bins, then fitted to OpenStreetMap GP raceway ways with a similarity transform (rotation, uniform scale, shift). See tools/build_track_centreline.py.",
+ "drivers": {
+  "VER": 50,
+  "NOR": 50,
+  "PIA": 49,
+  "LEC": 50,
+  "RUS": 50
+ },
+ "reference_lap": {
+  "driver": "VER",
+  "lap": 10
+ },
+ "points": 1152,
+ "spacing_m": 5.0,
+ "lap_length_m": 5758.4,
+ "official_lap_length_m": 5793.0,
+ "start_finish": {
+  "method": "mean along-track position of cars at OpenF1 lap start times (laps 2+)",
+  "crossings_used": 255
+ },
+ "sector_lines": {
+  "sector1_end_m": 1894.5,
+  "sector2_end_m": 3704.0,
+  "laps_used": 255,
+  "method": "median distance of cars at OpenF1 lap start + sector durations"
+ },
+ "elevation": {
+  "datum": "OpenF1 z, arbitrary origin",
+  "min_m": 184.29,
+  "max_m": 196.7,
+  "smoothing_sigma_m": 20.0
+ },
+ "sample_spread_from_line_m": {
+  "median": 0.04,
+  "p95": 0.25
+ },
+ "osm_fit": {
+  "ways": [
+   19842206,
+   179968220,
+   179968234,
+   179968229,
+   179968230,
+   179968239,
+   179968245,
+   179968257,
+   179968252,
+   179968251,
+   179968263,
+   179968262,
+   179968264,
+   179968242,
+   179968228,
+   179968254,
+   179968226,
+   179968249,
+   1443867792,
+   1443867793
+  ],
+  "raw_sha256": "fbb255755d25fb6348ccae855e95d29e475a862334f8ddd8d4ba48ae4b4cc4d0",
+  "scale": 0.99923,
+  "rotation_deg": -0.128,
+  "reflected": false,
+  "distance_to_osm_centreline": {
+   "mean_m": 2.23,
+   "median_m": 2.06,
+   "p95_m": 4.38,
+   "max_m": 8.39
+  },
+  "local_frame": {
+   "lon0": 9.285,
+   "lat0": 45.622,
+   "m_per_deg_lon": 77800.0,
+   "m_per_deg_lat": 111200.0
+  }
+ },
+ "sources": {
+  "laps-1": {
+   "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=1",
+   "sha256": "e844f28a4bd0d4ad27a73ab13cae74d4ec0abd2f49cb75168dc87f0f7589e4db"
+  },
+  "laps-16": {
+   "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=16",
+   "sha256": "94711ca2c74c17dfbbf94f2441b3e2d7e5631436c9602469f696599f75d1f5a5"
+  },
+  "laps-4": {
+   "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=4",
+   "sha256": "713adc317c8b478e2594531fec8e54a98b14f835d7fcf6a5952cd440e96566cd"
+  },
+  "laps-63": {
+   "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=63",
+   "sha256": "e83352585a49c8f6da30664fc97c47afb53c4f7a38ae1b12f654755a5705242a"
+  },
+  "laps-81": {
+   "url": "https://api.openf1.org/v1/laps?session_key=9912&driver_number=81",
+   "sha256": "cab7f755fa8784b73c60fbb571342e85bf8dd0eb3f26457580fa45aba02180c2"
+  },
+  "location-1": {
+   "url": "https://api.openf1.org/v1/location?session_key=9912&driver_number=1",
+   "sha256": "0e8c834c5d059e5ac15bcdb794fd6b4453d77db0cdfb498a02e605ed07696ea2"
+  },
+  "location-16": {
+   "url": "https://api.openf1.org/v1/location?session_key=9912&driver_number=16",
+   "sha256": "7de79ea66503427b293ef6a6e2fd7b7af577eb9337d9bc0fb476674ae83f2e0b"
+  },
+  "location-4": {
+   "url": "https://api.openf1.org/v1/location?session_key=9912&driver_number=4",
+   "sha256": "8695cb70be2ad35a4c3874d8854a404edfcb2a12a08a51669260e55f2c93607c"
+  },
+  "location-63": {
+   "url": "https://api.openf1.org/v1/location?session_key=9912&driver_number=63",
+   "sha256": "9db5f15af072f8f779b7154fe5803c02d0da72984c76ff22e0b93ced307b6846"
+  },
+  "location-81": {
+   "url": "https://api.openf1.org/v1/location?session_key=9912&driver_number=81",
+   "sha256": "49fecf97a0d41af438751a92a27a1d8c82395714f2562ffff92643c42047aa2e"
+  }
+ },
+ "licence": "OpenF1 data (unofficial, non-commercial); OSM ODbL 1.0 for the georeference."
+}

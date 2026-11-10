@@ -32,7 +32,9 @@ state directly without replaying old start cues. There is no Monza lap 54.
 
 ## Meshes and world coordinates
 
-`physical_scale.hpp` calibrates the CP2 Monza centreline to 5,793 metres.
+The Monza centreline is generated from recorded OpenF1 positions
+(`generated/monza_track_2025.hpp`, see [measured track geometry](real-track-geometry.md)).
+`physical_scale.hpp` calibrates it to 5,793 metres.
 `scene3d.hpp` converts it into metre-space X/Z positions with Y up. Road width,
 car wheelbase, tyres and scenery use explicit physical dimensions. The 12 m
 road and representative 2 m car width therefore share the same scale. See

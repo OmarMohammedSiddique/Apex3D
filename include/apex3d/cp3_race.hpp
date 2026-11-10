@@ -74,10 +74,10 @@ public:
             distance+=std::hypot(p.x-previous.x,p.y-previous.y)*physical::metresPerSceneUnit();
             pitArc_.push_back({progress,distance});previous=p;
         }
-        // Sector lines are located schematically on the existing hand-authored
-        // circuit using the FIA map. All sector and lap crossing times are exact.
-        const double s1 = nearestProgress({-1.33, -0.12});
-        const double s2 = nearestProgress({-0.02, -0.14});
+        // Sector lines sit where the cars actually were when OpenF1 recorded
+        // the end of sectors 1 and 2 (median of ~250 laps). Crossing times are exact.
+        const double s1 = sector1Fraction;
+        const double s2 = sector2Fraction;
         keys_.push_back({0.0, gridOffset});
         for (std::size_t i = 0; i < raceLaps.size(); ++i) {
             const auto& lap = raceLaps[i];
