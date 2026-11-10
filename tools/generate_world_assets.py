@@ -35,7 +35,15 @@ def build():
  text+=f'inline constexpr std::array<MapPoint,{len(points)}> mapPoints{{{{\n'+''.join(f'    {{{x}, {y}}},\n'for x,y in points)+'}};\n'
  text+='struct MapFootprint {bool wood;std::string_view name;double height;bool pitched;int first,count;};\n'
  text+=f'inline constexpr std::array<MapFootprint,{len(polys)}> mapFootprints{{{{\n'
- text+=''.join('    {'+str(k=='wood').lower()+', '+json.dumps(name)+', '+str(h)+', '+str(roof).lower()+', '+str(a)+', '+str(n)+'},\n'for k,name,h,roof,a,n in polys)+'}};\n}\n'
+ text+=''.join('    {'+str(k=='wood').lower()+', '+json.dumps(name)+', '+str(h)+', '+str(roof).lower()+', '+str(a)+', '+str(n)+'},\n'for k,name,h,roof,a,n in polys)+'}};\n'
+ # The 1955 high-speed ring (banking and bridges): OSM centrelines through the same transform.
+ ways=json.loads((ROOT/'data/monza-oval.json').read_text())['ways'];ovalPoints=[];ovalWays=[]
+ for w in ways:
+  pts=[tuple(round(v,6)for v in to_scene(lon,lat))for lon,lat in w['source_points']]
+  ovalWays.append((w['bridge'],len(ovalPoints),len(pts)));ovalPoints+=pts
+ text+=f'inline constexpr std::array<MapPoint,{len(ovalPoints)}> ovalPoints{{{{\n'+''.join(f'    {{{x}, {y}}},\n'for x,y in ovalPoints)+'}};\n'
+ text+='struct OvalWay {bool bridge;int first,count;};\n'
+ text+=f'inline constexpr std::array<OvalWay,{len(ovalWays)}> ovalWays{{{{\n'+''.join(f'    {{{str(b).lower()}, {a}, {n}}},\n'for b,a,n in ovalWays)+'}};\n}\n'
  return text
 if __name__=='__main__':
  import argparse

@@ -216,8 +216,9 @@ void processInput(GLFWwindow* window, Playback& playback, bool audioAvailable)
     if(pressedOnce(window,GLFW_KEY_H))input->hudVisible=!input->hudVisible;
     if(pressedOnce(window,GLFW_KEY_V))input->heat=apex3d::cp3::nextHeatLayer(input->heat);
     if(pressedOnce(window,GLFW_KEY_E)&&playback.isRace()){
-        playback.seek(apex3d::cp3::raceTotalSeconds);playback.postRaceElapsed=apex3d::cp3::postRaceDuration;
-        input->camera.initialized=false;
+        // Jump to the moment the last car parks, then play the track invasion and podium.
+        playback.seek(apex3d::cp3::raceTotalSeconds);playback.postRaceElapsed=apex3d::cp3::celebrationStart;
+        playback.playing=true;input->camera.initialized=false;
     }
     if (pressedOnce(window, GLFW_KEY_1)) playback.speed = 1.0;
     if (pressedOnce(window, GLFW_KEY_M) && audioAvailable) playback.muted = !playback.muted;
@@ -591,7 +592,9 @@ int main(int argc, char** argv)
                     }
                     steering=apex3d::three::pitSteering(race,car.progress-shift,box);
                 }
-                const auto vertices=apex3d::three::makeCar(car.pose,car.travelledMetres/apex3d::cp3::raceTyreCircumference,
+                auto carPose=car.pose; // Sainz's illustrative spin at Turn 5, lap 41
+                carPose.headingRadians+=apex3d::cp3::incidentYaw(driver.archive->number,playback.simulationSeconds());
+                const auto vertices=apex3d::three::makeCar(carPose,car.travelledMetres/apex3d::cp3::raceTyreCircumference,
                     false,steering,
                     driver.archive->color,i%2?apex3d::cp3::Color{0.95F,0.74F,0.15F}:apex3d::cp3::Color{0.90F,0.25F,0.30F},
                     apex3d::cp3::compoundColor(tyre.stint->compound),static_cast<int>(driver.focus),
@@ -604,7 +607,9 @@ int main(int argc, char** argv)
         }
         auto sceneEffects=playback.isRace()?apex3d::three::gantry(activePath,playback.redLights(),false):apex3d::three::Mesh{};
         if(playback.isRace()){const auto birds=apex3d::three::birds(monzaPath,playback.simulationSeconds()+playback.startElapsed);
-            sceneEffects.insert(sceneEffects.end(),birds.begin(),birds.end());}
+            sceneEffects.insert(sceneEffects.end(),birds.begin(),birds.end());
+            if(playback.finished()){const auto party=apex3d::three::celebration(monzaPath,playback.postRaceElapsed-apex3d::cp3::celebrationStart);
+                sceneEffects.insert(sceneEffects.end(),party.begin(),party.end());}}
         renderer.update(carVertices,sceneEffects,crew);
 
         int width = 0;

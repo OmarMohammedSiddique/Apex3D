@@ -70,6 +70,12 @@ the background. The lighter part of the timeline shows how much is ready. Jumps 
 it are instant, and the results are identical because frames are computed in the same
 order as a normal seek.
 
+**No flicker when zoomed out.** The chase camera's near plane used to be fixed at
+5 cm while drawing out to 15 km, which left too little depth precision far down
+the road to separate the strip from the asphalt 5 mm below it. They swapped places
+from frame to frame. The near plane now scales with camera distance (2% of it in
+chase view, as the overview already did) and the polygon offset is stronger.
+
 ## Accuracy limits
 
 - Speed, throttle and brake values are the **archived OpenF1 car-data readings**, not

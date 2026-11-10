@@ -24,15 +24,31 @@ inline void gravelTraps(Mesh& mesh,const std::vector<cp3::PathSample>& path){
         }
     }
 }
+// Four small flocks of four (crow/pigeon size, ~1 m wingspan) circle at 16-27 m
+// over the track, so they pass through the cockpit, chase and overview cameras. Decorative:
+// not a record of wildlife during the race.
 inline Mesh birds(const std::vector<cp3::PathSample>& path,double seconds){
-    Mesh mesh;
-    for(int i=0;i<2;++i){const auto anchor=world(cp3::poseAtProgress(path,i?.87:.47).position,48+i*12);
-        const double angle=seconds*.045+i*2.4;const V3 centre=anchor+V3{70*std::cos(angle),5*std::sin(angle*.7),50*std::sin(angle)};
-        const double flap=.45*std::sin(seconds*4.2+i),yaw=-angle;
-        const auto begin=mesh.size();const Color feather{.16F,.18F,.20F};
-        sphere(mesh,{0,0,0},{.28,.10,.09},feather,3,6);
-        for(double side:{-1.,1.}){const V3 tip{-.05,flap,side*.85};triangle(mesh,{.18,0,side*.04},{-.22,0,side*.10},tip,feather);triangle(mesh,{-.22,0,side*.10},{-.30,.1,side*.45},tip,feather);}
-        place(mesh,begin,centre,yaw);
+    Mesh mesh;const Color feather{.10F,.11F,.12F};
+    constexpr std::array<double,4> sites{.04,.30,.69,.86};
+    for(std::size_t f=0;f<sites.size();++f){
+        const auto pose=cp3::poseAtProgress(path,sites[f]);
+        const auto centre=world(pose.position)+rotateY({0,0,(f%2?1.:-1.)*6.0},pose.headingRadians);
+        const double radius=26+6.0*f,orbit=seconds*(.10+.015*f)*(f%2?1:-1)+f*1.3;
+        for(int b=0;b<4;++b){
+            // Loose cluster: each bird trails slightly and bobs on its own phase.
+            const double lag=orbit-b*.05*(f%2?1:-1),bob=std::sin(seconds*.9+b*1.7+f)*1.4;
+            const V3 p=centre+V3{radius*std::cos(lag)+std::sin(b*2.1)*3,16+2.5*f+bob+(b%3)*1.1,radius*std::sin(lag)+std::cos(b*1.3)*3};
+            const double heading=-lag+(f%2?-1:1)*std::numbers::pi/2;
+            const double flap=.55*std::sin(seconds*(7.5+b*.4)+b*2.3+f);
+            const auto begin=mesh.size();
+            sphere(mesh,{0,0,0},{.22,.07,.07},feather,3,6);
+            sphere(mesh,{.20,.02,0},{.06,.05,.05},feather,3,5);
+            triangle(mesh,{-.18,0,0},{-.32,0,-.07},{-.32,0,.07},feather);
+            for(double side:{-1.,1.}){const V3 tip{-.10,flap*.5,side*.52};
+                triangle(mesh,{.10,0,side*.03},{-.10,0,side*.06},tip,feather);
+                triangle(mesh,{.10,0,side*.03},tip,{-.10,0,side*.06},feather);}
+            place(mesh,begin,p,heading);
+        }
     }
     return mesh;
 }
