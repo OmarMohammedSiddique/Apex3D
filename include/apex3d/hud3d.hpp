@@ -138,11 +138,12 @@ inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSa
     cp3::hudText(result,-0.95,-0.925,0.0035,"DRAG ORBIT  SCROLL ZOOM  F RESET  H DASHBOARD",{0.62F,0.73F,0.76F});
     if(p.isRace()&&p.started&&!p.starting()){
         const auto flag=cp3::raceFlagAt(p.simulationSeconds());
-        if(flag.severity){const cp3::Color color=flag.severity==1?cp3::Color{.2F,.8F,.4F}:flag.severity==4?cp3::Color{.2F,.5F,1.F}:flag.severity>=5?cp3::Color{.93F,.95F,.95F}:cp3::Color{1.F,.79F,.12F};
+        if(flag.severity){const cp3::Color color=flag.severity==7?cp3::Color{1.F,.45F,.10F}:flag.severity==1?cp3::Color{.2F,.8F,.4F}:flag.severity==4?cp3::Color{.2F,.5F,1.F}:flag.severity>=5?cp3::Color{.93F,.95F,.95F}:cp3::Color{1.F,.79F,.12F};
             cp3::hudRectangle(result,-.93,.78,.35,.97,{.03F,.06F,.08F});
             cp3::hudRectangle(result,-.93,.78,-.915,.97,color);
             cp3::hudRectangle(result,-.88,.82,-.876,.945,{.72F,.75F,.76F});
-            if(flag.severity==6){for(int row=0;row<4;++row)for(int col=0;col<5;++col)
+            if(flag.severity==7){cp3::hudRectangle(result,-.84,.885,-.81,.94,color);cp3::hudRectangle(result,-.84,.86,-.81,.875,color);}
+            else if(flag.severity==6){for(int row=0;row<4;++row)for(int col=0;col<5;++col)
                 cp3::hudRectangle(result,-.875+col*.021,.87+row*.018,-.854+col*.021,.888+row*.018,(row+col)%2?cp3::Color{.03F,.04F,.05F}:color);}
             else if(flag.severity==5){cp3::hudRectangle(result,-.875,.87,-.77,.942,color);cp3::triangle(result,{-.875,.87},{-.77,.87},{-.77,.942},{.025F,.03F,.04F});}
             else{cp3::quad(result,{-.875,.87},{-.82,.88},{-.77,.87},{-.77,.932},color);cp3::triangle(result,{-.875,.87},{-.77,.932},{-.875,.942},color);

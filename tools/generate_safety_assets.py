@@ -22,6 +22,13 @@ def build():
  text+='struct IntroRun {int x,y,width;};\n'
  text+=f'inline constexpr int introWidth={w},introHeight={h};\ninline constexpr std::array<IntroRun,{len(runs)}> introLogo{{{{\n'
  text+=''.join('    {'+', '.join(map(str,r))+'},\n'for r in runs)+'}};\n'
+ # Race incidents (Bearman/Sainz, lap 41): race-control messages and an illustrative spin window.
+ inc=json.loads((ROOT/'data/monza-2025-incidents.json').read_text())
+ assert inc['response_sha256']==json.loads((ROOT/'data/monza-2025-flags.json').read_text())['response_sha256']
+ text+='struct IncidentMessage {int raceMs;std::string_view title,detail;};\n'
+ text+=f'inline constexpr std::array<IncidentMessage,{len(inc["messages"])}> incidentMessages{{{{\n'+''.join(f'    {{{m["race_ms"]}, "{m["title"]}", "{m["detail"]}"}},\n'for m in inc['messages'])+'}};\n'
+ text+='struct IncidentSpin {int driver,startMs,endMs;double turns;};\n'
+ text+=f'inline constexpr std::array<IncidentSpin,{len(inc["spins"])}> incidentSpins{{{{\n'+''.join(f'    {{{x["driver"]}, {x["start_ms"]}, {x["end_ms"]}, {x["turns"]}}},\n'for x in inc['spins'])+'}};\n'
  patches=json.loads((ROOT/'data/monza-gravel.json').read_text())['patches'];points=[];spans=[]
  for patch in patches:
   # Same rotation/shift/scale as the measured track, so run-off stays beside the real road.
