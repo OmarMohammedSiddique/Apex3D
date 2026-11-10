@@ -400,7 +400,8 @@ inline const char* cameraName(CameraMode mode) {
     switch(mode){case CameraMode::Overview:return "OVERVIEW";case CameraMode::Chase:return "CHASE";case CameraMode::Cockpit:return "COCKPIT";}
     return "OVERVIEW";
 }
-struct CameraFrame { M4 viewProjection; V3 eye; V3 target; double shadowExtent{55.0}; double tanHalfFov{0.62}; };
+struct CameraFrame { M4 viewProjection; V3 eye; V3 target; double shadowExtent{55.0}; double tanHalfFov{0.62}; double nearPlane{0.05}; };
+inline constexpr double chaseNearPlane=0.5;
 struct CameraRig {
     CameraMode mode{CameraMode::Overview};
     double yaw{0.35},pitch{0.82},zoom{1.0};
@@ -442,8 +443,13 @@ struct CameraRig {
         }else{smoothEye=eye;smoothTarget=target;}
         previousOrigin=world(pose.position,physical::roadHeight);initialized=true;
         const bool overview=mode==CameraMode::Overview;
-        return {perspective(fov*std::numbers::pi/180,aspect,overview?std::max(.1,length(smoothEye-smoothTarget)*.01):0.05,15000.0)*lookAt(smoothEye,smoothTarget),
-            smoothEye,smoothTarget,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360)};
+        // Depth precision is set by the far/near ratio. The chase eye sits metres above the
+        // 100 km ground quad, and a 5 cm near plane let that ground win the depth test over the
+        // road 10 cm above it. 0.5 m is still closer than the car at minimum chase zoom (about 2 m).
+        // The cockpit eye sits inside the car and keeps 5 cm.
+        const double nearPlane=overview?std::max(.1,length(smoothEye-smoothTarget)*.01):mode==CameraMode::Chase?chaseNearPlane:0.05;
+        return {perspective(fov*std::numbers::pi/180,aspect,nearPlane,15000.0)*lookAt(smoothEye,smoothTarget),
+            smoothEye,smoothTarget,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360),nearPlane};
     }
 };
 } // namespace apex3d::three
