@@ -1,7 +1,8 @@
 # Physical scale of the 3D scene
 
-The 3D renderer uses **one world unit per metre**. The CP2 route keeps its original
-teaching coordinates; `physical_scale.hpp` calibrates their sampled centreline to
+The 3D renderer uses **one world unit per metre**. The Monza centreline is
+measured from recorded car positions ([measured track geometry](real-track-geometry.md))
+and kept in 2D scene units; `physical_scale.hpp` calibrates its sampled length to
 5,793 m before converting positions into the X/Z plane. Every 3D object, camera,
 light frustum and shadow calculation then uses metres. Multiplying every old
 object by the same factor would have preserved their exaggerated proportions;
@@ -56,8 +57,10 @@ it is not another object in the physical scene. Bézier scaling with `T` remains
 an explicit teaching demonstration and intentionally changes the model's size.
 
 This provides consistent physical proportions, not a surveyed digital twin.
-The original hand-authored route is retained, its length is calibrated, its
-elevation is planar, and its position/width profile is not derived from GPS.
+The route's shape comes from averaged OpenF1 car positions and matches the
+OSM-mapped circuit within a few metres. Its length is calibrated to 5,793 m (a 0.6%
+uniform stretch of the driven line), its elevation is still planar, and its width
+is a uniform 12 m rather than a surveyed profile.
 Scenery and proprietary car details remain simplified procedural geometry.
 The 53 historical lap/sector timings and exact finish time are preserved.
 

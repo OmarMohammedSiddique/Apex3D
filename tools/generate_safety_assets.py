@@ -2,6 +2,7 @@
 """Embed audited race flags, intro artwork and mapped gravel areas."""
 import json,hashlib
 from pathlib import Path
+from generate_track_assets import to_scene
 ROOT=Path(__file__).resolve().parents[1]
 def build():
  text='#pragma once\n#include <array>\n#include <string_view>\nnamespace apex3d::cp3 {\n'
@@ -23,7 +24,8 @@ def build():
  text+=''.join('    {'+', '.join(map(str,r))+'},\n'for r in runs)+'}};\n'
  patches=json.loads((ROOT/'data/monza-gravel.json').read_text())['patches'];points=[];spans=[]
  for patch in patches:
-  p=patch['points'];p=p[:-1]if p[0]==p[-1]else p;spans.append((len(points),len(p)));points+=p
+  # Same rotation/shift/scale as the measured track, so run-off stays beside the real road.
+  p=[tuple(round(v,6)for v in to_scene(lon,lat))for lon,lat in patch['source_points']];spans.append((len(points),len(p)));points+=p
  text+='struct GravelPoint {double x,y;};\nstruct GravelPatch {int first,count;};\n'
  text+=f'inline constexpr std::array<GravelPoint,{len(points)}> gravelPoints{{{{\n'+''.join(f'    {{{x}, {y}}},\n'for x,y in points)+'}};\n'
  text+=f'inline constexpr std::array<GravelPatch,{len(spans)}> gravelPatches{{{{\n'+''.join(f'    {{{a}, {b}}},\n'for a,b in spans)+'}};\n}\n'
