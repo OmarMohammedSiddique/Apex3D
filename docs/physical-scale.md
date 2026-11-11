@@ -31,7 +31,7 @@ These are plausible dimensions for this reconstruction, **not measured Monza ass
 | --- | --- |
 | Road surface height above ground | 0.10 m; a rendering datum, not circuit elevation |
 | Kerbs | 0.80 m wide, top 0.16 m above ground |
-| Pit fast lane | 4 m wide, centre about 18 m from the main centreline |
+| Pit fast lane | 4 m wide; mapped centreline (OSM), 15-19.4 m from the main centreline beside the garages |
 | Service bay | Centre another 3.5 m towards the garages; 7 × 3 m painted box |
 | Garage block | Six 6 m bays in each simplified team block, 15 m building depth, 6 m height |
 | Armco | 0.75 m high, about 5 m beyond kerbs |

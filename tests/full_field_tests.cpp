@@ -32,7 +32,12 @@ int main(){
             CHECK(sample.velocity>=-1e-7&&std::isfinite(sample.velocity));}
         for(const auto& pit:archivedPits)if(pit.driver==entry.number){
             CHECK(car.sample(pit.entry+.01).inPit);CHECK(car.sample(pit.exit-.01).inPit);
-            CHECK(!car.sample(pit.exit+.01).inPit);
+            CHECK(car.sample(pit.exit+.01).inPit);CHECK(!car.sample(pit.exit+pitLaneMarginSeconds).inPit);
+            CHECK(!car.sample(pit.entry-pitLaneMarginSeconds).inPit);
+            // No jump where the car turns into or out of the measured lane.
+            auto before=car.sample(pit.entry-pitLaneMarginSeconds);
+            for(double t=pit.entry-pitLaneMarginSeconds;t<pit.exit+pitLaneMarginSeconds;t+=.02){const auto s=car.sample(t);
+                CHECK(std::hypot(s.pose.position.x-before.pose.position.x,s.pose.position.y-before.pose.position.y)*physical::metresPerSceneUnit()<2.5);before=s;}
             CHECK(car.sample(pit.boxStart+pit.service/2).servicing);
             CHECK(std::abs(car.sample(pit.boxStart+.1).travelledMetres-car.sample(pit.boxStart+pit.service-.1).travelledMetres)<1e-6);
             CHECK(tyreState(focus,pit.boxStart+.01).changing);

@@ -164,14 +164,17 @@ inline void garage(Mesh& mesh,const cp3::RaceMotion& race) {
         garageBlock(mesh,world(race.pitPose(progress,true,progress).position,physical::roadHeight),entry.color);
     }
     const auto mainPath=cp3::makePath();
-    for(int i=0;i<96;++i) {
-        const double a=cp3::pitEntryProgress+0.021+(cp3::pitExitProgress-cp3::pitEntryProgress-0.045)*i/96;
-        const double b=cp3::pitEntryProgress+0.021+(cp3::pitExitProgress-cp3::pitEntryProgress-0.045)*(i+1)/96;
-        // Follow the fast lane, without following the service-bay excursion.
-        auto pa=world(cp3::poseAtProgress(mainPath,a).position),
-             pb=world(cp3::poseAtProgress(mainPath,b).position);
-        pa.z-=physical::pitOffset-3.0;pb.z-=physical::pitOffset-3.0;
-        pa.y=pb.y=0.70;tube(mesh,pa,pb,0.20,{0.68F,0.69F,0.65F},4);
+    // Pit wall 3 m in from the lane centre, wherever the lane is fully separated from the track.
+    const double wallFrom=physical::sceneUnits(10.5);
+    for(int i=0;i<320;++i) {
+        const double a=cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*i/320;
+        const double b=cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*(i+1)/320;
+        const double la=cp3::pitLaneOffset(a),lb=cp3::pitLaneOffset(b);
+        if(std::abs(la)<wallFrom||std::abs(lb)<wallFrom)continue;
+        const auto edge=[&](double p,double lateral){
+            const auto pose=cp3::poseAtProgress(mainPath,p);const double l=lateral+physical::sceneUnits(3.0);
+            return world({pose.position.x-std::sin(pose.headingRadians)*l,pose.position.y+std::cos(pose.headingRadians)*l},0.70);};
+        tube(mesh,edge(a,la),edge(b,lb),0.20,{0.68F,0.69F,0.65F},4);
     }
 }
 inline cp3::Pose standPose(const std::vector<cp3::PathSample>& path,const StandSpec& stand) {
@@ -278,8 +281,8 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
     }
     if(race) {
         for(int i=0;i<256;++i) {
-            const double a=cp3::pitEntryProgress+(cp3::pitExitProgress-cp3::pitEntryProgress)*i/256;
-            const double b=cp3::pitEntryProgress+(cp3::pitExitProgress-cp3::pitEntryProgress)*(i+1)/256;
+            const double a=cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*i/256;
+            const double b=cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*(i+1)/256;
             const auto pa=race->pitPose(a,false),pb=race->pitPose(b,false);
             roadStrip(mesh,pa,pb,-physical::pitWidth/2,physical::pitWidth/2,physical::roadHeight,asphalt);
             for(double side:{-1.0,1.0})roadStrip(mesh,pa,pb,side*1.90,side*2.0,physical::roadHeight+0.01,white);
