@@ -30,6 +30,19 @@ int main(){using namespace apex3d;using namespace cp3;using namespace three;
     for(const auto& tree:trees){CHECK(tree.height>=11&&tree.height<=23);CHECK(roadDistance(tree.p,path)>=23-1e-7);}
     int woods=0,buildings=0;for(const auto& f:mapFootprints){woods+=f.wood;buildings+=!f.wood;CHECK(f.count>=3);}
     CHECK(woods==19&&buildings==77);
+    // The measured pit lane (4 m wide) clears every mapped building by at least 1 m,
+    // runs 15-20 m off the track beside the garages and rejoins it at both ends.
+    for(const auto& f:mapFootprints){if(f.wood)continue;
+        for(int k=0;k<=400;++k){const double p=pitLaneStartProgress+(pitLaneEndProgress-pitLaneStartProgress)*k/400;
+            const auto c=geometry.pitPose(p,false).position;
+            for(int i=0;i<f.count;++i){const auto a=mapPoints[f.first+i],b=mapPoints[f.first+(i+1)%f.count];
+                const double dx=b.x-a.x,dy=b.y-a.y,t=std::clamp(((c.x-a.x)*dx+(c.y-a.y)*dy)/(dx*dx+dy*dy),0.0,1.0);
+                CHECK(std::hypot(c.x-a.x-t*dx,c.y-a.y-t*dy)*physical::metresPerSceneUnit()>3.0);}}}
+    CHECK(std::abs(pitLaneOffset(pitLaneStartProgress))<1e-9&&std::abs(pitLaneOffset(pitLaneEndProgress))<1e-9&&pitLaneOffset(36.5)==0.0);
+    for(double metres:{0.0,75.0,250.0}){const double lateral=-pitLaneOffset(37+metres/circuitMetres)*physical::metresPerSceneUnit();
+        CHECK(lateral>15&&lateral<20);}
+    CHECK(pitLaneFirst*circuitMetres<-300&&pitLaneFirst*circuitMetres>-340); // leaves after Parabolica
+    CHECK(pitLaneLast*circuitMetres>460&&pitLaneLast*circuitMetres<500);     // rejoins before the first chicane
     for(const auto& e:archivedEntries){const FieldMotion car(path,geometry,e);
         if(e.dns||e.dnf){CHECK(!car.sample(raceTotalSeconds+postRaceDuration).visible);continue;}
         const auto final=car.sample(raceTotalSeconds+postRaceDuration);CHECK(final.parked&&final.velocity==0);CHECK(final.cooldown);

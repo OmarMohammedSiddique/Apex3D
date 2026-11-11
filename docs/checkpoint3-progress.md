@@ -11,7 +11,7 @@ race replay and the Monza Bézier teaching circuit.
 | CP2 curves and transformations | Integrated | Catmull-Rom / Bezier paths, tangent heading and shared Mat3 |
 | Monza full race | Implemented locally | 53 FIA lap/sector triplets; exact 4,404.325-second finish |
 | Timing dashboard | Implemented locally | Lap counter, race/current/last lap clocks, race progress |
-| Pit lane and stop | Reconstructed | 24.545-second visit and 2.3-second stationary service; geometry/arrival interpolated |
+| Pit lane and stop | Measured lane, reconstructed stop | 24.545-second visit and 2.3-second stationary service; lane from OpenStreetMap, arrival interpolated |
 | Starting lights | Implemented locally | Five double-red columns, lights-out starts race clock |
 | Starting-light cues | Implemented locally | Embedded CC0 samples, muted initially, clickable mute and M; macOS output |
 | Playback controls | Implemented locally | Click/Space start-pause-resume-replay, restart, 0.25x–64x, real-time reset, seek, next lap, pit seek |

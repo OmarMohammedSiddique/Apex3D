@@ -63,14 +63,22 @@ public:
             velocity=(b.progress-a.progress)*profile_.rate(t,a.time,b.time)*path_.back().distance;
         }
         bool inPit=false,service=false;double shift=0,box=pitBoxProgress,fade=1;
-        if(entry_.pitStart&&t>=pitStartExit_)fade=std::clamp((t-pitStartExit_)/2,0.0,1.0);
-        if(entry_.pitStart&&t<pitStartExit_){inPit=true;shift=-37;box=37;}
+        // In the pit lane while on a pit visit and inside the measured lane; parallel-lane
+        // offsets fade to zero at the lane's ends so the car joins it smoothly.
+        if(entry_.pitStart&&t<pitStartExit_+pitLaneMarginSeconds){
+            fade=std::min(fade,pitLaneFade(p));
+            if(t<pitStartExit_||onPitLane(p)){inPit=true;shift=-37;box=37;}
+        }
         for(const auto& pit:archivedPits)if(pit.driver==entry_.number){
-            fade=std::min(fade,std::min(std::abs(t-pit.entry),std::abs(t-pit.exit))/2);
-            if(t>=pit.entry&&t<pit.exit){inPit=true;shift=pit.lap-37;box=37+pit.boxMetres/circuitMetres;
+            if(t<pit.entry-pitLaneMarginSeconds||t>=pit.exit+pitLaneMarginSeconds)continue;
+            fade=std::min(fade,pitLaneFade(p));
+            if(onPitLane(p)){inPit=true;shift=pit.lap-37;box=37+pit.boxMetres/circuitMetres;
                 service=t>=pit.boxStart&&t<pit.boxStart+pit.service;}
         }
-        if(entry_.dnf&&t>=entry_.retireEntry){inPit=true;shift=entry_.totalLaps-37;box=37+entry_.retireBox/circuitMetres;}
+        if(entry_.dnf&&t>=entry_.retireEntry-pitLaneMarginSeconds){
+            fade=std::min(fade,pitLaneFade(p));
+            if(t>=entry_.retireEntry||onPitLane(p)){inPit=true;shift=entry_.totalLaps-37;box=37+entry_.retireBox/circuitMetres;}
+        }
         auto pose=inPit?geometry_.pitPose(p-shift,!entry_.pitStart||t>=pitStartExit_,box):poseAtProgress(path_,p);
         if(!inPit){const double lane=physical::sceneUnits(entry_.grid%2?2.25:-2.25)*std::clamp(fade,0.0,1.0);
             pose.position.x-=std::sin(pose.headingRadians)*lane;pose.position.y+=std::cos(pose.headingRadians)*lane;}
