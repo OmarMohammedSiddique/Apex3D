@@ -7,7 +7,7 @@ race replay and the Monza Bézier teaching circuit.
 | --- | --- | --- |
 | 3D rendering | Implemented locally | Perspective matrices, depth testing, solid car/scene meshes, normals, directional lighting and filtered sun shadows |
 | 3D environment | Implemented locally | Raised track/kerbs, garages, pit wall, gantry, grandstands and trees |
-| Cameras | Implemented locally | Overview/orbit, chase, cockpit, drag/zoom/reset and full-width view |
+| Cameras | Implemented locally | Overview/orbit, chase, cockpit, trackside TV towers, drag/zoom/reset and full-width view |
 | CP2 curves and transformations | Integrated | Catmull-Rom / Bezier paths, tangent heading and shared Mat3 |
 | Monza full race | Implemented locally | 53 FIA lap/sector triplets; exact 4,404.325-second finish |
 | Timing dashboard | Implemented locally | Lap counter, race/current/last lap clocks, race progress |

@@ -75,7 +75,9 @@ front/rear wings and rotating tyres. It includes a raised track and kerbs,
 directional lighting and filtered sun shadows. A small procedural pit crew
 appears during the documented tyre-change interval.
 
-Choose an overview, chase or cockpit perspective. Drag the scene to orbit,
+Choose an overview, chase, cockpit or TV perspective. The TV view cuts between
+29 trackside camera towers as the selected car passes, with a long lens that keeps
+it framed (see [architecture](docs/architecture.md)). Drag the scene to orbit,
 scroll to zoom and press `F` to reset. `H` hides the dashboard. The chase view
 smooths camera movement and resets on seeks; it does not change race timing.
 
@@ -127,7 +129,7 @@ On Windows the executable may be under `build/Release/Apex3D.exe`.
 | `W` | Show or hide the fixed-body wheel inspector |
 | `M` / sound button | Unmute/mute start cues; muted at every fresh launch |
 | `P` | Show or hide 3D route anchors |
-| `C` | Cycle overview, chase and cockpit cameras |
+| `C` | Cycle overview, chase, cockpit and TV cameras |
 | Drag in the scene | Orbit the overview/chase camera |
 | Scroll in the scene | Zoom the overview/chase camera |
 | `F` | Reset the current camera |
@@ -157,7 +159,7 @@ race timer. Seeking jumps directly to a race state without replaying old cues.
 
 `--race-time` opens paused at the requested race second. `--screenshot-at`
 retains the old 0..1 lap-progress capture option (first lap for Monza).
-`--camera overview|chase|cockpit` sets the initial perspective.
+`--camera overview|chase|cockpit|tv` sets the initial perspective.
 `--speed 0.25..64` sets the initial rate; `--wheels` opens the inspector.
 `--driver surname|number` picks the followed driver; `--heatmap speed|throttle|brake|pedals|off`
 sets the initial track heatmap.
