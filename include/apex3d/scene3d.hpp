@@ -3,6 +3,8 @@
 #include "cp3_race.hpp"
 #include "generated/monza_stands_2025.hpp"
 #include "generated/monza_entries_2025.hpp"
+#include "terrain.hpp"
+#include "sun_position.hpp"
 #include <vector>
 
 namespace apex3d::three {
@@ -228,11 +230,27 @@ inline Mesh gantry(const std::vector<cp3::PathSample>& path,int lights,bool fram
     }
     place(mesh,0,world(pose.position,physical::roadHeight),pose.headingRadians);return mesh;
 }
+// The ground comes first in the world mesh. It receives shadows but cannot cast
+// one, so the shadow pass skips these vertices (avoids self-shadow acne).
+inline int groundVertexCount(){const auto& t=terrain();return ((t.columns-1)*(t.rows-1)+4)*6;}
 inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMotion* race) {
     Mesh mesh;
     const double scale=physical::metresPerSceneUnit();
     // The detailed ground covers the entire camera frustum; the sky pass extends it analytically to the horizon.
-    quad(mesh,{-50000,0,-50000},{-50000,0,50000},{50000,0,50000},{50000,0,-50000},{0.24F,0.36F,0.23F});
+    // Over the terrain map it is one quad per height texel so it follows the
+    // elevation exactly; outside, four large quads sit at the map's edge height.
+    constexpr Color grass{0.24F,0.36F,0.23F};
+    const auto& ground=terrain();
+    for(int row=0;row+1<ground.rows;++row)for(int column=0;column+1<ground.columns;++column){
+        const double x0=ground.minX+column*ground.cell,x1=x0+ground.cell,z0=ground.minZ+row*ground.cell,z1=z0+ground.cell;
+        quad(mesh,{x0,0,z0},{x0,0,z1},{x1,0,z1},{x1,0,z0},grass);
+    }
+    constexpr double far=50000;
+    const double gx0=ground.minX,gx1=ground.maxX(),gz0=ground.minZ,gz1=ground.maxZ();
+    quad(mesh,{-far,0,-far},{-far,0,far},{gx0,0,far},{gx0,0,-far},grass);
+    quad(mesh,{gx1,0,-far},{gx1,0,far},{far,0,far},{far,0,-far},grass);
+    quad(mesh,{gx0,0,-far},{gx0,0,gz0},{gx1,0,gz0},{gx1,0,-far},grass);
+    quad(mesh,{gx0,0,gz1},{gx0,0,far},{gx1,0,far},{gx1,0,gz1},grass);
     constexpr Color asphalt{0.17F,0.195F,0.225F},white{0.88F,0.91F,0.91F};
     const double half=physical::trackWidth/2;
     for(std::size_t i=0;i+1<path.size();++i) {
@@ -465,14 +483,18 @@ struct CameraRig {
         }else{smoothEye=eye;smoothTarget=target;}
         previousOrigin=world(pose.position,physical::roadHeight);initialized=true;
         const bool overview=mode==CameraMode::Overview;
+        // The renderer raises the scene by the terrain height; raise the camera with it.
+        // Lifting eye and target separately keeps their ground clearance and lets the
+        // cockpit view pitch with the road.
+        const V3 eyeOut=onTerrain(smoothEye),targetOut=onTerrain(smoothTarget);
         // Depth precision falls with distance/near. A fixed 5 cm near plane left
         // too few depth steps far down the road to separate the heatmap strip
         // (5 mm above the asphalt), so it flickered when the chase camera pulled
         // back. Scaling the near plane with camera distance keeps the car unclipped.
         const double distance=length(smoothEye-smoothTarget);
         const double nearPlane=overview?std::max(.1,distance*.01):mode==CameraMode::Chase?std::max(.05,distance*.02):0.05;
-        return {perspective(fov*std::numbers::pi/180,aspect,nearPlane,15000.0)*lookAt(smoothEye,smoothTarget),
-            smoothEye,smoothTarget,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360)};
+        return {perspective(fov*std::numbers::pi/180,aspect,nearPlane,15000.0)*lookAt(eyeOut,targetOut),
+            eyeOut,targetOut,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360)};
     }
 };
 } // namespace apex3d::three

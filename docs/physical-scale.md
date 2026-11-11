@@ -59,7 +59,7 @@ an explicit teaching demonstration and intentionally changes the model's size.
 This provides consistent physical proportions, not a surveyed digital twin.
 The route's shape comes from averaged OpenF1 car positions and matches the
 OSM-mapped circuit within a few metres. Its length is calibrated to 5,793 m (a 0.6%
-uniform stretch of the driven line), its elevation is still planar, and its width
+uniform stretch of the driven line), its elevation follows the recorded profile, and its width
 is a uniform 12 m rather than a surveyed profile.
 Scenery and proprietary car details remain simplified procedural geometry.
 The 53 historical lap/sector timings and exact finish time are preserved.
