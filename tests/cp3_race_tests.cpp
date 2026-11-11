@@ -41,10 +41,26 @@ int main()
     CHECK(raceWheelRpm(0.0, path.back().distance) == 0.0);
     CHECK(near(pitExitSeconds - pitEntrySeconds, 24.545));
     CHECK(near(pitBoxEndSeconds - pitBoxStartSeconds, 2.3));
-    CHECK(!race.sample(pitEntrySeconds - 0.001).inPit);
-    CHECK(race.sample(pitEntrySeconds).inPit);
-    CHECK(race.sample(pitExitSeconds - 0.001).inPit);
-    CHECK(!race.sample(pitExitSeconds).inPit);
+    // The recorded visit spans the timing lines; the measured lane starts before the
+    // entry line (after Parabolica) and rejoins after the exit line.
+    CHECK(!race.sample(pitEntrySeconds - pitLaneMarginSeconds).inPit);
+    CHECK(race.sample(pitEntrySeconds - 0.001).inPit && race.sample(pitEntrySeconds).inPit);
+    CHECK(race.sample(pitExitSeconds - 0.001).inPit && race.sample(pitExitSeconds).inPit);
+    CHECK(!race.sample(pitExitSeconds + pitLaneMarginSeconds).inPit);
+    {
+        // Continuous through the whole visit: lane start, timing lines, box, lane end.
+        auto previous = race.sample(pitEntrySeconds - pitLaneMarginSeconds);
+        bool entered = false, left = false;
+        for (double t = pitEntrySeconds - pitLaneMarginSeconds; t < pitExitSeconds + pitLaneMarginSeconds; t += 0.02) {
+            const auto s = race.sample(t);
+            const double step = std::hypot(s.pose.position.x - previous.pose.position.x, s.pose.position.y - previous.pose.position.y) * apex3d::physical::metresPerSceneUnit();
+            CHECK(step < 2.5);
+            if (s.inPit && !previous.inPit) { entered = true; CHECK(std::abs(pitLaneRelative(s.progress) - pitLaneFirst) < 0.002); }
+            if (!s.inPit && previous.inPit) { left = true; CHECK(std::abs(pitLaneRelative(s.progress) - pitLaneLast) < 0.002); }
+            previous = s;
+        }
+        CHECK(entered && left);
+    }
     CHECK(race.sample(pitBoxStartSeconds + 1.0).servicing);
     CHECK(race.sample(pitBoxStartSeconds + 1.0).velocity == 0.0);
     CHECK(near(race.sample(pitBoxStartSeconds).progress, race.sample(pitBoxEndSeconds - 1e-6).progress));
@@ -82,7 +98,8 @@ int main()
         }
         CHECK(driver->sample(driver->spec().entry).inPit);
         CHECK(driver->sample(driver->spec().boxStart+0.5).servicing);
-        CHECK(!driver->sample(driver->spec().exit).inPit);
+        CHECK(driver->sample(driver->spec().exit).inPit); // still in the lane until it rejoins
+        CHECK(!driver->sample(driver->spec().exit + pitLaneMarginSeconds).inPit);
         CHECK(driver->sample(driver->spec().finish).finished);
     }
     CHECK(race.sample(1).travelledMetres<10); // observed launch, not a sector-average jump

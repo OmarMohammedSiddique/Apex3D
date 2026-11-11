@@ -43,11 +43,11 @@ public:
         const auto next=std::upper_bound(keys_.begin(),keys_.end(),t,[](double v,const Key& k){return v<k.time;});
         const auto& a=*(next-1);const auto& b=*next;
         const double p=a.progress+profile_.fraction(t,a.time,b.time)*(b.progress-a.progress);
-        const bool pit=t>=spec_.entry&&t<spec_.exit;
+        const bool visit=t>=spec_.entry-pitLaneMarginSeconds&&t<spec_.exit+pitLaneMarginSeconds;
+        const bool pit=visit&&onPitLane(p);
         auto pose=pit?geometry_.pitPose(p-(spec_.entryLap-37),true,37.0+34/circuitMetres):poseAtProgress(path_,p);
         // Small driver-specific offsets depict parallel cars without asserting measured racing lines.
-        if(!pit){const double fade=t<spec_.entry?std::clamp((spec_.entry-t)/2,0.0,1.0):std::clamp((t-spec_.exit)/2,0.0,1.0);
-            offset(pose,fade);}
+        if(!pit)offset(pose,visit?pitLaneFade(p):1.0);
         return {pose,p,(p-gridOffset+spec_.gridBehindMetres/circuitMetres)*circuitMetres,pit,t>=boxStart_&&t<boxEnd_,false,
             (b.progress-a.progress)*profile_.rate(t,a.time,b.time)*path_.back().distance};
     }

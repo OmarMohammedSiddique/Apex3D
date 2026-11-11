@@ -161,6 +161,95 @@ def controls():
            [ELEVATION[round(i / count * len(ELEVATION)) % len(ELEVATION)] for i in range(count)]
 
 
+PIT_LANE_WAY = '38168747'
+PIT_TAPER_M = 25.0  # synthetic run-in/run-out from the track centreline to the first/last OSM node
+PIT_STEP_M = 5.0
+
+
+def extract_pit_lane():
+    """One-off: copy the OSM pit lane way into data/monza-pit-lane.json."""
+    import hashlib
+    import xml.etree.ElementTree as ET
+    raw_path = ROOT / 'tmp/monza-world/osm.xml'
+    raw = raw_path.read_bytes()
+    root = ET.fromstring(raw)
+    nodes = {n.get('id'): (float(n.get('lon')), float(n.get('lat'))) for n in root.iter('node')}
+    way = next(w for w in root.iter('way') if w.get('id') == PIT_LANE_WAY)
+    tags = {t.get('k'): t.get('v') for t in way.iter('tag')}
+    record = {
+        'source': 'https://www.openstreetmap.org/api/0.6/map?bbox=9.270,45.610,9.300,45.636',
+        'copyright': 'OpenStreetMap contributors, ODbL 1.0',
+        'raw_sha256': hashlib.sha256(raw).hexdigest(),
+        'osm_id': PIT_LANE_WAY,
+        'tags': tags,
+        'notes': 'Pit lane centreline in driving order. Width (4 m) and the timing-line positions are not in the map.',
+        'source_points': [list(nodes[nd.get('ref')]) for nd in way.iter('nd')],
+    }
+    (ROOT / 'data/monza-pit-lane.json').write_text(json.dumps(record, indent=2) + '\n')
+
+
+def _project(point):
+    """Nearest point on the closed measured line: (lap metres along, signed lateral metres, + = left)."""
+    best = None
+    total = 0.0
+    lengths = []
+    for i in range(len(SCENE)):
+        a, b = SCENE[i], SCENE[(i + 1) % len(SCENE)]
+        lengths.append(math.dist(a, b) * METRES_PER_UNIT)
+    along = 0.0
+    for i in range(len(SCENE)):
+        a, b = SCENE[i], SCENE[(i + 1) % len(SCENE)]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        l2 = dx * dx + dy * dy
+        t = max(0.0, min(1.0, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / l2))
+        q = (a[0] + t * dx, a[1] + t * dy)
+        d = math.dist(point, q)
+        if best is None or d < best[0]:
+            side = (dx * (point[1] - a[1]) - dy * (point[0] - a[0])) / math.sqrt(l2) * METRES_PER_UNIT
+            best = (d, along + t * lengths[i], side)
+        along += lengths[i]
+    return best[1], best[2]
+
+
+def _pchip(xs, ys, x):
+    """Monotone cubic (Fritsch-Carlson) interpolation: smooth, no overshoot."""
+    n = len(xs)
+    h = [xs[i + 1] - xs[i] for i in range(n - 1)]
+    d = [(ys[i + 1] - ys[i]) / h[i] for i in range(n - 1)]
+    m = [d[0]] + [0.0] * (n - 2) + [d[-1]]
+    for i in range(1, n - 1):
+        if d[i - 1] * d[i] > 0:
+            w1, w2 = 2 * h[i] + h[i - 1], h[i] + 2 * h[i - 1]
+            m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i])
+    i = max(0, min(n - 2, next((k for k in range(n - 1) if x <= xs[k + 1]), n - 2)))
+    t = (x - xs[i]) / h[i]
+    h00, h10, h01, h11 = 2*t**3 - 3*t**2 + 1, t**3 - 2*t**2 + t, -2*t**3 + 3*t**2, t**3 - t**2
+    return h00 * ys[i] + h10 * h[i] * m[i] + h01 * ys[i + 1] + h11 * h[i] * m[i + 1]
+
+
+def pit_lane_profile():
+    """Lateral offset of the OSM pit lane from the track centreline, every 5 m.
+
+    Returns (first, step) as lap fractions relative to the finish line (negative
+    before it) and the offsets in scene units (negative = right of travel)."""
+    record = json.loads((ROOT / 'data/monza-pit-lane.json').read_text())
+    lap = MEASURED_LAP_M
+    xs, ys = [], []
+    for lon, lat in record['source_points']:
+        along, side = _project(to_scene(lon, lat))
+        if along > lap / 2:
+            along -= lap
+        xs.append(along)
+        ys.append(side)
+    assert all(b > a for a, b in zip(xs, xs[1:])), 'pit lane must run forwards along the lap'
+    xs = [xs[0] - PIT_TAPER_M] + xs + [xs[-1] + PIT_TAPER_M]
+    ys = [0.0] + ys + [0.0]
+    count = int(math.floor((xs[-1] - xs[0]) / PIT_STEP_M)) + 1
+    samples = [_pchip(xs, ys, xs[0] + k * PIT_STEP_M) for k in range(count)]
+    samples[-1] = 0.0 if abs(xs[0] + (count - 1) * PIT_STEP_M - xs[-1]) < 1e-9 else samples[-1]
+    return xs[0] / lap, PIT_STEP_M / lap, [v / METRES_PER_UNIT for v in samples] + [0.0], record
+
+
 def header():
     points, heights = controls()
     sectors = PROVENANCE['sector_lines']
@@ -199,6 +288,16 @@ def header():
     text += f'inline constexpr double raceStartUnixSeconds = {origin.timestamp():.3f}; // {origin.isoformat()}\n'
     text += f'inline constexpr double sceneNorthX = {-math.sin(_ANGLE):.6f};\n'
     text += f'inline constexpr double sceneNorthY = {math.cos(_ANGLE):.6f};\n'
+    first, step, lateral, record = pit_lane_profile()
+    text += f'// Pit lane: OSM way {record["osm_id"]} projected onto the measured line (data/monza-pit-lane.json).\n'
+    text += '// Lateral offset from the track centreline in scene units (negative = right of travel),\n'
+    text += f'// every {PIT_STEP_M:g} m from pitLaneFirst; lap fractions are relative to the finish line.\n'
+    text += f'inline constexpr double pitLaneFirst = {first:.6f};\n'
+    text += f'inline constexpr double pitLaneStep = {step:.8f};\n'
+    text += f'inline constexpr std::array<double, {len(lateral)}> pitLaneLateral{{{{\n'
+    for i in range(0, len(lateral), 8):
+        text += '    ' + ', '.join(f'{v:.6f}' for v in lateral[i:i + 8]) + ',\n'
+    text += '}};\n'
     text += '} // namespace apex3d::cp3\n'
     return text
 
@@ -221,10 +320,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--check', action='store_true')
     parser.add_argument('--migrate-stands', action='store_true')
+    parser.add_argument('--extract-pit-lane', action='store_true')
     args = parser.parse_args()
     target = ROOT / 'include/apex3d/generated/monza_track_2025.hpp'
     if args.migrate_stands:
         migrate_stands()
+    elif args.extract_pit_lane:
+        extract_pit_lane()
     elif args.check:
         assert target.read_text() == header(), 'monza_track_2025.hpp is out of date'
     else:

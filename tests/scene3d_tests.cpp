@@ -65,7 +65,7 @@ int main(){
     const auto crewBounds=bounds(makeCrew(straight,true));
     CHECK(std::abs(crewBounds[4]-physical::roadHeight-physical::crewHeight)<0.001);
     const auto box=race.pitPose(cp3::pitBoxProgress),trackPose=cp3::poseAtProgress(path,cp3::pitBoxProgress);
-    CHECK(std::abs(length(world(box.position)-world(trackPose.position))-(physical::pitOffset+physical::pitBayOffset))<0.001);
+    CHECK(std::abs(length(world(box.position)-world(trackPose.position))-(std::abs(cp3::pitLaneOffset(cp3::pitBoxProgress))*physical::metresPerSceneUnit()+physical::pitBayOffset))<0.001);
     // The measured main straight is straight to within a fraction of a degree.
     CHECK(std::abs(metricSteering(path,0.02))<0.002);
     const auto steered=makeCar(straight,0,false,0.25);

@@ -126,11 +126,45 @@ pitches with the road. Heights are real, not exaggerated, so at 12 m over
 
 - Track width is still a uniform 12 m. Kerbs and Armco follow the line at
   fixed offsets.
-- The pit lane is still a reconstructed offset from the main straight. Its
-  entry (86 m before the line) and exit (332 m after) are unchanged estimates.
+- The pit timing lines that the recorded pit durations span (86 m before the
+  finish line and 332 m after it) are estimates; the lane itself is measured
+  (see below). Lane width (4 m) and garage positions are representative.
 - Between timing gates, cars are still placed by recorded speed rather than by
   their own recorded positions.
 - Grandstand positions are carried estimates, not surveyed.
+
+## Pit lane
+
+The pit lane is now the mapped one: OpenStreetMap way 38168747 ("Pit Lane"),
+copied into `data/monza-pit-lane.json` with the same source hash as the rest of
+the scenery (`python3 tools/generate_track_assets.py --extract-pit-lane`). The
+generator projects each of its 22 nodes onto the measured track line. That
+gives a distance along the lap and a sideways offset for each node. It adds a
+25 m run-in and run-out from the track centreline, interpolates smoothly
+(monotone cubic, no overshoot) and writes the offset every 5 m
+(`pitLaneLateral`).
+
+- The lane leaves the track 318 m before the finish line, just after
+  Parabolica, and rejoins it 482 m after the line, before the first chicane.
+  It replaced a guessed 18 m offset that ran from 86 m before the line to
+  332 m after it.
+- It sits 15-19.4 m right of the track centreline along the garages, angling
+  slightly away from the track, as mapped.
+- `RaceMotion::pitPose` offsets cars along the track normal by this profile.
+  Every car (Verstappen, the podium pair, the full field, pit-lane starts,
+  retirements and post-race in-laps) is in the lane from where it leaves the
+  track to where it rejoins. The recorded pit durations still run between the
+  estimated timing lines inside it.
+- The pit wall follows the lane 3 m in from its centre, wherever the lane is
+  fully separated from the track. Garages sit beside their teams' estimated
+  boxes on the lane.
+- Tests check the lane's ends and offsets, that no mapped building is within
+  3 m of its centreline, and that cars move without jumps into, through and
+  out of it.
+
+![Pit entry after Parabolica](evidence/apex3d-pit-entry.png)
+
+![The measured pit lane beside the garages](evidence/apex3d-pit-lane.png)
 
 ## Rebuild and verify
 
