@@ -72,10 +72,12 @@ def telemetry_tables():
     tables=[]
     for entry in entries():
         name=entry['slug'];rows=list(csv.DictReader((ROOT/f'data/monza-2025-{name}-telemetry.csv').open()))
-        data=[[int(r[k]) for k in ('race_ms','speed_kmh','gear','engine_rpm')] for r in rows]
+        data=[[int(r[k]) for k in ('race_ms','speed_kmh','gear','engine_rpm','throttle_pct','brake')] for r in rows]
         assert len(data)==entry['telemetry_rows']
         assert all(a[0]<b[0] for a,b in zip(data,data[1:]))
         assert all(0<=r[1]<=400 and 0<=r[2]<=8 and 0<=r[3]<=16000 for r in data)
+        # OpenF1 brake is on/off (0/100); 104 is a source glitch code kept for traceability.
+        assert all((0<=r[4]<=100 or r[4]==104) and r[5] in (0,100,104) for r in data)
         assert entry['dns'] or (data and data[0][0]<0 and data[-1][0]>=entry['elapsed_ms'])
         tables.append((entry,data))
     return tables
@@ -84,7 +86,8 @@ def telemetry_tables():
 def telemetry_header():
     text='#pragma once\n#include <array>\n#include <span>\nnamespace apex3d::cp3 {\n'
     text+='// Archived OpenF1 session 9912. Definitions compile once in the data library.\n'
-    text+='struct TelemetryPoint {int raceMs,speedKmh,gear,engineRpm;};\n'
+    text+='// throttlePct is 0-100; brake is OpenF1 on/off (0 or 100); 104 in either marks an invalid sample.\n'
+    text+='struct TelemetryPoint {int raceMs,speedKmh,gear,engineRpm,throttlePct,brake;};\n'
     for entry,data in telemetry_tables():
         text+=f'extern const std::array<TelemetryPoint,{len(data)}> {entry["slug"]}Telemetry;\n'
     return text+'std::span<const TelemetryPoint> recordedSeries(int number);\n}\n'
