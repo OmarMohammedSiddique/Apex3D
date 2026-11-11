@@ -113,6 +113,36 @@ int main(){
     }
     std::cout<<"Tightest chase road/ground depth separation: "<<tightestSteps<<" depth-buffer steps\n";
     CHECK(tightestSteps>=1.0);
+    {
+        // TV towers: trackside, off the road and the pit lane, with a clear view of the car
+        // around the whole lap and a director's cut every 100-300 m.
+        const auto& towers=tvCameras();CHECK(towers.size()>=25&&towers.size()<=32);
+        const auto trees=woodlandTrees(path);
+        for(const auto& tower:towers){
+            double road=1e9;for(const auto& s:path)road=std::min(road,length(world(s.point)-V3{tower.base.x,0,tower.base.z}));
+            CHECK(road>13.0&&road<14.0);
+            for(int k=0;k<=200;++k){const auto lane=race.pitPose(cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*k/200,false).position;
+                CHECK(length(world(lane)-V3{tower.base.x,0,tower.base.z})>8.0);}
+        }
+        int cuts=0;const TvCamera* last=&tvCameraFor(0.999);
+        for(int k=0;k<tvScheduleSteps;++k){
+            const double progress=(k+0.5)/tvScheduleSteps;const auto& tower=tvCameraFor(progress);
+            if(&tower!=last){++cuts;last=&tower;}
+            const auto car=world(cp3::poseAtProgress(path,progress).position);
+            const double range=length(V3{car.x,0,car.z}-V3{tower.base.x,0,tower.base.z});CHECK(range>5&&range<260);
+            for(const auto& tree:trees)CHECK(distanceToSegment({tree.p.x,0,tree.p.z},{tower.base.x,0,tower.base.z},{car.x,0,car.z})>=4.5);
+        }
+        CHECK(cuts>=20&&cuts<=45);
+        CameraRig tv;tv.mode=CameraMode::Tv;tv.reset();
+        for(double t:{60.0,600.0,1800.0,cp3::pitBoxStartSeconds+1}){
+            const auto sample=race.sample(t);const auto frame=tv.frame(sample.pose,1.6,0,true);
+            const auto centre=frame.viewProjection.transform(frame.target);
+            CHECK(centre[3]>0&&std::abs(centre[0]/centre[3])<1e-5&&std::abs(centre[1]/centre[3])<1e-5);
+            bool atTower=false;for(const auto& tower:towers)atTower|=length(frame.eye-onTerrain(tower.lens))<1e-6;
+            CHECK(atTower);CHECK(frame.tanHalfFov>=std::tan(2*std::numbers::pi/180)-1e-9&&frame.tanHalfFov<=std::tan(30*std::numbers::pi/180)+1e-9);
+        }
+        CameraRig cycling;cycling.mode=CameraMode::Cockpit;cycling.cycle();CHECK(cycling.mode==CameraMode::Tv);cycling.cycle();CHECK(cycling.mode==CameraMode::Overview);
+    }
     CameraRig cockpit;cockpit.mode=CameraMode::Cockpit;cockpit.reset();
     const auto wide=cockpit.frame(straight,1.3,0,true).viewProjection;
     cockpit.dolly(3);
