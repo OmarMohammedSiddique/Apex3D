@@ -102,7 +102,7 @@ public:
         lit_=program(litVertex,litFragment);depth_=program(depthVertex,depthFragment);
         sky_=program(skyVertex,skyFragment);glGenVertexArrays(1,&skyVao_);
         if(!lit_||!depth_||!sky_)return false;
-        world_.create();car_.create();lights_.create();crew_.create();anchors_.create();
+        world_.create();heat_.create();car_.create();lights_.create();crew_.create();anchors_.create();
         glGenFramebuffers(1,&shadowFbo_);glGenTextures(1,&shadowTexture_);glBindTexture(GL_TEXTURE_2D,shadowTexture_);
         glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,shadowSize,shadowSize,0,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
@@ -116,6 +116,7 @@ public:
         return true;
     }
     void setWorld(const Mesh& mesh,const Mesh& anchors){world_.update(mesh,GL_STATIC_DRAW);anchors_.update(anchors,GL_STATIC_DRAW);}
+    void setHeatmap(const Mesh& mesh){heat_.update(mesh,GL_STATIC_DRAW);}
     void update(const Mesh& car,const Mesh& lights,const Mesh& crew){car_.update(car);lights_.update(lights);crew_.update(crew);}
     void draw(const CameraFrame& camera,int width,int height,int sceneWidth,bool points) {
         glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LEQUAL);glDepthMask(GL_TRUE);glDisable(GL_BLEND);glDisable(GL_CULL_FACE);
@@ -150,17 +151,20 @@ public:
         glUniform3f(glGetUniformLocation(lit_,"eyePosition"),static_cast<float>(camera.eye.x),static_cast<float>(camera.eye.y),static_cast<float>(camera.eye.z));
         glUniform1i(glGetUniformLocation(lit_,"shadowsEnabled"),shadows_?1:0);
         glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,shadowTexture_);glUniform1i(glGetUniformLocation(lit_,"shadowMap"),0);
-        world_.draw();car_.draw();lights_.draw();crew_.draw();if(points)anchors_.draw();
+        world_.draw();
+        // Pull the flat overlay slightly towards the camera so the asphalt never shows through.
+        glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(-1.0F,-4.0F);heat_.draw();glDisable(GL_POLYGON_OFFSET_FILL);
+        car_.draw();lights_.draw();crew_.draw();if(points)anchors_.draw();
         glDisable(GL_DEPTH_TEST);glViewport(0,0,width,height);
     }
     void destroy() {
-        world_.destroy();car_.destroy();lights_.destroy();crew_.destroy();anchors_.destroy();
+        world_.destroy();heat_.destroy();car_.destroy();lights_.destroy();crew_.destroy();anchors_.destroy();
         glDeleteFramebuffers(1,&shadowFbo_);glDeleteTextures(1,&shadowTexture_);glDeleteProgram(lit_);glDeleteProgram(depth_);glDeleteProgram(sky_);glDeleteVertexArrays(1,&skyVao_);
     }
 private:
     GLuint sky_{},skyVao_{};
     static constexpr int shadowSize=4096;
     GLuint lit_{},depth_{},shadowFbo_{},shadowTexture_{};bool shadows_{};
-    M4 lightMatrix_{};Buffer world_,car_,lights_,crew_,anchors_;
+    M4 lightMatrix_{};Buffer world_,heat_,car_,lights_,crew_,anchors_;
 };
 } // namespace apex3d::three

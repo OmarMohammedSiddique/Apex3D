@@ -3,7 +3,8 @@
 #include <span>
 namespace apex3d::cp3 {
 // Archived OpenF1 session 9912. Definitions compile once in the data library.
-struct TelemetryPoint {int raceMs,speedKmh,gear,engineRpm;};
+// throttlePct is 0-100; brake is OpenF1 on/off (0 or 100); 104 in either marks an invalid sample.
+struct TelemetryPoint {int raceMs,speedKmh,gear,engineRpm,throttlePct,brake;};
 extern const std::array<TelemetryPoint,16394> verstappenTelemetry;
 extern const std::array<TelemetryPoint,16464> norrisTelemetry;
 extern const std::array<TelemetryPoint,16471> piastriTelemetry;
