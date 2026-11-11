@@ -585,7 +585,8 @@ inline constexpr std::array<TrackPoint, 576> measuredMonzaControls{{
     {1.189599, -0.869899},
     {1.174799, -0.869966},
 }};
-// Height above the lowest point of the lap (m), one per control point. Not rendered yet.
+// Height above the lowest point of the lap (m), one per control point.
+// Rendered as terrain (include/apex3d/terrain.hpp).
 inline constexpr std::array<double, 576> measuredMonzaElevation{{
     2.89, 2.93, 2.98, 3.03, 3.08, 3.13, 3.18, 3.23, 3.28, 3.33, 3.38, 3.43,
     3.49, 3.54, 3.59, 3.64, 3.69, 3.75, 3.80, 3.85, 3.91, 3.96, 4.01, 4.07,
@@ -642,4 +643,11 @@ inline constexpr double sector2Fraction = 0.643234;
 inline constexpr double turn1Fraction = 0.154654;
 inline constexpr double turn7Fraction = 0.485542;
 inline constexpr double turn8Fraction = 0.684199;
+// Sun inputs: finish-line coordinates, the recorded race-clock origin (race time 0,
+// OpenF1 session 9912) and true north in scene axes (the scene is a rotation of east/north).
+inline constexpr double siteLatitude = 45.616555;
+inline constexpr double siteLongitude = 9.280851;
+inline constexpr double raceStartUnixSeconds = 1757250215.207; // 2025-09-07T13:03:35.207000+00:00
+inline constexpr double sceneNorthX = -0.996055;
+inline constexpr double sceneNorthY = -0.088733;
 } // namespace apex3d::cp3

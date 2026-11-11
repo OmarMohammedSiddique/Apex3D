@@ -60,9 +60,24 @@ clock remains 1:13:24.325. No safety-car, VSC or red-flag race interval is inven
 ## Sky, ground and birds
 
 A camera-oriented procedural sky replaces the flat background: blue zenith,
-paler atmospheric horizon, sun glow and soft layered clouds. Lighting continues
-to use the same sun direction. It is artistic scenery, not a reconstruction of
-photographed clouds during the race.
+paler atmospheric horizon, sun glow and soft layered clouds. The clouds are
+artistic scenery, not a reconstruction of photographed clouds during the race.
+
+### The real sun
+
+The sun is where it really was. `sun_position.hpp` uses NOAA's general
+solar-position equations with the finish line's coordinates and the recorded
+race-clock origin, 13:03:35 UTC on 7 September 2025 (OpenF1 session 9912), plus
+race time. At the start the sun is 44.4 degrees high in the south-west (azimuth
+217 degrees). By the chequered flag it has sunk to about 35 degrees at azimuth
+238 degrees, so shadows lengthen and swing east during the race and the
+post-race scenes. Lighting, shadows, the sky glow and the far ground all use it.
+True north comes from the measured track's map transform. A hand calculation
+checks the result: declination 5.85 degrees (from the 22 September equinox) and
+spherical trigonometry give 44.45 / 217.1 degrees at the start. Refraction
+(about one arcminute) is ignored, and brightness doesn't change with elevation.
+
+![Shadows from the race-start sun](evidence/apex3d-sun-shadows.png)
 
 The visible gravel/sand patches have been removed at the user's request. The
 grass ground now extends across the visible world and continues analytically

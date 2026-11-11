@@ -254,9 +254,11 @@ Each milestone also has its own README with individual build and run commands:
 
 ## Current limitations
 
-- The track is a flat-height 3D reconstruction with raised surfaces and
-  buildings. No surveyed Monza elevation model is supplied. Cars, scenery and
-  crew are procedural low-poly models rather than detailed licensed assets.
+- The road follows the recorded OpenF1 elevation (about 12 m of relief), but
+  the terrain away from it is a smooth fill, not a survey (see
+  [measured track geometry](docs/real-track-geometry.md#elevation)). Cars,
+  scenery and crew are procedural low-poly models rather than detailed
+  licensed assets.
 - The track shape is measured from recorded OpenF1 car positions (see
   [measured track geometry](docs/real-track-geometry.md)), but its width is a
   uniform 12 m and the pit lane is a reconstructed offset. Between timing gates,
