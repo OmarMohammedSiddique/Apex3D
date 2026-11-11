@@ -79,6 +79,11 @@ try{
     double peak=0;
     for(double minutes=-180;minutes<=0;minutes+=1)peak=std::max(peak,solarPosition(cp3::raceStartUnixSeconds+minutes*60,cp3::siteLatitude,cp3::siteLongitude).elevationDegrees);
     CHECK(near(peak,50.23,0.2));
+    // Late-race light: neutral at the start, then slightly warmer as the air mass grows.
+    const auto first=sunlightTint(0);CHECK(near(first.x,1,1e-12)&&near(first.y,1,1e-12)&&near(first.z,1,1e-12));
+    CHECK(near(airMass(90),1.0,0.001)&&near(airMass(30),1.995,0.01)); // Kasten-Young reference values
+    const auto flag=sunlightTint(74*60);
+    CHECK(flag.z<flag.y&&flag.y<flag.x&&flag.x<1.0&&flag.z>0.9); // bluer light is lost first; a subtle change
     std::cout<<"Terrain and sun: measured elevation, smooth ground, camera lift, solar position: PASS\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}
 }

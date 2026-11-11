@@ -45,6 +45,7 @@ uniform vec3 eyePosition;
 uniform sampler2D shadowMap;
 uniform bool shadowsEnabled;
 uniform vec3 sunDirection;
+uniform vec3 sunTint;
 out vec4 fragmentColor;
 float shade(vec3 n,vec3 sun){
     if(!shadowsEnabled)return 0.0;
@@ -63,7 +64,8 @@ void main(){
     vec3 view=normalize(eyePosition-worldPosition);
     float spec=pow(max(dot(n,normalize(sun+view)),0.0),48.0)*0.16;
     vec3 linearColor=pow(color,vec3(2.2));
-    vec3 lit=linearColor*(0.38+(1.0-shadow*0.82)*diffuse*0.85)+vec3(spec*(1.0-shadow)*0.32);
+    // Direct sun (diffuse and highlight) carries the late-race tint; ambient sky light doesn't.
+    vec3 lit=linearColor*(0.38+(1.0-shadow*0.82)*diffuse*0.85*sunTint)+sunTint*(spec*(1.0-shadow)*0.32);
     // Red gantry lamps remain legible in shadow without an engine/bloom effect.
     if(color.r>0.98&&color.g<0.04)lit=max(lit,linearColor*0.8);
     vec3 surface=pow(max(lit,vec3(0.0)),vec3(1.0/2.2));
@@ -152,7 +154,7 @@ public:
     void setHeatmap(const Mesh& mesh){heat_.update(mesh,GL_STATIC_DRAW);}
     void update(const Mesh& car,const Mesh& lights,const Mesh& crew){car_.update(car);lights_.update(lights);crew_.update(crew);}
     // `sun` points towards the sun (sunDirection in sun_position.hpp).
-    void draw(const CameraFrame& camera,int width,int height,int sceneWidth,bool points,V3 sun) {
+    void draw(const CameraFrame& camera,int width,int height,int sceneWidth,bool points,V3 sun,V3 tint={1,1,1}) {
         glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LEQUAL);glDepthMask(GL_TRUE);glDisable(GL_BLEND);glDisable(GL_CULL_FACE);
         const double extent=camera.shadowExtent;
         // Follow the car at metre precision; overview uses a whole-circuit map.
@@ -187,12 +189,14 @@ public:
         // The sky pass draws the ground beyond the meshes analytically, so it needs height above the terrain.
         glUniform3f(glGetUniformLocation(sky_,"eyePosition"),float(camera.eye.x),float(camera.eye.y-ground.height(camera.eye.x,camera.eye.z)),float(camera.eye.z));
         glUniform3f(glGetUniformLocation(sky_,"sunDirection"),float(sun.x),float(sun.y),float(sun.z));
+        glUniform3f(glGetUniformLocation(sky_,"sunTint"),float(tint.x),float(tint.y),float(tint.z));
         glDrawArrays(GL_TRIANGLES,0,3);glDepthMask(GL_TRUE);glEnable(GL_DEPTH_TEST);
         glUseProgram(lit_);glUniformMatrix4fv(glGetUniformLocation(lit_,"viewProjection"),1,GL_FALSE,camera.viewProjection.values.data());
         glUniformMatrix4fv(glGetUniformLocation(lit_,"lightMatrix"),1,GL_FALSE,lightMatrix_.values.data());
         glUniform3f(glGetUniformLocation(lit_,"eyePosition"),static_cast<float>(camera.eye.x),static_cast<float>(camera.eye.y),static_cast<float>(camera.eye.z));
         glUniform1i(glGetUniformLocation(lit_,"shadowsEnabled"),shadows_?1:0);
         glUniform3f(glGetUniformLocation(lit_,"sunDirection"),float(sun.x),float(sun.y),float(sun.z));
+        glUniform3f(glGetUniformLocation(lit_,"sunTint"),float(tint.x),float(tint.y),float(tint.z));
         bindTerrain(lit_);
         glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,shadowTexture_);glUniform1i(glGetUniformLocation(lit_,"shadowMap"),0);
         world_.draw();
