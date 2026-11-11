@@ -11,11 +11,15 @@ inline double parkingRelease(const ArchivedEntry& entry){
     for(const auto* e:finishers){release=std::max(e->elapsed+cooldownDuration,release+14);if(e->number==entry.number)return release;}
     return entry.elapsed+cooldownDuration;
 }
-inline const double postRaceDuration=[] {
+// Post-race seconds at which the last car is parked; the track invasion and
+// podium celebration start then and run for celebrationDuration.
+inline const double celebrationStart=[] {
     double last=raceTotalSeconds;
     for(const auto& entry:archivedEntries)if(!entry.dns&&!entry.dnf)last=std::max(last,parkingRelease(entry)+parkingDuration);
-    return last-raceTotalSeconds+12;
+    return last-raceTotalSeconds+4;
 }();
+inline constexpr double celebrationDuration=75;
+inline const double postRaceDuration=celebrationStart+celebrationDuration;
 inline Pose parcFermePose(const std::vector<PathSample>& path,int rank){
     int arrival=0;
     if(rank>3)for(const auto& e:archivedEntries)if(e.rank>=4&&e.rank<=18&&(e.rank-4)%3==(rank-4)%3&&e.elapsed<archivedEntries[rank-1].elapsed)++arrival;
