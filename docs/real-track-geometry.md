@@ -124,8 +124,9 @@ pitches with the road. Heights are real, not exaggerated, so at 12 m over
 - Terrain away from the road (see Elevation above) is a smooth fill from the
   track heights, not a survey.
 
-- Track width is still a uniform 12 m. Kerbs and Armco follow the line at
-  fixed offsets.
+- Track width is still a uniform 12 m. Armco follows the line at a fixed
+  offset. Kerb positions come from curvature (below); their lengths are
+  representative.
 - The pit timing lines that the recorded pit durations span (86 m before the
   finish line and 332 m after it) are estimates; the lane itself is measured
   (see below). Lane width (4 m) and garage positions are representative.
@@ -165,6 +166,26 @@ gives a distance along the lap and a sideways offset for each node. It adds a
 ![Pit entry after Parabolica](evidence/apex3d-pit-entry.png)
 
 ![The measured pit lane beside the garages](evidence/apex3d-pit-lane.png)
+
+## Kerbs
+
+Kerbs used to run along both edges of the whole lap. Real kerbs sit at corners,
+and OpenStreetMap doesn't map circuit kerbs, so `kerbLayout` in `scene3d.hpp`
+places them from the measured line's curvature (smoothed over ±25 m):
+
+- An inside kerb through every corner tighter than a 400 m radius, from 10 m
+  before to 10 m after.
+- An outside kerb from mid-corner to 25 m past the exit, for corners tighter
+  than 150 m.
+- No kerb on the pit side where the pit lane leaves or rejoins the track.
+
+That finds exactly Monza's 11 turns: the Rettifilo (T1–2, both sides), Curva
+Grande (T3), the Roggia (T4–5, both sides), Lesmo 1 and 2 (T6–7), the Ascari
+chicane (T8–10, both sides) and Parabolica (T11). The straights keep only their
+white edge lines. A test checks there are no kerbs on the straights, an inside
+kerb at each turn, and that less than 40% of the lap is kerbed.
+
+![Kerbs through the Roggia chicane](evidence/apex3d-kerbs-roggia.png)
 
 ## Rebuild and verify
 

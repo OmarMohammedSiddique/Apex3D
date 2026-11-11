@@ -236,6 +236,49 @@ inline Mesh gantry(const std::vector<cp3::PathSample>& path,int lights,bool fram
 // The ground comes first in the world mesh. It receives shadows but cannot cast
 // one, so the shadow pass skips these vertices (avoids self-shadow acne).
 inline int groundVertexCount(){const auto& t=terrain();return ((t.columns-1)*(t.rows-1)+4)*6;}
+// Where Monza has kerbs: through corners, not along the straights. OSM doesn't map
+// circuit kerbs, so they are placed from the measured line's curvature (smoothed
+// over +/-25 m). Every corner tighter than a 400 m radius gets an inside kerb, from
+// 10 m before to 10 m after; corners tighter than 150 m (the chicanes, Lesmos,
+// Ascari and Parabolica) also get an outside kerb from mid-corner to 25 m past the
+// exit. That picks out exactly Monza's 11 turns. Kerb lengths are representative.
+// No kerb on the pit side where the measured pit lane leaves or rejoins the track.
+struct KerbSides { bool left{}, right{}; }; // relative to the direction of travel
+inline std::vector<KerbSides> kerbLayout(const std::vector<cp3::PathSample>& path) {
+    const std::size_t n=path.size()-1; // the last sample closes the loop
+    const double scale=physical::metresPerSceneUnit(),lap=path.back().distance*scale;
+    std::vector<double> metres(n),heading(n),curvature(n),smooth(n,0.0);
+    for(std::size_t i=0;i<n;++i){metres[i]=path[i].distance*scale;heading[i]=std::atan2(-path[i].normal.x,path[i].normal.y);}
+    const auto wrapped=[&](double d){return d<0?d+lap:d>=lap?d-lap:d;};
+    for(std::size_t i=0;i<n;++i){
+        const std::size_t a=(i+n-1)%n,b=(i+1)%n;
+        const double turn=std::remainder(heading[b]-heading[a],2*std::numbers::pi);
+        curvature[i]=turn/wrapped(metres[b]-metres[a]); // + = turning left
+    }
+    for(std::size_t i=0;i<n;++i){double sum=0;int count=0;
+        for(std::size_t j=0;j<n;++j){const double d=std::abs(metres[j]-metres[i]);if(std::min(d,lap-d)<=25){sum+=curvature[j];++count;}}
+        smooth[i]=sum/count;}
+    std::vector<KerbSides> sides(n+1);
+    const auto mark=[&](double from,double to,bool left){
+        for(std::size_t i=0;i<n;++i){const double d=wrapped(metres[i]-wrapped(from));
+            if(d<=wrapped(to-from)){(left?sides[i].left:sides[i].right)=true;}}
+    };
+    for(const double limit:{1.0/400,1.0/150}){
+        for(std::size_t start=0;start<n;++start){
+            const std::size_t previous=(start+n-1)%n;
+            if(std::abs(smooth[start])<=limit||std::abs(smooth[previous])>limit)continue;
+            std::size_t end=start;double peak=0;
+            while(std::abs(smooth[end%n])>limit&&end<start+n){if(std::abs(smooth[end%n])>std::abs(peak))peak=smooth[end%n];++end;}
+            const double from=metres[start],to=metres[(end-1)%n];
+            const bool left=peak>0;
+            if(limit<1.0/200)mark(from-10,to+10,left);                       // inside, through the corner
+            else mark(from+wrapped(to-from)/2,to+25,!left);                     // outside, on the exit
+        }
+    }
+    for(std::size_t i=0;i<n;++i)if(cp3::onPitLane(path[i].distance/path.back().distance))sides[i].right=false;
+    sides[n]=sides[0];
+    return sides;
+}
 inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMotion* race) {
     Mesh mesh;
     const double scale=physical::metresPerSceneUnit();
@@ -256,17 +299,22 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
     quad(mesh,{gx0,0,gz1},{gx0,0,far},{gx1,0,far},{gx1,0,gz1},grass);
     constexpr Color asphalt{0.17F,0.195F,0.225F},white{0.88F,0.91F,0.91F};
     const double half=physical::trackWidth/2;
+    const auto kerbs=kerbLayout(path);
     for(std::size_t i=0;i+1<path.size();++i) {
         const auto a=cp3::poseAtProgress(path,path[i].distance/path.back().distance),
                    b=cp3::poseAtProgress(path,path[i+1].distance/path.back().distance);
         roadStrip(mesh,a,b,-half,half,physical::roadHeight,asphalt);
+        // roadStrip offsets are + to the right of travel; cp3::offset is + to the left.
         for(double side:{-1.0,1.0}) {
+            roadStrip(mesh,a,b,side*(half-0.15),side*half,physical::roadHeight+0.01,white);
+            if(!(side<0?kerbs[i].left:kerbs[i].right))continue;
             const auto color=(static_cast<int>(path[i].distance*scale/2)%2)==0?Color{0.78F,0.12F,0.17F}:white;
             roadStrip(mesh,a,b,side*half,side*(half+physical::kerbWidth),physical::kerbHeight,color);
-            roadStrip(mesh,a,b,side*(half-0.15),side*half,physical::roadHeight+0.01,white);
-            const auto pa=world(cp3::offset(path[i],physical::sceneUnits(side*(half+physical::kerbWidth)))),
-                       pb=world(cp3::offset(path[i+1],physical::sceneUnits(side*(half+physical::kerbWidth))));
-            quad(mesh,pa,pb,pb+V3{0,physical::kerbHeight,0},pa+V3{0,physical::kerbHeight,0},color);
+            const auto pa=world(cp3::offset(path[i],physical::sceneUnits(-side*(half+physical::kerbWidth)))),
+                       pb=world(cp3::offset(path[i+1],physical::sceneUnits(-side*(half+physical::kerbWidth))));
+            // Outer face, wound so its normal faces away from the track on either side.
+            const V3 up{0,physical::kerbHeight,0};
+            if(side>0)quad(mesh,pa,pb,pb+up,pa+up,color);else quad(mesh,pb,pa,pa+up,pb+up,color);
         }
     }
     // A 1 m deep chequered timing line, rather than a scene-sized marking.
