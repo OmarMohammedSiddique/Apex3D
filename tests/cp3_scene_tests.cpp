@@ -1,5 +1,6 @@
 #include "../include/apex3d/cp3_hud.hpp"
 #include "../include/apex3d/cp3_playback.hpp"
+#include "../include/apex3d/physical_scale.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -78,13 +79,20 @@ int main()
     // ── Catmull-Rom path (existing checks) ───────────────────────────────────
     const auto controls = cp3::evenlySpacedControls();
     const auto path = cp3::makePath();
-    CHECK(cp3::monzaControls.size() == 62);
+    // Measured centreline: one control every 10 m of the 5,758 m driven line.
+    CHECK(cp3::monzaControls.size() == 576);
+    // Rendered metres are stretched to the official 5,793 m lap length.
+    const double unitsPer10m = cp3::trackControlSpacingMetres * (cp3::circuitMetres / cp3::measuredLapMetres) /
+        physical::metresPerSceneUnit();
     for (std::size_t i = 0; i < cp3::monzaControls.size(); ++i) {
         const Vec2 a = cp3::monzaControls[i];
         const Vec2 b = cp3::monzaControls[(i + 1) % cp3::monzaControls.size()];
-        CHECK(std::hypot(b.x - a.x, b.y - a.y) < 0.5);
+        CHECK(std::abs(std::hypot(b.x - a.x, b.y - a.y) - unitsPer10m) < 0.1 * unitsPer10m);
     }
-    CHECK(controls.size() > cp3::monzaControls.size());
+    // The finish line stays at the old seam and the main straight runs along -x.
+    CHECK(std::abs(cp3::monzaControls[0].x - 1.16) < 1e-9 && std::abs(cp3::monzaControls[0].y + 0.87) < 1e-9);
+    CHECK(std::abs(cp3::monzaControls[30].y + 0.87) < 0.001 && cp3::monzaControls[30].x < 1.16);
+    CHECK(controls.size() == cp3::monzaControls.size());
     CHECK(path.size() == controls.size() * cp3::samplesPerSegment + 1);
     CHECK(path.back().distance > 7.0);
     CHECK(std::hypot(path.front().point.x - path.back().point.x,
@@ -169,7 +177,7 @@ int main()
 
     // ── CP2 Bezier route (issue #18) ─────────────────────────────────────────
 
-    // 1. Circuit has exactly 62 segments (one per Monza anchor).
+    // 1. Circuit has one segment per measured Monza anchor.
     const auto& circuit = cp3::monzaCircuit();
     CHECK(circuit.size() == cp3::monzaControls.size());
 
@@ -271,7 +279,7 @@ int main()
     // than a threshold that rules out the wrap-around discontinuity that the
     // old per-segment t interpolation produced.
     //
-    // The Monza circuit is ~9 units long with 62 segments (~0.145 u each).
+    // The Monza circuit is ~8.5 units long with 576 segments (~0.015 u each).
     // A genuine smooth step at 1/10 000th of a lap covers at most ~0.0009 u,
     // which at peak curvature is well under 0.01 world units.  We use 0.05 as
     // the jump threshold — generous enough to tolerate arc-length variation but
@@ -279,7 +287,7 @@ int main()
     {
         const auto& arcTableRef = cp3::monzaArcTable();
         const double totalLen   = arcTableRef.back().cumulativeDistance;
-        constexpr int nSegs     = 62; // monzaControls.size()
+        const int nSegs         = static_cast<int>(cp3::monzaControls.size());
         constexpr int stepsPerSeg = 120;
         constexpr double jumpTolerance = 0.05;
         constexpr double epsilon = 1e-5; // tiny progress nudge near the join

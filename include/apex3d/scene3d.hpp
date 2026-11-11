@@ -86,12 +86,8 @@ inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
 #include "world_detail.hpp"
 #include "gravel_birds.hpp"
 namespace apex3d::three {
-inline double nearestLandmark(const std::vector<cp3::PathSample>& path,Vec2 target){
-    const auto p=std::min_element(path.begin(),path.end(),[&](const auto& a,const auto& b){return std::hypot(a.point.x-target.x,a.point.y-target.y)<std::hypot(b.point.x-target.x,b.point.y-target.y);});
-    return p->distance/path.back().distance;
-}
 inline void drsZones(Mesh& mesh,const std::vector<cp3::PathSample>& path){
-    const double t7=nearestLandmark(path,{-.95,.90}),t8=nearestLandmark(path,{.33,-.39}),t1=nearestLandmark(path,{-.49,-.84});
+    const double t7=cp3::turn7Fraction,t8=cp3::turn8Fraction,t1=cp3::turn1Fraction;
     const std::array<std::pair<double,double>,2> zones{{{t7+170/cp3::circuitMetres,t8-70/cp3::circuitMetres},{12/cp3::circuitMetres,t1-70/cp3::circuitMetres}}};
     for(const auto& zone:zones){
         // Thin cyan verge guides identify the DRS zones; they are a visualization overlay.
