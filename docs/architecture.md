@@ -84,6 +84,23 @@ capture does not take over the active preview.
   mode changes reset smoothing to avoid flying across the course.
 - Cockpit: a driver-height perspective looking forward through the halo; scroll
   adjusts field of view. Dragging transitions to the external chase/orbit view.
+- TV: fixed trackside camera towers, like the broadcast coverage
+  (`tv_camera.hpp`).
+  - **Towers:** one every 200 m, 13.4 m from the centreline (behind the catch
+    fence, in front of every grandstand), with the lens 7 m up on an arm. They
+    stand on the outside of corners, and on the straights on the side away from
+    the pit lane. A tower is moved along the track if it would land on the old
+    banking.
+  - **Cuts:** worked out once for the whole lap. At each point the director
+    uses the nearest tower to a spot 40 m ahead of the car, provided its line
+    of sight to the car clears every tree by 4.5 m. Shots shorter than 45 m are
+    merged, giving about 30 cuts a lap.
+  - **Lens:** the field of view keeps about 22 m of track in shot at the car,
+    and scroll changes that.
+  - **What's representative:** the real broadcast camera plan isn't public, so
+    tower positions are representative.
+
+![TV camera at the Rettifilo](evidence/apex3d-tv-camera.png)
 
 `C` cycles cameras, `F` resets the current view and `H` hides/shows the dashboard.
 The 3D viewport expands when the dashboard is hidden. The race controls and
