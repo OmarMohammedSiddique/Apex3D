@@ -261,7 +261,8 @@ Each milestone also has its own README with individual build and run commands:
   licensed assets.
 - The track shape is measured from recorded OpenF1 car positions (see
   [measured track geometry](docs/real-track-geometry.md)), but its width is a
-  uniform 12 m and the pit lane is a reconstructed offset. Between timing gates,
+  uniform 12 m. The pit lane follows the mapped OSM lane, but its timing lines
+  and garage positions are estimates. Between timing gates,
   cars are placed by recorded speed, not by their recorded positions.
 - Intra-sector speed, pit geometry and service-box arrival are reconstructed.
   Exact lap times do not imply exact corner-by-corner motion.

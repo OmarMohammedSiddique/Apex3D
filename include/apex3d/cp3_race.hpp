@@ -35,6 +35,37 @@ inline constexpr double pitBoxEndSeconds = pitBoxStartSeconds + pitServiceSecond
 inline constexpr double pitEntryProgress = 36.0 + 5707.0 / circuitMetres;
 inline constexpr double pitExitProgress = 37.0 + 332.0 / circuitMetres;
 inline constexpr double pitBoxProgress = 37.0 + 75.0 / circuitMetres;
+// pitEntryProgress/pitExitProgress are the (estimated) timing lines that the
+// recorded pit durations span. The lane itself is measured: OSM way 38168747,
+// generated as a lateral offset from the track centreline (pitLaneLateral).
+// It leaves the track after Parabolica and rejoins before the first chicane.
+inline constexpr double pitLaneLast = pitLaneFirst + pitLaneStep * static_cast<double>(pitLaneLateral.size() - 1);
+inline constexpr double pitLaneStartProgress = 37.0 + pitLaneFirst;
+inline constexpr double pitLaneEndProgress = 37.0 + pitLaneLast;
+// A car is on its pit visit from this long before the entry line until this long after the exit line.
+inline constexpr double pitLaneMarginSeconds = 20.0;
+// Lap fraction relative to the nearest finish-line crossing (negative before it).
+[[nodiscard]] inline double pitLaneRelative(double progress) { return progress - std::round(progress); }
+[[nodiscard]] inline bool onPitLane(double progress)
+{
+    const double q = pitLaneRelative(progress);
+    return q > pitLaneFirst && q < pitLaneLast;
+}
+// Signed offset of the pit lane from the track centreline (scene units, negative = right of travel).
+[[nodiscard]] inline double pitLaneOffset(double progress)
+{
+    const double u = (pitLaneRelative(progress) - pitLaneFirst) / pitLaneStep;
+    if (!(u > 0.0) || u >= static_cast<double>(pitLaneLateral.size() - 1)) return 0.0;
+    const auto i = static_cast<std::size_t>(u);
+    return pitLaneLateral[i] + (pitLaneLateral[i + 1] - pitLaneLateral[i]) * (u - static_cast<double>(i));
+}
+// 0 at either end of the lane, 1 from 60 m away: blends parallel-lane offsets into the lane.
+[[nodiscard]] inline double pitLaneFade(double progress)
+{
+    const double q = pitLaneRelative(progress);
+    const double metres = std::min(std::abs(q - pitLaneFirst), std::abs(q - pitLaneLast)) * circuitMetres;
+    return std::clamp(metres / 60.0, 0.0, 1.0);
+}
 
 // Nominal 2025 slick diameter is 720 mm (FIA tyre technical targets).
 // The 3D tyres and race wheel spin use the same physical dimensions.
@@ -63,13 +94,13 @@ class RaceMotion {
 public:
     explicit RaceMotion(const std::vector<PathSample>& path) : path_(path)
     {
-        // Integrate the reconstructed pit path once so the visible wheels roll
+        // Integrate the measured pit path once so the visible wheels roll
         // over its actual length, including the lateral service-bay excursion.
-        pitArc_.push_back({pitEntryProgress,0.0});
-        auto previous=pitPose(pitEntryProgress).position;
+        pitArc_.push_back({pitLaneStartProgress,0.0});
+        auto previous=pitPose(pitLaneStartProgress).position;
         double distance=0;
         for(int i=1;i<=1024;++i) {
-            const double progress=pitEntryProgress+(pitExitProgress-pitEntryProgress)*i/1024.0;
+            const double progress=pitLaneStartProgress+(pitLaneEndProgress-pitLaneStartProgress)*i/1024.0;
             const auto p=pitPose(progress).position;
             distance+=std::hypot(p.x-previous.x,p.y-previous.y)*physical::metresPerSceneUnit();
             pitArc_.push_back({progress,distance});previous=p;
@@ -106,7 +137,8 @@ public:
         const double delta = after.progress-before.progress;
         const double rate = delta*profile_.rate(time,before.time,after.time);
         const double progress = before.progress+delta*profile_.fraction(time,before.time,after.time);
-        const bool inPit = time >= pitEntrySeconds && time < pitExitSeconds;
+        const bool inPit = time >= pitEntrySeconds - pitLaneMarginSeconds &&
+            time < pitExitSeconds + pitLaneMarginSeconds && progress > pitLaneStartProgress && progress < pitLaneEndProgress;
         return {inPit ? pitPose(progress) : poseAtProgress(path_, progress), progress,
             rate * distancePerProgress(progress) / physical::metresPerSceneUnit(), inPit,
             time >= pitBoxStartSeconds && time < pitBoxEndSeconds, travelledMetres(progress)};
@@ -115,23 +147,21 @@ public:
     [[nodiscard]] double travelledMetres(double progress) const
     {
         const double lapMetres=path_.back().distance*physical::metresPerSceneUnit();
-        if(progress<=pitEntryProgress)return (progress-gridOffset)*lapMetres;
-        const double after=std::max(0.0,progress-pitExitProgress)*lapMetres;
-        return (pitEntryProgress-gridOffset)*lapMetres+pitDistance(progress)+after;
+        if(progress<=pitLaneStartProgress)return (progress-gridOffset)*lapMetres;
+        const double after=std::max(0.0,progress-pitLaneEndProgress)*lapMetres;
+        return (pitLaneStartProgress-gridOffset)*lapMetres+pitDistance(progress)+after;
     }
 
     [[nodiscard]] Pose pitPose(double progress, bool serviceBay = true, double bayProgress = pitBoxProgress) const
     {
         const auto pointAt = [&](double p) {
             auto pose = poseAtProgress(path_, p);
-            const double blend = std::clamp(std::min(
-                (p - pitEntryProgress) / 0.021,
-                (pitExitProgress - p) / 0.006), 0.0, 1.0);
-            // Raised inside the main straight; smooth joins at both gates.
+            // The measured lane (zero off the lane), plus the service-bay excursion away from the track.
             const double bayBlend = std::clamp(1.0-std::abs(p-bayProgress)/0.008,0.0,1.0);
             const double bay = bayBlend*bayBlend*(3.0-2.0*bayBlend);
-            pose.position.y += physical::sceneUnits(physical::pitOffset * blend * blend *
-                (3.0 - 2.0 * blend) + (serviceBay ? physical::pitBayOffset * bay : 0.0));
+            const double lateral = pitLaneOffset(p) - (serviceBay ? physical::sceneUnits(physical::pitBayOffset * bay) : 0.0);
+            pose.position.x -= std::sin(pose.headingRadians) * lateral;
+            pose.position.y += std::cos(pose.headingRadians) * lateral;
             return pose.position;
         };
         const auto a = pointAt(progress - 1e-6);
@@ -149,7 +179,7 @@ public:
         constexpr Color boxPaint{0.74F, 0.64F, 0.35F};
         std::vector<PathSample> lane;
         for (int i = 0; i <= 192; ++i) {
-            const double p = pitEntryProgress + (pitExitProgress - pitEntryProgress) * i / 192.0;
+            const double p = pitLaneStartProgress + (pitLaneEndProgress - pitLaneStartProgress) * i / 192.0;
             const auto pose = pitPose(p);
             lane.push_back({pose.position,
                 {-std::sin(pose.headingRadians), std::cos(pose.headingRadians)}, 0.0, p});
@@ -161,7 +191,8 @@ public:
         for (std::size_t i = 0; i + 1 < lane.size(); ++i)
             ribbonSegment(mesh, lane[i], lane[i+1], -0.032, 0.032, asphalt);
         for (std::size_t i = 0; i + 1 < lane.size(); ++i) {
-            if (lane[i].u > pitEntryProgress + 0.021 && lane[i+1].u < pitExitProgress - 0.024)
+            // Pit wall wherever the lane is fully separated from the track.
+            if (std::abs(pitLaneOffset(lane[i].u)) > physical::sceneUnits(10.5) && std::abs(pitLaneOffset(lane[i+1].u)) > physical::sceneUnits(10.5))
                 ribbonSegment(mesh, lane[i], lane[i+1], 0.039, 0.044, concrete);
         }
         const auto box = pitPose(pitBoxProgress).position;
@@ -192,7 +223,7 @@ private:
     struct ArcPoint {double progress,distance;};
     std::vector<ArcPoint> pitArc_;
     double pitDistance(double progress) const {
-        if(progress>=pitExitProgress)return pitArc_.back().distance;
+        if(progress>=pitLaneEndProgress)return pitArc_.back().distance;
         const auto upper=std::upper_bound(pitArc_.begin(),pitArc_.end(),progress,
             [](double p,const ArcPoint& a){return p<a.progress;});
         if(upper==pitArc_.begin())return 0;
@@ -200,7 +231,7 @@ private:
         return a.distance+(progress-a.progress)*(b.distance-a.distance)/(b.progress-a.progress);
     }
     double distancePerProgress(double progress) const {
-        if(progress<pitEntryProgress||progress>=pitExitProgress)
+        if(progress<pitLaneStartProgress||progress>=pitLaneEndProgress)
             return path_.back().distance*physical::metresPerSceneUnit();
         const auto upper=std::upper_bound(pitArc_.begin(),pitArc_.end(),progress,
             [](double p,const ArcPoint& a){return p<a.progress;});
