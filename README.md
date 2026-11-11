@@ -20,6 +20,22 @@ prior use of reused sets.
 
 ![Full-field Monza replay](docs/evidence/apex3d-full-field.png)
 
+## Track heatmap and timeline
+
+The track surface itself is coloured by the selected driver's recorded telemetry on
+their current lap. Press **V** to cycle the layers: **speed** (red slow, green fast),
+**throttle**, **brake**, **pedals** (red braking, green full throttle) and off. The
+colour key in the top-left corner shows the scale and the driver's live throttle %
+and brake state. Clicking another driver or moving to a new lap repaints the track.
+
+A playback bar under the scene has a play/pause button, the current lap time and
+a timeline of the whole race. Drag the timeline to scrub through the race. It shows
+a tick for each lap of the selected driver and an amber marker at their pit stop.
+The speed slider picks 0.25x–64x. Throttle and brake come from the same hash-verified
+OpenF1 car data as speed; OpenF1 brake is on/off, not pressure. See [Track heatmap](docs/telemetry-heatmap.md) for how it works and its accuracy limits.
+
+![Speed heatmap on the Monza track](docs/evidence/apex3d-track-heatmap.png)
+
 ## Race detail and Monza surroundings
 
 Selected labels show live position (such as **LEC P3**); race numbers are on the
@@ -99,6 +115,9 @@ On Windows the executable may be under `build/Release/Apex3D.exe`.
 | Control | Action |
 | --- | --- |
 | `Space` / playback button | Start, pause, resume or replay after the finish |
+| Drag the timeline | Scrub to any moment of the race |
+| Speed slider | Choose 0.25x–64x playback |
+| `V` | Cycle the track heatmap: speed, throttle, brake, pedals, off |
 | `R` | Restart with the light sequence |
 | `+` / `-` | Double/halve playback rate, between 0.25x and 64x |
 | `1` | Restore real-time playback |
@@ -113,6 +132,7 @@ On Windows the executable may be under `build/Release/Apex3D.exe`.
 | Scroll in the scene | Zoom the overview/chase camera |
 | `F` | Reset the current camera |
 | `H` | Hide/show the dashboard |
+| `E` | Jump to the parked field after the race |
 | `B` | Switch Monza race / Monza Bézier demonstration |
 | `L` | Toggle looping in the Bezier demonstration only |
 | `T` | Toggle scaling in the Bezier demonstration only |
@@ -139,6 +159,8 @@ race timer. Seeking jumps directly to a race state without replaying old cues.
 retains the old 0..1 lap-progress capture option (first lap for Monza).
 `--camera overview|chase|cockpit` sets the initial perspective.
 `--speed 0.25..64` sets the initial rate; `--wheels` opens the inspector.
+`--driver surname|number` picks the followed driver; `--heatmap speed|throttle|brake|pedals|off`
+sets the initial track heatmap.
 
 To verify or regenerate embedded data after editing the CSV/WAV inputs:
 
@@ -220,6 +242,7 @@ Each milestone also has its own README with individual build and run commands:
 ## Evidence and documentation
 
 - [Monza race research and assumptions](docs/monza-race-research.md)
+- [Measured track geometry](docs/real-track-geometry.md)
 - [CP3 progress and remaining work](docs/checkpoint3-progress.md)
 - [CP3 demo and explanation guide](docs/checkpoint3-demo-guide.md)
 - [CP3 OpenGL screenshot](docs/evidence/cp3-opengl-prototype.png)
@@ -231,11 +254,16 @@ Each milestone also has its own README with individual build and run commands:
 
 ## Current limitations
 
-- The track is a flat-height 3D reconstruction with raised surfaces and
-  buildings. No surveyed Monza elevation model is supplied. Cars, scenery and
-  crew are procedural low-poly models rather than detailed licensed assets.
-- Geometry is simplified and hand-authored. The replay uses one driver's
-  timing results; it does not reproduce the full field or GPS/speed telemetry.
+- The road follows the recorded OpenF1 elevation (about 12 m of relief), but
+  the terrain away from it is a smooth fill, not a survey (see
+  [measured track geometry](docs/real-track-geometry.md#elevation)). Cars,
+  scenery and crew are procedural low-poly models rather than detailed
+  licensed assets.
+- The track shape is measured from recorded OpenF1 car positions (see
+  [measured track geometry](docs/real-track-geometry.md)), but its width is a
+  uniform 12 m. The pit lane follows the mapped OSM lane, but its timing lines
+  and garage positions are estimates. Between timing gates,
+  cars are placed by recorded speed, not by their recorded positions.
 - Intra-sector speed, pit geometry and service-box arrival are reconstructed.
   Exact lap times do not imply exact corner-by-corner motion.
 - Race wheel RPM uses reconstructed travel in metres and the nominal 720 mm

@@ -60,9 +60,24 @@ clock remains 1:13:24.325. No safety-car, VSC or red-flag race interval is inven
 ## Sky, ground and birds
 
 A camera-oriented procedural sky replaces the flat background: blue zenith,
-paler atmospheric horizon, sun glow and soft layered clouds. Lighting continues
-to use the same sun direction. It is artistic scenery, not a reconstruction of
-photographed clouds during the race.
+paler atmospheric horizon, sun glow and soft layered clouds. The clouds are
+artistic scenery, not a reconstruction of photographed clouds during the race.
+
+### The real sun
+
+The sun is where it really was. `sun_position.hpp` uses NOAA's general
+solar-position equations with the finish line's coordinates and the recorded
+race-clock origin, 13:03:35 UTC on 7 September 2025 (OpenF1 session 9912), plus
+race time. At the start the sun is 44.4 degrees high in the south-west (azimuth
+217 degrees). By the chequered flag it has sunk to about 35 degrees at azimuth
+238 degrees, so shadows lengthen and swing east during the race and the
+post-race scenes. Lighting, shadows, the sky glow and the far ground all use it.
+True north comes from the measured track's map transform. A hand calculation
+checks the result: declination 5.85 degrees (from the 22 September equinox) and
+spherical trigonometry give 44.45 / 217.1 degrees at the start. Refraction
+(about one arcminute) is ignored, and brightness doesn't change with elevation.
+
+![Shadows from the race-start sun](evidence/apex3d-sun-shadows.png)
 
 The visible gravel/sand patches have been removed at the user's request. The
 grass ground now extends across the visible world and continues analytically
@@ -70,9 +85,36 @@ to the horizon, with atmospheric haze hiding the far clipping boundary. The
 existing camera zoom limits are unchanged. Archived gravel geometry remains
 in the source data, but it is not added to the scene.
 
-Exactly two birds follow distant flight paths at roughly 45–65 m altitude, with
-small animated wings. There is no flock or random spawning. They pause with the
-replay and are decorative, not a claim about wildlife recorded during the race.
+Four small flocks of four birds (16 in total, crow/pigeon size with about a 1 m
+wingspan) circle at 16–27 m over the main straight, the Curva Grande, Ascari and
+the Parabolica. Each bird trails its neighbour slightly and flaps on its own
+phase. The earlier two birds at 45–65 m were too small and high to notice. There
+is no random spawning. Birds pause with the replay and are decorative, not a
+claim about wildlife recorded during the race.
+
+## The Bearman/Sainz collision (lap 41)
+
+There were no race-ending crashes in the 2025 Italian Grand Prix: no safety car,
+VSC or red flag. Alonso retired with suspension failure and Hülkenberg did not
+start (both already shown). The race's one collision was on the leader's lap
+41, at Turn 5 (Variante della Roggia). Bearman hit Sainz, both cars stopped,
+and the stewards gave Bearman a 10-second penalty for causing a collision.
+
+| Race clock | What the replay shows | Source |
+| --- | --- | --- |
+| 55:39.9 | "Contact at Turn 5" banner; Sainz's car spins | Speed telemetry: Sainz 85 → 23 km/h within 0.6 s, 0 km/h at 55:44.3; Bearman stationary 55:41.5–55:43.6 |
+| 55:42.8–55:54.8 | Double yellow / yellow (unchanged) | Race control |
+| 56:57.8 | "Incident noted" | Race control |
+| 58:13.8 | "Under investigation" | Race control |
+| 1:03:36.8 | "10 second penalty, car 87" | Race control |
+
+The data is in `data/monza-2025-incidents.json`; its race-control download has
+the same SHA-256 as the flags file. **The spin is illustrative.** OpenF1 positions
+are snapped to the track line, so a car's heading and sideways path are not
+recorded. Only the time, place and speeds are factual. Safety flags take
+priority over incident banners when both apply.
+
+![Sainz's Williams turned sideways at Roggia, Bearman's Haas ahead](evidence/apex3d-turn5-incident.png)
 
 ## Sources
 

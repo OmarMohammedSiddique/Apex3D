@@ -1,0 +1,16 @@
+{
+  "source": "https://api.openf1.org/v1/race_control?session_key=9912",
+  "response_sha256": "b138137eadc17c3d10d1b1bfe7f5fe8beddf033753b0a5adad79904a5693fa25",
+  "race_origin_utc": "2025-09-07T13:03:35.207000+00:00",
+  "notes": "The only collision of the race: Bearman (87) and Sainz (55) at Turn 5 (Variante della Roggia), lap 41. No car retired from a crash; there was no safety car, VSC or red flag. Contact time and the stop window come from both cars' recorded speed (data/monza-2025-sainz-telemetry.csv, data/monza-2025-bearman-telemetry.csv): Sainz fell from 85 to 23 km/h between 3339.698 and 3340.298 s and reached 0 km/h at 3344.298 s; Bearman was stationary from 3341.497 to 3343.618 s. Recorded positions are snapped to the track line by the timing feed, so the cars' heading during the spin is not recorded; the replay's spin is illustrative.",
+  "contact": {"race_ms": 3339900, "turn": 5, "drivers": [87, 55]},
+  "spins": [
+    {"driver": 55, "start_ms": 3339700, "end_ms": 3341900, "turns": 1.0}
+  ],
+  "messages": [
+    {"race_ms": 3339900, "title": "CONTACT AT TURN 5", "detail": "BEARMAN AND SAINZ / BOTH CARS STOP"},
+    {"race_ms": 3417793, "title": "INCIDENT NOTED", "detail": "TURN 5 / CARS 55 SAI AND 87 BEA"},
+    {"race_ms": 3493793, "title": "UNDER INVESTIGATION", "detail": "CAR 87 BEA / CAUSING A COLLISION"},
+    {"race_ms": 3816793, "title": "10 SECOND PENALTY", "detail": "CAR 87 BEA / CAUSING A COLLISION"}
+  ]
+}

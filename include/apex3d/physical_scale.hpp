@@ -21,7 +21,6 @@ inline constexpr double tyreRadius = 0.360;
 inline constexpr double frontTyreWidth = 0.305;
 inline constexpr double rearTyreWidth = 0.405;
 inline constexpr double rimRadius = 18.0 * 0.0254 / 2.0;
-inline constexpr double pitOffset = 18.0; // reconstructed, not a survey
 inline constexpr double pitWidth = 4.0;
 inline constexpr double pitBayOffset = 3.5;
 inline constexpr double garageHeight = 6.0;

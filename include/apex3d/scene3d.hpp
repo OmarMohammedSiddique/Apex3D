@@ -3,6 +3,8 @@
 #include "cp3_race.hpp"
 #include "generated/monza_stands_2025.hpp"
 #include "generated/monza_entries_2025.hpp"
+#include "terrain.hpp"
+#include "sun_position.hpp"
 #include <vector>
 
 namespace apex3d::three {
@@ -86,21 +88,32 @@ inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
 #include "world_detail.hpp"
 #include "gravel_birds.hpp"
 namespace apex3d::three {
-inline double nearestLandmark(const std::vector<cp3::PathSample>& path,Vec2 target){
-    const auto p=std::min_element(path.begin(),path.end(),[&](const auto& a,const auto& b){return std::hypot(a.point.x-target.x,a.point.y-target.y)<std::hypot(b.point.x-target.x,b.point.y-target.y);});
-    return p->distance/path.back().distance;
-}
 inline void drsZones(Mesh& mesh,const std::vector<cp3::PathSample>& path){
-    const double t7=nearestLandmark(path,{-.95,.90}),t8=nearestLandmark(path,{.33,-.39}),t1=nearestLandmark(path,{-.49,-.84});
+    const double t7=cp3::turn7Fraction,t8=cp3::turn8Fraction,t1=cp3::turn1Fraction;
     const std::array<std::pair<double,double>,2> zones{{{t7+170/cp3::circuitMetres,t8-70/cp3::circuitMetres},{12/cp3::circuitMetres,t1-70/cp3::circuitMetres}}};
     for(const auto& zone:zones){
-        // Thin cyan verge guides identify the DRS zones; they are a visualization overlay.
-        for(double p=zone.first;p<zone.second;p+=20/cp3::circuitMetres){const auto a=cp3::poseAtProgress(path,p),b=cp3::poseAtProgress(path,std::min(zone.second,p+10/cp3::circuitMetres));
-            roadStrip(mesh,a,b,-8.7,-8.3,.02,{.13F,.58F,.52F});}
+        // On the main straight the pit lane and apron lie on the +z side: mark only the grandstand side.
+        const bool mainStraight=zone.first<.05;
+        const auto sides=[&]{return mainStraight?std::vector<double>{-1.}:std::vector<double>{-1.,1.};}();
+        // Bright cyan verge bands on both sides mark each DRS zone. They are a
+        // visualization overlay; Monza's real verges are not painted cyan.
+        constexpr Color cyan{.05F,.95F,.85F};
+        for(double p=zone.first;p<zone.second;p+=6/cp3::circuitMetres){const auto a=cp3::poseAtProgress(path,p),b=cp3::poseAtProgress(path,std::min(zone.second,p+6/cp3::circuitMetres));
+            for(double side:sides)roadStrip(mesh,a,b,side*7.4,side*8.6,.03,cyan);}
+        // Every 40 m a chevron on the verge points the way, readable from the chase camera.
+        for(double p=zone.first+20/cp3::circuitMetres;p<zone.second;p+=40/cp3::circuitMetres){const auto pose=cp3::poseAtProgress(path,p);
+            for(double side:sides){const auto start=mesh.size();
+                triangle(mesh,{1.6,.035,side*8.0},{-.8,.035,side*8.0-1.0},{-.8,.035,side*8.0+1.0},cyan);
+                place(mesh,start,world(pose.position),pose.headingRadians);}}
         const auto pose=cp3::poseAtProgress(path,zone.first);const auto start=mesh.size();
-        box(mesh,{-.08,0,-11},{.08,2.4,-10.84},{.48F,.51F,.51F});
-        box(mesh,{-.08,1.5,-12.2},{.08,2.7,-10.0},{.025F,.045F,.055F});
-        surfaceText(mesh,{-.09,1.70,-11.95},{0,0,1},{0,1,0},.10,"DRS",{1,1,1});
+        // Activation line across the track, as on the real circuit, plus a tall board each side.
+        box(mesh,{-.15,.111,-6},{.15,.116,6},{.95F,.97F,.97F});
+        for(double side:sides){const double z=side*11;
+            box(mesh,{-.10,0,z-.10},{.10,3.2,z+.10},{.48F,.51F,.51F});
+            box(mesh,{-.08,2.0,z-1.5},{.08,3.6,z+1.5},{.025F,.045F,.055F});
+            box(mesh,{-.09,2.08,z-1.42},{-.085,3.52,z+1.42},cyan);
+            surfaceText(mesh,{-.10,2.30,z-.95},{0,0,1},{0,1,0},.18,"DRS",{.02F,.05F,.06F});
+            surfaceText(mesh,{.10,2.30,z+.95},{0,0,-1},{0,1,0},.18,"DRS",{1,1,1});}
         place(mesh,start,world(pose.position),pose.headingRadians);
     }
 }
@@ -151,14 +164,17 @@ inline void garage(Mesh& mesh,const cp3::RaceMotion& race) {
         garageBlock(mesh,world(race.pitPose(progress,true,progress).position,physical::roadHeight),entry.color);
     }
     const auto mainPath=cp3::makePath();
-    for(int i=0;i<96;++i) {
-        const double a=cp3::pitEntryProgress+0.021+(cp3::pitExitProgress-cp3::pitEntryProgress-0.045)*i/96;
-        const double b=cp3::pitEntryProgress+0.021+(cp3::pitExitProgress-cp3::pitEntryProgress-0.045)*(i+1)/96;
-        // Follow the fast lane, without following the service-bay excursion.
-        auto pa=world(cp3::poseAtProgress(mainPath,a).position),
-             pb=world(cp3::poseAtProgress(mainPath,b).position);
-        pa.z-=physical::pitOffset-3.0;pb.z-=physical::pitOffset-3.0;
-        pa.y=pb.y=0.70;tube(mesh,pa,pb,0.20,{0.68F,0.69F,0.65F},4);
+    // Pit wall 3 m in from the lane centre, wherever the lane is fully separated from the track.
+    const double wallFrom=physical::sceneUnits(10.5);
+    for(int i=0;i<320;++i) {
+        const double a=cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*i/320;
+        const double b=cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*(i+1)/320;
+        const double la=cp3::pitLaneOffset(a),lb=cp3::pitLaneOffset(b);
+        if(std::abs(la)<wallFrom||std::abs(lb)<wallFrom)continue;
+        const auto edge=[&](double p,double lateral){
+            const auto pose=cp3::poseAtProgress(mainPath,p);const double l=lateral+physical::sceneUnits(3.0);
+            return world({pose.position.x-std::sin(pose.headingRadians)*l,pose.position.y+std::cos(pose.headingRadians)*l},0.70);};
+        tube(mesh,edge(a,la),edge(b,lb),0.20,{0.68F,0.69F,0.65F},4);
     }
 }
 inline cp3::Pose standPose(const std::vector<cp3::PathSample>& path,const StandSpec& stand) {
@@ -199,6 +215,10 @@ inline void grandstands(Mesh& m,const std::vector<cp3::PathSample>& path) {
         place(m,begin,front,pose.headingRadians+(stand.side<0?std::numbers::pi:0));
     }
 }
+} // namespace apex3d::three
+#include "monza_landmarks.hpp"
+#include "celebration.hpp"
+namespace apex3d::three {
 inline Mesh gantry(const std::vector<cp3::PathSample>& path,int lights,bool frame) {
     Mesh mesh;const auto pose=cp3::poseAtProgress(path,cp3::gridOffset+20.0/cp3::circuitMetres);
     constexpr Color steel{0.26F,0.29F,0.31F};
@@ -213,11 +233,27 @@ inline Mesh gantry(const std::vector<cp3::PathSample>& path,int lights,bool fram
     }
     place(mesh,0,world(pose.position,physical::roadHeight),pose.headingRadians);return mesh;
 }
+// The ground comes first in the world mesh. It receives shadows but cannot cast
+// one, so the shadow pass skips these vertices (avoids self-shadow acne).
+inline int groundVertexCount(){const auto& t=terrain();return ((t.columns-1)*(t.rows-1)+4)*6;}
 inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMotion* race) {
     Mesh mesh;
     const double scale=physical::metresPerSceneUnit();
     // The detailed ground covers the entire camera frustum; the sky pass extends it analytically to the horizon.
-    quad(mesh,{-50000,0,-50000},{-50000,0,50000},{50000,0,50000},{50000,0,-50000},{0.24F,0.36F,0.23F});
+    // Over the terrain map it is one quad per height texel so it follows the
+    // elevation exactly; outside, four large quads sit at the map's edge height.
+    constexpr Color grass{0.24F,0.36F,0.23F};
+    const auto& ground=terrain();
+    for(int row=0;row+1<ground.rows;++row)for(int column=0;column+1<ground.columns;++column){
+        const double x0=ground.minX+column*ground.cell,x1=x0+ground.cell,z0=ground.minZ+row*ground.cell,z1=z0+ground.cell;
+        quad(mesh,{x0,0,z0},{x0,0,z1},{x1,0,z1},{x1,0,z0},grass);
+    }
+    constexpr double far=50000;
+    const double gx0=ground.minX,gx1=ground.maxX(),gz0=ground.minZ,gz1=ground.maxZ();
+    quad(mesh,{-far,0,-far},{-far,0,far},{gx0,0,far},{gx0,0,-far},grass);
+    quad(mesh,{gx1,0,-far},{gx1,0,far},{far,0,far},{far,0,-far},grass);
+    quad(mesh,{gx0,0,-far},{gx0,0,gz0},{gx1,0,gz0},{gx1,0,-far},grass);
+    quad(mesh,{gx0,0,gz1},{gx0,0,far},{gx1,0,far},{gx1,0,gz1},grass);
     constexpr Color asphalt{0.17F,0.195F,0.225F},white{0.88F,0.91F,0.91F};
     const double half=physical::trackWidth/2;
     for(std::size_t i=0;i+1<path.size();++i) {
@@ -245,13 +281,14 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
     }
     if(race) {
         for(int i=0;i<256;++i) {
-            const double a=cp3::pitEntryProgress+(cp3::pitExitProgress-cp3::pitEntryProgress)*i/256;
-            const double b=cp3::pitEntryProgress+(cp3::pitExitProgress-cp3::pitEntryProgress)*(i+1)/256;
+            const double a=cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*i/256;
+            const double b=cp3::pitLaneStartProgress+(cp3::pitLaneEndProgress-cp3::pitLaneStartProgress)*(i+1)/256;
             const auto pa=race->pitPose(a,false),pb=race->pitPose(b,false);
             roadStrip(mesh,pa,pb,-physical::pitWidth/2,physical::pitWidth/2,physical::roadHeight,asphalt);
             for(double side:{-1.0,1.0})roadStrip(mesh,pa,pb,side*1.90,side*2.0,physical::roadHeight+0.01,white);
         }
         garage(mesh,*race);grandstands(mesh,path);drsZones(mesh,path);parcFermeScene(mesh,path);
+        trackside(mesh,path);podium(mesh,path);ovalBanking(mesh,path);
         auto structure=gantry(path,0,true);mesh.insert(mesh.end(),structure.begin(),structure.end());
     }
     if(race){
@@ -344,7 +381,10 @@ inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false,double st
         const auto n=unit({v.nx/36.0,v.ny/18.0,v.nz/(physical::carWidth/0.062)});
         v.nx=static_cast<float>(n.x);v.ny=static_cast<float>(n.y);v.nz=static_cast<float>(n.z);
     }
-    const double angle=(1-drs)*.45,hinge=-.070*36,height=.052*18,flapHeight=.75+drs*.16;
+    // DRS: the upper flap pivots from steep (about 29 degrees, high drag) to almost
+    // flat, opening a slot above the main plane. Eased by the caller over 0.2 s.
+    // Closed, the flap tip stays under the 1 m overall height of the car.
+    const double angle=.03+(1-drs)*.47,hinge=-.070*36,height=.052*18,flapHeight=.75+drs*.12;
     for(auto i=flapStart;i<flapEnd;++i){auto& v=mesh[i];const double x=v.x-hinge,y=v.y-height;
         v.x=static_cast<float>(hinge+x*std::cos(angle)-y*std::sin(angle));
         v.y=static_cast<float>(flapHeight+x*std::sin(angle)+y*std::cos(angle));
@@ -363,7 +403,11 @@ inline Mesh makeCar(const cp3::Pose& pose,double turns,bool hard=false,double st
         // A second logo on the engine cover remains readable from above.
         logoDecal(mesh,number,{-1.65,.59,.20},{1,0,0},{0,0,-1},.70,.40);
     }
-    if(drs>.1)tube(mesh,{-2.52,flapHeight+.025,-.84},{-2.52,flapHeight+.025,.84},.008,{.12F,.90F,.75F},5);
+    if(drs>.1){
+        // Glowing flap edge and endplate markers make an open wing obvious from any camera.
+        tube(mesh,{-2.52,flapHeight+.025,-.90},{-2.52,flapHeight+.025,.90},.018,{.10F,1.0F,.85F},6);
+        for(double side:{-1.,1.})box(mesh,{-2.60,.80,side*.93-.01},{-2.22,flapHeight+.10,side*.93+.01},{.10F,1.0F,.85F});
+    }
     if(airflow&&drs>.1)for(double side:{-1.,1.})for(int i=0;i<3;++i){const double y=.82+i*.10,z=side*(.50+i*.12);
         quad(mesh,{-2.6,y,z},{-2.6,y+.018,z},{-5.3-i*.45,y+.15,z+side*.15},{-5.3-i*.45,y+.14,z+side*.15},{.12F,.74F,.65F});}
     for(double x:{-physical::wheelbase/2,physical::wheelbase/2})for(double side:{-1.0,1.0}) {
@@ -443,13 +487,19 @@ struct CameraRig {
         }else{smoothEye=eye;smoothTarget=target;}
         previousOrigin=world(pose.position,physical::roadHeight);initialized=true;
         const bool overview=mode==CameraMode::Overview;
+        // The renderer raises the scene by the terrain height; raise the camera with it.
+        // Lifting eye and target separately keeps their ground clearance and lets the
+        // cockpit view pitch with the road.
+        const V3 eyeOut=onTerrain(smoothEye),targetOut=onTerrain(smoothTarget);
         // Depth precision is set by the far/near ratio. The chase eye sits metres above the
         // 100 km ground quad, and a 5 cm near plane let that ground win the depth test over the
-        // road 10 cm above it. 0.5 m is still closer than the car at minimum chase zoom (about 2 m).
-        // The cockpit eye sits inside the car and keeps 5 cm.
-        const double nearPlane=overview?std::max(.1,length(smoothEye-smoothTarget)*.01):mode==CameraMode::Chase?chaseNearPlane:0.05;
-        return {perspective(fov*std::numbers::pi/180,aspect,nearPlane,15000.0)*lookAt(smoothEye,smoothTarget),
-            smoothEye,smoothTarget,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360),nearPlane};
+        // road 10 cm above it (and made the 5 mm heatmap strip flicker). The chase plane is at
+        // least 0.5 m, still closer than the car at minimum chase zoom (about 2 m), and grows
+        // with camera distance. The cockpit eye sits inside the car and keeps 5 cm.
+        const double distance=length(smoothEye-smoothTarget);
+        const double nearPlane=overview?std::max(.1,distance*.01):mode==CameraMode::Chase?std::max(chaseNearPlane,distance*.02):0.05;
+        return {perspective(fov*std::numbers::pi/180,aspect,nearPlane,15000.0)*lookAt(eyeOut,targetOut),
+            eyeOut,targetOut,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360),nearPlane};
     }
 };
 } // namespace apex3d::three

@@ -9,7 +9,11 @@ int main(){using namespace apex3d;using namespace cp3;
     CHECK(raceFlagAt(3259).title=="BLUE FLAG");
     CHECK(raceFlagAt(3343).severity==3);CHECK(raceFlagAt(3349).detail.find("6, 7")!=std::string::npos);
     CHECK(raceFlagAt(3353).severity==2);CHECK(raceFlagAt(3355).title=="TRACK CLEAR");
-    CHECK(raceFlagAt(3362).severity==0);CHECK(raceFlagAt(4404).title=="CHEQUERED FLAG");
+    CHECK(raceFlagAt(3362).severity==0);
+    // Bearman/Sainz contact (lap 41): banner before the yellows, then race-control messages.
+    CHECK(raceFlagAt(3341).title=="CONTACT AT TURN 5"&&raceFlagAt(3341).severity==7);
+    CHECK(raceFlagAt(3420).title=="INCIDENT NOTED");CHECK(raceFlagAt(3820).title=="10 SECOND PENALTY");
+    CHECK(incidentYaw(55,3339.0)==0&&incidentYaw(55,3341.0)>1.0&&incidentYaw(55,3343.0)==0&&incidentYaw(87,3341.0)==0);CHECK(raceFlagAt(4404).title=="CHEQUERED FLAG");
     const auto path=makePath();const RaceMotion geometry(path);TrafficReplay traffic(path,geometry);
     double maxAdjustment=0;int frames=0;
     for(double t=0;t<=raceTotalSeconds+postRaceDuration;t+=.073){auto samples=traffic.sample(t);++frames;
@@ -33,6 +37,7 @@ int main(){using namespace apex3d;using namespace cp3;
     for(double aspect:{.8,16./9.,3.2}){Playback p;p.started=true;p.startElapsed=5;
         const auto hud=makeRaceHudMesh(p,geometry.sample(0),path.back().distance,aspect,false);
         for(const auto& v:hud)CHECK(v.x>=-1&&v.x<=1&&v.y>=-1&&v.y<=1);}
-    const auto birds=three::birds(path,120);CHECK(!birds.empty());for(const auto& v:birds)CHECK(v.y>30&&v.y<90);
+    // Five low flocks: well clear of cars, grandstands and trees (<= 23 m), low enough to see.
+    const auto birds=three::birds(path,120);CHECK(!birds.empty());for(const auto& v:birds)CHECK(v.y>12&&v.y<35);
     std::cout<<frames<<" whole-race and parking snapshots: no body intersections; max visual spacing adjustment "<<maxAdjustment<<" m. Flags, lamps and birds passed.\n";
 }

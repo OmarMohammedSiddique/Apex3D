@@ -95,6 +95,18 @@ public:
         for(const auto& entry:archivedEntries)field_.emplace_back(path,geometry,entry);
         frames_.reserve(static_cast<std::size_t>((raceTotalSeconds+postRaceDuration)/step)+3);
     }
+    const FieldMotion& motion(std::size_t index)const{return field_.at(index);}
+    // Fraction of the race + post-race timeline whose spacing frames are already cached.
+    double cachedFraction()const{
+        const double total=(raceTotalSeconds+postRaceDuration)/step+2;
+        return std::clamp(frames_.size()/total,0.0,1.0);
+    }
+    // Extend the cache a little at a time so later timeline jumps do not stall.
+    // Frames are computed in the same order as a normal seek, so results are identical.
+    void warm(std::size_t frames){
+        const auto limit=static_cast<std::size_t>(std::ceil((raceTotalSeconds+postRaceDuration)/step))+1;
+        if(frames_.size()<=limit)ensureFrame(std::min(limit,frames_.size()+frames));
+    }
     std::vector<RaceSample> sample(double seconds){
         if(!std::isfinite(seconds))seconds=0;
         seconds=std::clamp(seconds,0.0,raceTotalSeconds+postRaceDuration);

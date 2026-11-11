@@ -1,7 +1,8 @@
 # Physical scale of the 3D scene
 
-The 3D renderer uses **one world unit per metre**. The CP2 route keeps its original
-teaching coordinates; `physical_scale.hpp` calibrates their sampled centreline to
+The 3D renderer uses **one world unit per metre**. The Monza centreline is
+measured from recorded car positions ([measured track geometry](real-track-geometry.md))
+and kept in 2D scene units; `physical_scale.hpp` calibrates its sampled length to
 5,793 m before converting positions into the X/Z plane. Every 3D object, camera,
 light frustum and shadow calculation then uses metres. Multiplying every old
 object by the same factor would have preserved their exaggerated proportions;
@@ -30,7 +31,7 @@ These are plausible dimensions for this reconstruction, **not measured Monza ass
 | --- | --- |
 | Road surface height above ground | 0.10 m; a rendering datum, not circuit elevation |
 | Kerbs | 0.80 m wide, top 0.16 m above ground |
-| Pit fast lane | 4 m wide, centre about 18 m from the main centreline |
+| Pit fast lane | 4 m wide; mapped centreline (OSM), 15-19.4 m from the main centreline beside the garages |
 | Service bay | Centre another 3.5 m towards the garages; 7 × 3 m painted box |
 | Garage block | Six 6 m bays in each simplified team block, 15 m building depth, 6 m height |
 | Armco | 0.75 m high, about 5 m beyond kerbs |
@@ -56,8 +57,10 @@ it is not another object in the physical scene. Bézier scaling with `T` remains
 an explicit teaching demonstration and intentionally changes the model's size.
 
 This provides consistent physical proportions, not a surveyed digital twin.
-The original hand-authored route is retained, its length is calibrated, its
-elevation is planar, and its position/width profile is not derived from GPS.
+The route's shape comes from averaged OpenF1 car positions and matches the
+OSM-mapped circuit within a few metres. Its length is calibrated to 5,793 m (a 0.6%
+uniform stretch of the driven line), its elevation follows the recorded profile, and its width
+is a uniform 12 m rather than a surveyed profile.
 Scenery and proprietary car details remain simplified procedural geometry.
 The 53 historical lap/sector timings and exact finish time are preserved.
 

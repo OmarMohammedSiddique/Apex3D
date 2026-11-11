@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include "generated/monza_track_2025.hpp"
+
 namespace apex3d::cp3 {
 
 struct Color {
@@ -29,32 +31,18 @@ struct Vertex {
     float b;
 };
 
-// The original hand-authored Monza centreline remains the reference shape.
-// CP2's Catmull-Rom algorithm turns these points into a continuous lap.
-inline constexpr auto monzaControls = std::to_array<Vec2>({
-    { 1.16, -0.87}, { 0.82, -0.87}, { 0.45, -0.87},
-    { 0.08, -0.87}, {-0.25, -0.87}, {-0.46, -0.87},
-    {-0.49, -0.84}, {-0.49, -0.78}, {-0.52, -0.75},
-    {-0.58, -0.76}, {-0.67, -0.81},
-    {-0.80, -0.84}, {-0.94, -0.83}, {-1.07, -0.77},
-    {-1.18, -0.67}, {-1.25, -0.54}, {-1.30, -0.38},
-    {-1.33,  0.00}, {-1.35,  0.18}, {-1.39,  0.23},
-    {-1.46,  0.24}, {-1.49,  0.28}, {-1.50,  0.35},
-    {-1.54,  0.49}, {-1.58,  0.63}, {-1.58,  0.70},
-    {-1.55,  0.76}, {-1.49,  0.80}, {-1.39,  0.83},
-    {-1.25,  0.85}, {-1.10,  0.88}, {-0.95,  0.90},
-    {-0.87,  0.88}, {-0.81,  0.81},
-    {-0.72,  0.68}, {-0.61,  0.51}, {-0.51,  0.35},
-    {-0.39,  0.20}, {-0.25,  0.06}, {-0.10, -0.08},
-    { 0.05, -0.21}, { 0.18, -0.32}, { 0.26, -0.38},
-    { 0.33, -0.39}, { 0.40, -0.36}, { 0.48, -0.35},
-    { 0.56, -0.37}, { 0.63, -0.42}, { 0.70, -0.44},
-    { 0.91, -0.45}, { 1.14, -0.46}, { 1.36, -0.46},
-    { 1.51, -0.47}, { 1.59, -0.50}, { 1.64, -0.56},
-    { 1.66, -0.63}, { 1.65, -0.69}, { 1.61, -0.75},
-    { 1.54, -0.80}, { 1.43, -0.84}, { 1.30, -0.86},
-    { 1.17, -0.87},
-});
+// Monza's centreline is measured: the average line driven by five cars over
+// about 250 clean laps of the 2025 race, from recorded OpenF1 positions,
+// with one control point every 10 m (tools/build_track_centreline.py and
+// tools/generate_track_assets.py). CP2's Catmull-Rom algorithm still turns
+// these points into one continuous lap. Index 0 is the finish line.
+inline constexpr auto monzaControls = [] {
+    std::array<Vec2, measuredMonzaControls.size()> controls{};
+    for (std::size_t i = 0; i < controls.size(); ++i) {
+        controls[i] = {measuredMonzaControls[i].x, measuredMonzaControls[i].y};
+    }
+    return controls;
+}();
 
 inline constexpr int samplesPerSegment = 3;
 
@@ -66,7 +54,9 @@ inline constexpr int samplesPerSegment = 3;
         const Vec2 b = monzaControls[(i + 1) % monzaControls.size()];
         cumulative.push_back(cumulative.back() + std::hypot(b.x - a.x, b.y - a.y));
     }
-    const int count = static_cast<int>(std::ceil(cumulative.back() / 0.05));
+    // The measured points are already 10 m apart; resampling at the same count
+    // only removes rounding differences so each spline segment is equal length.
+    const int count = static_cast<int>(monzaControls.size());
     std::vector<Vec2> controls;
     controls.reserve(static_cast<std::size_t>(count));
     for (int i = 0; i < count; ++i) {
@@ -452,7 +442,7 @@ inline constexpr double carBaseScale = carModelScale;
 // ─────────────────────────────────────────────────────────────────────────────
 // CP2 Bézier route  (issue #18)
 //
-// The same 62 Monza centreline anchors are turned into a closed C1-continuous
+// The same measured Monza centreline anchors are turned into a closed C1-continuous
 // chain of cubic Bézier segments using exactly the same handle formula that
 // CP2's bezier_motion.hpp uses for its generic circuit:
 //

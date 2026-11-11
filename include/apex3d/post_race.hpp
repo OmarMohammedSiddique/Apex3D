@@ -11,11 +11,15 @@ inline double parkingRelease(const ArchivedEntry& entry){
     for(const auto* e:finishers){release=std::max(e->elapsed+cooldownDuration,release+14);if(e->number==entry.number)return release;}
     return entry.elapsed+cooldownDuration;
 }
-inline const double postRaceDuration=[] {
+// Post-race seconds at which the last car is parked; the track invasion and
+// podium celebration start then and run for celebrationDuration.
+inline const double celebrationStart=[] {
     double last=raceTotalSeconds;
     for(const auto& entry:archivedEntries)if(!entry.dns&&!entry.dnf)last=std::max(last,parkingRelease(entry)+parkingDuration);
-    return last-raceTotalSeconds+12;
+    return last-raceTotalSeconds+4;
 }();
+inline constexpr double celebrationDuration=75;
+inline const double postRaceDuration=celebrationStart+celebrationDuration;
 inline Pose parcFermePose(const std::vector<PathSample>& path,int rank){
     int arrival=0;
     if(rank>3)for(const auto& e:archivedEntries)if(e.rank>=4&&e.rank<=18&&(e.rank-4)%3==(rank-4)%3&&e.elapsed<archivedEntries[rank-1].elapsed)++arrival;
@@ -31,9 +35,11 @@ inline RaceSample postRaceSample(const std::vector<PathSample>& path,const RaceM
     if(dt<inLapDuration){
         // An illustrative in-lap, separate from recorded race timing.
         const double q=dt/inLapDuration,p=entry.totalLaps+entryFraction*q;
-        auto pose=poseAtProgress(path,p);
-        // Match the finishing lane, then merge smoothly into the pit entry.
-        const double lane=physical::sceneUnits(entry.grid%2?2.25:-2.25)*std::pow(1-q,4);
+        // Match the finishing lane, then merge smoothly into the measured pit lane.
+        // The in-lap starts at the finish line, which is level with the lane: only the end of it uses the lane.
+        const bool lane_=p-entry.totalLaps>0.5&&onPitLane(p);
+        auto pose=lane_?geometry.pitPose(p,false):poseAtProgress(path,p);
+        const double lane=lane_?0.0:physical::sceneUnits(entry.grid%2?2.25:-2.25)*std::pow(1-q,4)*pitLaneFade(p);
         pose.position.x-=std::sin(pose.headingRadians)*lane;pose.position.y+=std::cos(pose.headingRadians)*lane;
         return {pose,p,entryFraction/inLapDuration*path.back().distance,false,false,
             (p-gridStart)*circuitMetres,true,false,false,true,false};

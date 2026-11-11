@@ -1,1 +1,1 @@
-race_ms,speed_kmh,gear,engine_rpm
+race_ms,speed_kmh,gear,engine_rpm,throttle_pct,brake

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Rebuild checked-in race and CC0 cue headers from inspectable local inputs."""
+import generate_track_assets
 import generate_safety_assets
 import generate_world_assets
 import generate_race_events
@@ -72,10 +73,12 @@ def telemetry_tables():
     tables=[]
     for entry in entries():
         name=entry['slug'];rows=list(csv.DictReader((ROOT/f'data/monza-2025-{name}-telemetry.csv').open()))
-        data=[[int(r[k]) for k in ('race_ms','speed_kmh','gear','engine_rpm')] for r in rows]
+        data=[[int(r[k]) for k in ('race_ms','speed_kmh','gear','engine_rpm','throttle_pct','brake')] for r in rows]
         assert len(data)==entry['telemetry_rows']
         assert all(a[0]<b[0] for a,b in zip(data,data[1:]))
         assert all(0<=r[1]<=400 and 0<=r[2]<=8 and 0<=r[3]<=16000 for r in data)
+        # OpenF1 brake is on/off (0/100); 104 is a source glitch code kept for traceability.
+        assert all((0<=r[4]<=100 or r[4]==104) and r[5] in (0,100,104) for r in data)
         assert entry['dns'] or (data and data[0][0]<0 and data[-1][0]>=entry['elapsed_ms'])
         tables.append((entry,data))
     return tables
@@ -84,7 +87,8 @@ def telemetry_tables():
 def telemetry_header():
     text='#pragma once\n#include <array>\n#include <span>\nnamespace apex3d::cp3 {\n'
     text+='// Archived OpenF1 session 9912. Definitions compile once in the data library.\n'
-    text+='struct TelemetryPoint {int raceMs,speedKmh,gear,engineRpm;};\n'
+    text+='// throttlePct is 0-100; brake is OpenF1 on/off (0 or 100); 104 in either marks an invalid sample.\n'
+    text+='struct TelemetryPoint {int raceMs,speedKmh,gear,engineRpm,throttlePct,brake;};\n'
     for entry,data in telemetry_tables():
         text+=f'extern const std::array<TelemetryPoint,{len(data)}> {entry["slug"]}Telemetry;\n'
     return text+'std::span<const TelemetryPoint> recordedSeries(int number);\n}\n'
@@ -173,7 +177,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='verify generated headers without writing')
     options = parser.parse_args()
-    for filename, content in [('monza_safety.hpp', generate_safety_assets.build()), ('monza_world.hpp', generate_world_assets.build()), ('monza_events_2025.hpp', generate_race_events.build()), ('monza_2025.hpp', race_header()), ('start_cues.hpp', cue_header()), ('monza_field_2025.hpp', field_header()), ('monza_telemetry_2025.hpp', telemetry_header()), ('monza_stands_2025.hpp', stands_header()), ('monza_tyres_2025.hpp', tyre_header()), ('monza_entries_2025.hpp', full_field_header()), ('../../../src/generated/monza_telemetry_2025.cpp', telemetry_source())]:
+    for filename, content in [('monza_track_2025.hpp', generate_track_assets.header()), ('monza_safety.hpp', generate_safety_assets.build()), ('monza_world.hpp', generate_world_assets.build()), ('monza_events_2025.hpp', generate_race_events.build()), ('monza_2025.hpp', race_header()), ('start_cues.hpp', cue_header()), ('monza_field_2025.hpp', field_header()), ('monza_telemetry_2025.hpp', telemetry_header()), ('monza_stands_2025.hpp', stands_header()), ('monza_tyres_2025.hpp', tyre_header()), ('monza_entries_2025.hpp', full_field_header()), ('../../../src/generated/monza_telemetry_2025.cpp', telemetry_source())]:
         output = ROOT / 'include/apex3d/generated' / filename
         if options.check:
             if not output.exists() or output.read_text() != content:

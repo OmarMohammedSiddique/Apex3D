@@ -15,16 +15,19 @@ explicit DNS/DNF labels. The final parking labels use the official classificatio
 ## DRS
 
 The FIA's 2025 circuit map specifies activation 170 m after Turn 7 and 12 m after
-the finish line. Both regions have DRS activation boards and thin cyan verge
-guides. The guides are explanatory visual overlays, not a claim that Monza's
-verges are painted cyan. The ends are schematic braking approaches before the
+the finish line. Both regions have a white activation line across the
+track, tall DRS boards, bright cyan verge bands and chevrons every 40 m. On the
+main straight they are on the grandstand side only, because the pit lane and
+apron are on the other side. The bands are explanatory visual overlays, not a
+claim that Monza's verges are painted cyan. The ends are schematic braking approaches before the
 next corner; each driver's actual closing point comes from telemetry.
 
 Recorded OpenF1 DRS codes 10, 12 and 14 drive the animation. Adjacent active
 observations form intervals; gaps over one second are never joined. The rear
-flap opens toward horizontal, leaving a slot above the main plane. Opening is
-eased over 0.2 s, with a thin teal edge, a dashboard DRS OPEN indicator and subtle
-airflow lines on the selected car. Other cars also open their wings when their
+flap pivots from about 29 degrees (closed, high drag) to almost flat, opening a
+slot above the main plane. Closed, it stays under the car's 1 m overall height.
+Opening is eased over 0.2 s, with a glowing cyan flap edge and endplate markers
+on every car, a dashboard DRS OPEN indicator and airflow lines on the selected car. Other cars also open their wings when their
 own records say so. There is no invented acceleration multiplier. DRS is closed
 in the pits, after the driver's race finish, and during the post-race animation.
 
@@ -47,11 +50,39 @@ with simple pitched forms get a sloping cap. Footprints that conflict with the
 simplified road are omitted. Existing grandstands and team garage representations
 are retained rather than duplicated from OSM.
 
-The project still uses its hand-authored Monza centreline. Geographic features
-are fitted to that shape using corner landmarks, so this is a source-backed
-reconstruction, not a survey or a complete 2025 photographic digital twin. OSM
+The Monza centreline is now measured from recorded car positions, and buildings,
+woods and gravel are placed from their OSM coordinates with the same transform,
+with no warping ([measured track geometry](real-track-geometry.md)). This is
+still a source-backed reconstruction, not a survey or a complete 2025
+photographic digital twin. OSM
 is a current map, not a frozen map of race weekend. The derived map data carries
 ODbL attribution in the application and its data licence file.
+
+## The 1955 banking, trackside advertising and grandstands
+
+- **Sopraelevata.** The high-speed ring's banked curves and its two bridges over
+  the Grand Prix track come from OpenStreetMap ways (`data/monza-oval.json`),
+  placed with the measured track's own transform. The banking is aged concrete
+  with an old guardrail. Its outer edge rises with curvature (about 6 m on the
+  ~320 m curves), and the approaches climb embankments to 6.5 m bridges.
+  Centrelines are mapped; width, banking height and bridge height are
+  representative, not surveyed. Trees are kept 11 m clear of it.
+- **Advertising and catch fencing.** 1 m hoardings stand in front of the Armco,
+  mostly within 260 m of a grandstand where spectators and cameras are, with
+  fewer elsewhere. They carry the names of Formula 1's 2025–26 global partners
+  (Pirelli, Aramco, DHL, Heineken 0.0, AWS, Lenovo, TAG Heuer, Louis Vuitton,
+  MSC Cruises, Qatar Airways, Salesforce) in plain lettering on brand-like
+  colours. A debris fence of posts, cables and a mesh band runs above the Armco.
+  Board designs and positions are representative, not the race-day signage plan.
+- **Grandstands.** An automated footprint check now compares every stand with its
+  neighbours and the road. The two Prima Variante Esterna stands at Turn 1, at
+  the end of the main-straight DRS zone, overlapped each other, and one was 10 m
+  from the road where a straight stand met the chicane's kink. They now sit at
+  895 m and 930 m: no overlaps, and every stand is at least 14 m from the road.
+
+![Trackside hoardings, catch fencing and the banking beyond Turn 1](evidence/apex3d-trackside.png)
+
+![Track invasion beneath the podium](evidence/apex3d-track-invasion.png)
 
 ## After the finish
 
@@ -66,11 +97,20 @@ This follows FIA document 31's procedure and relative layout around race
 control, weighing, the podium and pit wall. Exact building dimensions, individual
 post-race paths, parking coordinates and durations are reconstructed. No recorded
 post-race speed, gear or RPM is invented; gauges show placeholders after each
-driver's race telemetry ends. Playback stops once the final car has parked.
+driver's race telemetry ends.
+
+Once the last car is parked, the **track invasion** begins: about 640 fans, mostly
+in Ferrari red with some McLaren orange and a few tricolore flags, pour over from
+the grandstand side and gather on the main straight beneath the podium. The
+podium is cantilevered from the pit building out over the track, as it is at
+Monza. After 20 s Verstappen, Norris and Piastri appear on the steps, then
+confetti (from 30 s) and champagne (34–60 s). Playback stops 75 s after the
+invasion starts. Monza's crowd really did invade the straight beneath the podium
+in 2025. Every person, path and timing here is illustrative.
 
 The traffic-spacing update reserves apron arrivals and fills bays in arrival order; see [race safety](race-safety-and-atmosphere.md).
 
-`E` jumps directly to the parked scene for inspection. `R` restarts with the
+`E` jumps to the moment the last car parks and plays the celebration. `R` restarts with the
 lights. Space pauses/resumes the in-lap and parking sequence. Driver selection,
 cameras, orbit, zoom and playback speed still work throughout.
 
@@ -79,6 +119,9 @@ cameras, orbit, zoom and playback speed still work throughout.
 ![Post-race parking](evidence/apex3d-world-parking.png)
 
 ## Sources and verification
+
+- [Formula 1 partners](https://www.formula1.com/en/toolbar/partners.html); [2025 partner roster summary](https://rtrsports.com/en/blog/formula-1-sponsors-and-partners/)
+- [2025 podium and track invasion beneath it](https://www.gbnews.com/sport/f1/lando-norris-booed-italian-grand-prix-max-verstappen); [record 2025 attendance](https://www.monzanet.it/en/?p=25427)
 
 - [FIA circuit / DRS map, document 5](https://www.fia.com/system/files/decision-document/2025_italian_grand_prix_-_event_notes_-_circuit_map_pit_lane_emergency_exit_map_quarantine_zone_and_red_zones.pdf)
 - [FIA post-race procedure and parking diagram, document 31](https://www.fia.com/system/files/decision-document/2025_italian_grand_prix_-_post-race_procedure.pdf)
