@@ -157,7 +157,7 @@ inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSa
 }
 struct MarkerPosition {double x,y;bool onScreen;};
 inline MarkerPosition markerPosition(const CameraFrame& camera,const cp3::Pose& pose,double sceneFraction) {
-    const auto clip=camera.viewProjection.transform(world(pose.position,1.1));
+    const auto clip=camera.viewProjection.transform(onTerrain(world(pose.position,1.1)));
     if(std::abs(clip[3])<1e-8)return {2*sceneFraction-1,0,false};
     const double x=clip[0]/std::abs(clip[3]),y=clip[1]/std::abs(clip[3]);
     return {(x+1)*sceneFraction-1,y,clip[3]>0&&std::abs(x)<1&&std::abs(y)<1};

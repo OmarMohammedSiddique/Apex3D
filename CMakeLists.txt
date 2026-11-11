@@ -74,8 +74,10 @@ add_executable(Apex3DSafetyTests tests/race_safety_tests.cpp)
 add_test(NAME race_safety COMMAND Apex3DSafetyTests)
 add_executable(Apex3DHeatmapTests tests/heatmap_tests.cpp)
 add_test(NAME heatmap COMMAND Apex3DHeatmapTests)
+add_executable(Apex3DTerrainTests tests/terrain_sun_tests.cpp)
+add_test(NAME terrain_sun COMMAND Apex3DTerrainTests)
 
-foreach(race_test Apex3DSceneTests Apex3DRaceTests Apex3DRenderTests Apex3DFieldTests Apex3DWorldTests Apex3DSafetyTests Apex3DHeatmapTests)
+foreach(race_test Apex3DSceneTests Apex3DRaceTests Apex3DRenderTests Apex3DFieldTests Apex3DWorldTests Apex3DSafetyTests Apex3DHeatmapTests Apex3DTerrainTests)
     target_link_libraries(${race_test} PRIVATE apex3d_race_data)
 endforeach()
 

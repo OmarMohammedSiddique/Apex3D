@@ -33,6 +33,7 @@ matching the 14 corner landmarks recorded in ``data/monza-scenery.json``.
 """
 import bisect
 import csv
+import datetime as dt
 import json
 import math
 from pathlib import Path
@@ -177,7 +178,8 @@ def header():
     text += f'inline constexpr double trackControlSpacingMetres = {CONTROL_SPACING_M};\n'
     text += f'inline constexpr std::array<TrackPoint, {len(points)}> measuredMonzaControls{{{{\n'
     text += ''.join(f'    {{{x:.6f}, {y:.6f}}},\n' for x, y in points) + '}};\n'
-    text += '// Height above the lowest point of the lap (m), one per control point. Not rendered yet.\n'
+    text += '// Height above the lowest point of the lap (m), one per control point.\n'
+    text += '// Rendered as terrain (include/apex3d/terrain.hpp).\n'
     text += f'inline constexpr std::array<double, {len(heights)}> measuredMonzaElevation{{{{\n'
     for i in range(0, len(heights), 12):
         text += '    ' + ', '.join(f'{h - base:.2f}' for h in heights[i:i + 12]) + ',\n'
@@ -187,6 +189,16 @@ def header():
     text += f'inline constexpr double sector2Fraction = {sectors["sector2_end_m"] / MEASURED_LAP_M:.6f};\n'
     for name, value in landmarks.items():
         text += f'inline constexpr double {name}Fraction = {value:.6f};\n'
+    # Inputs for the solar position (include/apex3d/sun_position.hpp).
+    origin = dt.datetime.fromisoformat(
+        json.loads((ROOT / 'data/monza-2025-provenance.json').read_text())['race_origin_utc'])
+    text += '// Sun inputs: finish-line coordinates, the recorded race-clock origin (race time 0,\n'
+    text += '// OpenF1 session 9912) and true north in scene axes (the scene is a rotation of east/north).\n'
+    text += f'inline constexpr double siteLatitude = {float(ROWS[0]["lat"]):.6f};\n'
+    text += f'inline constexpr double siteLongitude = {float(ROWS[0]["lon"]):.6f};\n'
+    text += f'inline constexpr double raceStartUnixSeconds = {origin.timestamp():.3f}; // {origin.isoformat()}\n'
+    text += f'inline constexpr double sceneNorthX = {-math.sin(_ANGLE):.6f};\n'
+    text += f'inline constexpr double sceneNorthY = {math.cos(_ANGLE):.6f};\n'
     text += '} // namespace apex3d::cp3\n'
     return text
 
