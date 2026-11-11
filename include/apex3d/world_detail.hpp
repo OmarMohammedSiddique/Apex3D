@@ -67,20 +67,36 @@ inline void mappedBuildings(Mesh& mesh,const std::vector<cp3::PathSample>& path)
             triangle(mesh,p[i]+V3{0,h,0},p[(i+1)%p.size()]+V3{0,h,0},centre+V3{0,h+2.4,0},{.51F,.27F,.18F});
     }
 }
+// Distance helpers for the 1955 banking (OSM centrelines in monza_world.hpp).
+inline double distanceToSegment(V3 p,V3 a,V3 b){const auto d=b-a;const double t=std::clamp(dot(p-a,d)/std::max(dot(d,d),1e-9),0.0,1.0);return length(p-(a+d*t));}
+inline V3 ovalPoint(int index){const auto q=ovalPoints[static_cast<std::size_t>(index)];return world({q.x,q.y});}
+inline double ovalDistance(V3 p){
+    double near=1e20;
+    for(const auto& w:ovalWays)for(int i=0;i+1<w.count;++i)near=std::min(near,distanceToSegment({p.x,0,p.z},ovalPoint(w.first+i),ovalPoint(w.first+i+1)));
+    return near;
+}
 struct TreePlacement {V3 p;double height,radius;int kind;};
 inline std::vector<TreePlacement> woodlandTrees(const std::vector<cp3::PathSample>& path){
     std::vector<TreePlacement> trees;const double scale=physical::metresPerSceneUnit();
     const auto random=[](std::uint32_t v){v^=v>>16;v*=0x7feb352dU;v^=v>>15;v*=0x846ca68bU;v^=v>>16;return v/4294967296.0;};
-    for(int i=0;i<20000;++i){const double x=-1.96+4.0*random(i*2+105),y=-1.23+2.46*random(i*2+106);
+    // Scatter candidates over the mapped woodland's bounding box.
+    double minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+    for(const auto& f:mapFootprints)if(f.wood)for(int j=0;j<f.count;++j){const auto q=mapPoints[f.first+j];
+        minX=std::min(minX,q.x);maxX=std::max(maxX,q.x);minY=std::min(minY,q.y);maxY=std::max(maxY,q.y);}
+    // The pit/paddock apron runs along the main straight from the finish line to Turn 1.
+    const auto turn1=cp3::monzaControls[static_cast<std::size_t>(cp3::turn1Fraction*cp3::monzaControls.size())];
+    const double straightY=cp3::monzaControls[0].y;
+    for(int i=0;i<20000;++i){const double x=minX+(maxX-minX)*random(i*2+105),y=minY+(maxY-minY)*random(i*2+106);
         bool woods=false,blocked=false;
         for(const auto& f:mapFootprints){if(f.wood){if(insideFootprint(x,y,f))woods=true;}
             else if(insideFootprint(x,y,f))blocked=true;}
         // Preserve the pit/paddock apron and spectator facilities.
-        if(!woods||blocked||(y<-.87&&x>-.55))continue;
+        if(!woods||blocked||(y<straightY&&x>turn1.x-.05))continue;
         bool runoff=false;
         for(const auto& f:cp3::gravelPatches){bool inside=false;for(int a=0,b=f.count-1;a<f.count;b=a++){const auto u=cp3::gravelPoints[f.first+a],v=cp3::gravelPoints[f.first+b];if((u.y>y)!=(v.y>y)&&x<(v.x-u.x)*(y-u.y)/(v.y-u.y)+u.x)inside=!inside;}if(inside)runoff=true;}
         if(runoff)continue;
         const V3 p{x*scale,0,-y*scale};if(roadDistance(p,path)<23)continue;
+        if(ovalDistance(p)<11)continue; // keep trees off the old banking
         for(const auto& stand:monzaStands){const auto centre=world({stand.x,stand.y});
             if(length(p-centre)<stand.length/2+stand.setback+12){blocked=true;break;}}
         if(blocked)continue;

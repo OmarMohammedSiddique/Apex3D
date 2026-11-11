@@ -32,7 +32,9 @@ state directly without replaying old start cues. There is no Monza lap 54.
 
 ## Meshes and world coordinates
 
-`physical_scale.hpp` calibrates the CP2 Monza centreline to 5,793 metres.
+The Monza centreline is generated from recorded OpenF1 positions
+(`generated/monza_track_2025.hpp`, see [measured track geometry](real-track-geometry.md)).
+`physical_scale.hpp` calibrates it to 5,793 metres.
 `scene3d.hpp` converts it into metre-space X/Z positions with Y up. Road width,
 car wheelbase, tyres and scenery use explicit physical dimensions. The 12 m
 road and representative 2 m car width therefore share the same scale. See
@@ -51,9 +53,13 @@ are built from the same pit model. Procedural crouched crew figures appear
 during stationary service. Loaded tyre deformation and differential wheel
 speeds are not simulated.
 
-The road's course elevation is intentionally planar. Raised surfaces and buildings
-are model geometry, not a surveyed Monza elevation/architecture dataset. No new
-external model, texture or rendering dependency is required.
+The scene is built flat. The lit and shadow vertex shaders then lift every vertex
+by a height map made from the recorded track elevation (`terrain.hpp`), so the
+road and everything on it follow the measured rise and fall. Cameras use the same
+map on the CPU. Raised surfaces and buildings are model geometry, not a surveyed
+Monza architecture dataset. No new external model, texture or rendering dependency
+is required. The sun direction is the real solar position for the race time
+(`sun_position.hpp`).
 
 ## Perspective, depth, light and shadows
 

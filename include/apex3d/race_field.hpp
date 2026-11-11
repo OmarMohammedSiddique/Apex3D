@@ -18,17 +18,12 @@ class OpponentMotion {
 public:
     OpponentMotion(const std::vector<PathSample>& path,const RaceMotion& geometry,OpponentSpec spec)
         :path_(path),geometry_(geometry),spec_(spec),profile_(spec.number) {
-        const auto nearest=[&](Vec2 target){
-            const auto i=std::min_element(path.begin(),path.end(),[&](const auto& a,const auto& b){
-                return std::hypot(a.point.x-target.x,a.point.y-target.y)<std::hypot(b.point.x-target.x,b.point.y-target.y);});
-            return i->distance/path.back().distance;
-        };
         keys_.push_back({0,gridOffset-spec.gridBehindMetres/circuitMetres});
         double time=0;
         for(std::size_t i=0;i<spec.laps->size();++i) {
             const auto& lap=(*spec.laps)[i];
-            keys_.push_back({time+lap.s1/1000.0,i+nearest({-1.33,-0.12})});
-            keys_.push_back({time+(lap.s1+lap.s2)/1000.0,i+nearest({-0.02,-0.14})});
+            keys_.push_back({time+lap.s1/1000.0,i+sector1Fraction});
+            keys_.push_back({time+(lap.s1+lap.s2)/1000.0,i+sector2Fraction});
             time+=lap.milliseconds()/1000.0;keys_.push_back({time,double(i+1)});
         }
         // Gate durations are archived; arrival is bracketed by stationary speed samples.
@@ -48,11 +43,11 @@ public:
         const auto next=std::upper_bound(keys_.begin(),keys_.end(),t,[](double v,const Key& k){return v<k.time;});
         const auto& a=*(next-1);const auto& b=*next;
         const double p=a.progress+profile_.fraction(t,a.time,b.time)*(b.progress-a.progress);
-        const bool pit=t>=spec_.entry&&t<spec_.exit;
+        const bool visit=t>=spec_.entry-pitLaneMarginSeconds&&t<spec_.exit+pitLaneMarginSeconds;
+        const bool pit=visit&&onPitLane(p);
         auto pose=pit?geometry_.pitPose(p-(spec_.entryLap-37),true,37.0+34/circuitMetres):poseAtProgress(path_,p);
         // Small driver-specific offsets depict parallel cars without asserting measured racing lines.
-        if(!pit){const double fade=t<spec_.entry?std::clamp((spec_.entry-t)/2,0.0,1.0):std::clamp((t-spec_.exit)/2,0.0,1.0);
-            offset(pose,fade);}
+        if(!pit)offset(pose,visit?pitLaneFade(p):1.0);
         return {pose,p,(p-gridOffset+spec_.gridBehindMetres/circuitMetres)*circuitMetres,pit,t>=boxStart_&&t<boxEnd_,false,
             (b.progress-a.progress)*profile_.rate(t,a.time,b.time)*path_.back().distance};
     }
