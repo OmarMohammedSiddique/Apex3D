@@ -52,4 +52,19 @@ inline V3 sunDirection(double raceSeconds){
     return unit(worldNorth()*(std::cos(elevation)*std::cos(azimuth))+worldEast()*(std::cos(elevation)*std::sin(azimuth))
         +V3{0,std::sin(elevation),0});
 }
+// Colour of direct sunlight relative to the race start. As the sun sinks its light
+// crosses more air, and Rayleigh scattering removes blue faster than red. Air mass
+// uses the Kasten-Young (1989) formula. The optical depths are the clear-sky Rayleigh
+// values at 680/550/450 nm (0.044/0.097/0.22). The tint is normalised to 1 at the
+// start, so the race-start look is unchanged and only the change through the race
+// is modelled. Aerosols and clouds are ignored.
+inline double airMass(double elevationDegrees){
+    return 1.0/(std::sin(elevationDegrees*std::numbers::pi/180)+0.50572*std::pow(elevationDegrees+6.07995,-1.6364));
+}
+inline V3 sunlightTint(double raceSeconds){
+    const auto now=solarPosition(cp3::raceStartUnixSeconds+raceSeconds,cp3::siteLatitude,cp3::siteLongitude);
+    const auto start=solarPosition(cp3::raceStartUnixSeconds,cp3::siteLatitude,cp3::siteLongitude);
+    const double extra=airMass(now.elevationDegrees)-airMass(start.elevationDegrees);
+    return {std::exp(-0.044*extra),std::exp(-0.097*extra),std::exp(-0.22*extra)};
+}
 } // namespace apex3d::three

@@ -87,6 +87,7 @@ inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
 } // namespace apex3d::three
 #include "world_detail.hpp"
 #include "gravel_birds.hpp"
+#include "tv_camera.hpp"
 namespace apex3d::three {
 inline void drsZones(Mesh& mesh,const std::vector<cp3::PathSample>& path){
     const double t7=cp3::turn7Fraction,t8=cp3::turn8Fraction,t1=cp3::turn1Fraction;
@@ -236,6 +237,49 @@ inline Mesh gantry(const std::vector<cp3::PathSample>& path,int lights,bool fram
 // The ground comes first in the world mesh. It receives shadows but cannot cast
 // one, so the shadow pass skips these vertices (avoids self-shadow acne).
 inline int groundVertexCount(){const auto& t=terrain();return ((t.columns-1)*(t.rows-1)+4)*6;}
+// Where Monza has kerbs: through corners, not along the straights. OSM doesn't map
+// circuit kerbs, so they are placed from the measured line's curvature (smoothed
+// over +/-25 m). Every corner tighter than a 400 m radius gets an inside kerb, from
+// 10 m before to 10 m after; corners tighter than 150 m (the chicanes, Lesmos,
+// Ascari and Parabolica) also get an outside kerb from mid-corner to 25 m past the
+// exit. That picks out exactly Monza's 11 turns. Kerb lengths are representative.
+// No kerb on the pit side where the measured pit lane leaves or rejoins the track.
+struct KerbSides { bool left{}, right{}; }; // relative to the direction of travel
+inline std::vector<KerbSides> kerbLayout(const std::vector<cp3::PathSample>& path) {
+    const std::size_t n=path.size()-1; // the last sample closes the loop
+    const double scale=physical::metresPerSceneUnit(),lap=path.back().distance*scale;
+    std::vector<double> metres(n),heading(n),curvature(n),smooth(n,0.0);
+    for(std::size_t i=0;i<n;++i){metres[i]=path[i].distance*scale;heading[i]=std::atan2(-path[i].normal.x,path[i].normal.y);}
+    const auto wrapped=[&](double d){return d<0?d+lap:d>=lap?d-lap:d;};
+    for(std::size_t i=0;i<n;++i){
+        const std::size_t a=(i+n-1)%n,b=(i+1)%n;
+        const double turn=std::remainder(heading[b]-heading[a],2*std::numbers::pi);
+        curvature[i]=turn/wrapped(metres[b]-metres[a]); // + = turning left
+    }
+    for(std::size_t i=0;i<n;++i){double sum=0;int count=0;
+        for(std::size_t j=0;j<n;++j){const double d=std::abs(metres[j]-metres[i]);if(std::min(d,lap-d)<=25){sum+=curvature[j];++count;}}
+        smooth[i]=sum/count;}
+    std::vector<KerbSides> sides(n+1);
+    const auto mark=[&](double from,double to,bool left){
+        for(std::size_t i=0;i<n;++i){const double d=wrapped(metres[i]-wrapped(from));
+            if(d<=wrapped(to-from)){(left?sides[i].left:sides[i].right)=true;}}
+    };
+    for(const double limit:{1.0/400,1.0/150}){
+        for(std::size_t start=0;start<n;++start){
+            const std::size_t previous=(start+n-1)%n;
+            if(std::abs(smooth[start])<=limit||std::abs(smooth[previous])>limit)continue;
+            std::size_t end=start;double peak=0;
+            while(std::abs(smooth[end%n])>limit&&end<start+n){if(std::abs(smooth[end%n])>std::abs(peak))peak=smooth[end%n];++end;}
+            const double from=metres[start],to=metres[(end-1)%n];
+            const bool left=peak>0;
+            if(limit<1.0/200)mark(from-10,to+10,left);                       // inside, through the corner
+            else mark(from+wrapped(to-from)/2,to+25,!left);                     // outside, on the exit
+        }
+    }
+    for(std::size_t i=0;i<n;++i)if(cp3::onPitLane(path[i].distance/path.back().distance))sides[i].right=false;
+    sides[n]=sides[0];
+    return sides;
+}
 inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMotion* race) {
     Mesh mesh;
     const double scale=physical::metresPerSceneUnit();
@@ -256,17 +300,22 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
     quad(mesh,{gx0,0,gz1},{gx0,0,far},{gx1,0,far},{gx1,0,gz1},grass);
     constexpr Color asphalt{0.17F,0.195F,0.225F},white{0.88F,0.91F,0.91F};
     const double half=physical::trackWidth/2;
+    const auto kerbs=kerbLayout(path);
     for(std::size_t i=0;i+1<path.size();++i) {
         const auto a=cp3::poseAtProgress(path,path[i].distance/path.back().distance),
                    b=cp3::poseAtProgress(path,path[i+1].distance/path.back().distance);
         roadStrip(mesh,a,b,-half,half,physical::roadHeight,asphalt);
+        // roadStrip offsets are + to the right of travel; cp3::offset is + to the left.
         for(double side:{-1.0,1.0}) {
+            roadStrip(mesh,a,b,side*(half-0.15),side*half,physical::roadHeight+0.01,white);
+            if(!(side<0?kerbs[i].left:kerbs[i].right))continue;
             const auto color=(static_cast<int>(path[i].distance*scale/2)%2)==0?Color{0.78F,0.12F,0.17F}:white;
             roadStrip(mesh,a,b,side*half,side*(half+physical::kerbWidth),physical::kerbHeight,color);
-            roadStrip(mesh,a,b,side*(half-0.15),side*half,physical::roadHeight+0.01,white);
-            const auto pa=world(cp3::offset(path[i],physical::sceneUnits(side*(half+physical::kerbWidth)))),
-                       pb=world(cp3::offset(path[i+1],physical::sceneUnits(side*(half+physical::kerbWidth))));
-            quad(mesh,pa,pb,pb+V3{0,physical::kerbHeight,0},pa+V3{0,physical::kerbHeight,0},color);
+            const auto pa=world(cp3::offset(path[i],physical::sceneUnits(-side*(half+physical::kerbWidth)))),
+                       pb=world(cp3::offset(path[i+1],physical::sceneUnits(-side*(half+physical::kerbWidth))));
+            // Outer face, wound so its normal faces away from the track on either side.
+            const V3 up{0,physical::kerbHeight,0};
+            if(side>0)quad(mesh,pa,pb,pb+up,pa+up,color);else quad(mesh,pb,pa,pa+up,pb+up,color);
         }
     }
     // A 1 m deep chequered timing line, rather than a scene-sized marking.
@@ -288,7 +337,7 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
             for(double side:{-1.0,1.0})roadStrip(mesh,pa,pb,side*1.90,side*2.0,physical::roadHeight+0.01,white);
         }
         garage(mesh,*race);grandstands(mesh,path);drsZones(mesh,path);parcFermeScene(mesh,path);
-        trackside(mesh,path);podium(mesh,path);ovalBanking(mesh,path);
+        trackside(mesh,path);podium(mesh,path);ovalBanking(mesh,path);tvTowers(mesh);
         auto structure=gantry(path,0,true);mesh.insert(mesh.end(),structure.begin(),structure.end());
     }
     if(race){
@@ -439,9 +488,9 @@ inline Mesh makeAnchors(cp3::Route route) {
     return mesh;
 }
 
-enum class CameraMode { Overview, Chase, Cockpit };
+enum class CameraMode { Overview, Chase, Cockpit, Tv };
 inline const char* cameraName(CameraMode mode) {
-    switch(mode){case CameraMode::Overview:return "OVERVIEW";case CameraMode::Chase:return "CHASE";case CameraMode::Cockpit:return "COCKPIT";}
+    switch(mode){case CameraMode::Overview:return "OVERVIEW";case CameraMode::Chase:return "CHASE";case CameraMode::Cockpit:return "COCKPIT";case CameraMode::Tv:return "TV";}
     return "OVERVIEW";
 }
 struct CameraFrame { M4 viewProjection; V3 eye; V3 target; double shadowExtent{55.0}; double tanHalfFov{0.62}; double nearPlane{0.05}; };
@@ -452,14 +501,14 @@ struct CameraRig {
     V3 smoothEye{},smoothTarget{},previousOrigin{};
     bool initialized{false};
     void reset() { yaw=mode==CameraMode::Overview?0.35:0.0;pitch=mode==CameraMode::Overview?0.82:0.48;zoom=1.0;initialized=false; }
-    void cycle() {mode=static_cast<CameraMode>((static_cast<int>(mode)+1)%3);reset();}
+    void cycle() {mode=static_cast<CameraMode>((static_cast<int>(mode)+1)%4);reset();}
     void orbit(double dx,double dy) {
-        if(mode==CameraMode::Cockpit){mode=CameraMode::Chase;reset();}
+        if(mode==CameraMode::Cockpit||mode==CameraMode::Tv){mode=CameraMode::Chase;reset();}
         yaw-=dx*0.006;pitch=std::clamp(pitch+dy*0.005,0.18,1.40);
     }
     void dolly(double steps) {
-        const double minimum=mode==CameraMode::Overview?0.008:mode==CameraMode::Chase?0.18:0.42;
-        zoom=std::clamp(zoom*std::pow(0.88,steps),minimum,mode==CameraMode::Cockpit?1.9:3.0);
+        const double minimum=mode==CameraMode::Overview?0.008:mode==CameraMode::Chase?0.18:mode==CameraMode::Tv?0.35:0.42;
+        zoom=std::clamp(zoom*std::pow(0.88,steps),minimum,mode==CameraMode::Cockpit?1.9:mode==CameraMode::Tv?2.5:3.0);
     }
     CameraFrame frame(const cp3::Pose& pose,double aspect,double delta=0.0,bool snap=false) {
         V3 eye,target;double fov=48.0;
@@ -468,6 +517,13 @@ struct CameraRig {
             const double focus=std::clamp((0.85-zoom)/0.60,0.0,1.0);
             target=mix({0.03*physical::metresPerSceneUnit(),0.0,0.0},world(pose.position),focus);
             eye=target+V3{distance*std::sin(yaw)*std::cos(pitch),distance*std::sin(pitch),distance*std::cos(yaw)*std::cos(pitch)};
+        }else if(mode==CameraMode::Tv){
+            // Fixed tower; a long lens keeps about 22 m of track in shot at the car (zoom scales it).
+            static const double lapLength=cp3::makePath().back().distance;
+            const auto& tower=tvCameraFor(pose.distance/lapLength);
+            eye=tower.lens;target=world(pose.position,physical::roadHeight+0.55);
+            const double range=std::max(length(target-eye),1.0);
+            fov=std::clamp(2*std::atan(11.0*zoom/range)*180/std::numbers::pi,4.0,60.0);
         }else{
             const auto origin=world(pose.position,physical::roadHeight);
             const auto forward=rotateY({1,0,0},pose.headingRadians),right=rotateY({0,0,1},pose.headingRadians);
@@ -495,9 +551,10 @@ struct CameraRig {
         // 100 km ground quad, and a 5 cm near plane let that ground win the depth test over the
         // road 10 cm above it (and made the 5 mm heatmap strip flicker). The chase plane is at
         // least 0.5 m, still closer than the car at minimum chase zoom (about 2 m), and grows
-        // with camera distance. The cockpit eye sits inside the car and keeps 5 cm.
+        // with camera distance. The TV camera (always 5 m+ from the car) shares that rule.
+        // The cockpit eye sits inside the car and keeps 5 cm.
         const double distance=length(smoothEye-smoothTarget);
-        const double nearPlane=overview?std::max(.1,distance*.01):mode==CameraMode::Chase?std::max(chaseNearPlane,distance*.02):0.05;
+        const double nearPlane=overview?std::max(.1,distance*.01):mode==CameraMode::Chase||mode==CameraMode::Tv?std::max(chaseNearPlane,distance*.02):0.05;
         return {perspective(fov*std::numbers::pi/180,aspect,nearPlane,15000.0)*lookAt(eyeOut,targetOut),
             eyeOut,targetOut,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360),nearPlane};
     }
