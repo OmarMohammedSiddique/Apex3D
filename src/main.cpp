@@ -328,7 +328,8 @@ int main(int argc, char** argv)
                 if(value=="overview")initialCamera=apex3d::three::CameraMode::Overview;
                 else if(value=="chase")initialCamera=apex3d::three::CameraMode::Chase;
                 else if(value=="cockpit")initialCamera=apex3d::three::CameraMode::Cockpit;
-                else throw std::invalid_argument("Camera must be overview, chase or cockpit");
+                else if(value=="tv")initialCamera=apex3d::three::CameraMode::Tv;
+                else throw std::invalid_argument("Camera must be overview, chase, cockpit or tv");
             }
             else if(arg=="--driver") {
                 const auto value=next();
@@ -376,7 +377,7 @@ int main(int argc, char** argv)
             throw std::invalid_argument("Race timing options require Monza");
     } catch (const std::exception& error) {
         std::cerr << error.what() << "\nUsage: Apex3D [--bezier] [--wheels] [--speed 0.25..64]\n"
-                     "  [--driver surname|number] [--camera overview|chase|cockpit] [--zoom 0.008..3] [--race-time seconds]\n"
+                     "  [--driver surname|number] [--camera overview|chase|cockpit|tv] [--zoom 0.008..3] [--race-time seconds]\n"
                      "  [--heatmap speed|throttle|brake|pedals|off]\n"
                      "  [--screenshot file.ppm |\n"
                      "   --screenshot-at 0..1 file.ppm | --screenshot-time seconds file.ppm |\n"

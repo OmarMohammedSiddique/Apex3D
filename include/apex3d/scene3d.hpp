@@ -87,6 +87,7 @@ inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
 } // namespace apex3d::three
 #include "world_detail.hpp"
 #include "gravel_birds.hpp"
+#include "tv_camera.hpp"
 namespace apex3d::three {
 inline void drsZones(Mesh& mesh,const std::vector<cp3::PathSample>& path){
     const double t7=cp3::turn7Fraction,t8=cp3::turn8Fraction,t1=cp3::turn1Fraction;
@@ -336,7 +337,7 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
             for(double side:{-1.0,1.0})roadStrip(mesh,pa,pb,side*1.90,side*2.0,physical::roadHeight+0.01,white);
         }
         garage(mesh,*race);grandstands(mesh,path);drsZones(mesh,path);parcFermeScene(mesh,path);
-        trackside(mesh,path);podium(mesh,path);ovalBanking(mesh,path);
+        trackside(mesh,path);podium(mesh,path);ovalBanking(mesh,path);tvTowers(mesh);
         auto structure=gantry(path,0,true);mesh.insert(mesh.end(),structure.begin(),structure.end());
     }
     if(race){
@@ -487,9 +488,9 @@ inline Mesh makeAnchors(cp3::Route route) {
     return mesh;
 }
 
-enum class CameraMode { Overview, Chase, Cockpit };
+enum class CameraMode { Overview, Chase, Cockpit, Tv };
 inline const char* cameraName(CameraMode mode) {
-    switch(mode){case CameraMode::Overview:return "OVERVIEW";case CameraMode::Chase:return "CHASE";case CameraMode::Cockpit:return "COCKPIT";}
+    switch(mode){case CameraMode::Overview:return "OVERVIEW";case CameraMode::Chase:return "CHASE";case CameraMode::Cockpit:return "COCKPIT";case CameraMode::Tv:return "TV";}
     return "OVERVIEW";
 }
 struct CameraFrame { M4 viewProjection; V3 eye; V3 target; double shadowExtent{55.0}; double tanHalfFov{0.62}; };
@@ -499,14 +500,14 @@ struct CameraRig {
     V3 smoothEye{},smoothTarget{},previousOrigin{};
     bool initialized{false};
     void reset() { yaw=mode==CameraMode::Overview?0.35:0.0;pitch=mode==CameraMode::Overview?0.82:0.48;zoom=1.0;initialized=false; }
-    void cycle() {mode=static_cast<CameraMode>((static_cast<int>(mode)+1)%3);reset();}
+    void cycle() {mode=static_cast<CameraMode>((static_cast<int>(mode)+1)%4);reset();}
     void orbit(double dx,double dy) {
-        if(mode==CameraMode::Cockpit){mode=CameraMode::Chase;reset();}
+        if(mode==CameraMode::Cockpit||mode==CameraMode::Tv){mode=CameraMode::Chase;reset();}
         yaw-=dx*0.006;pitch=std::clamp(pitch+dy*0.005,0.18,1.40);
     }
     void dolly(double steps) {
-        const double minimum=mode==CameraMode::Overview?0.008:mode==CameraMode::Chase?0.18:0.42;
-        zoom=std::clamp(zoom*std::pow(0.88,steps),minimum,mode==CameraMode::Cockpit?1.9:3.0);
+        const double minimum=mode==CameraMode::Overview?0.008:mode==CameraMode::Chase?0.18:mode==CameraMode::Tv?0.35:0.42;
+        zoom=std::clamp(zoom*std::pow(0.88,steps),minimum,mode==CameraMode::Cockpit?1.9:mode==CameraMode::Tv?2.5:3.0);
     }
     CameraFrame frame(const cp3::Pose& pose,double aspect,double delta=0.0,bool snap=false) {
         V3 eye,target;double fov=48.0;
@@ -515,6 +516,13 @@ struct CameraRig {
             const double focus=std::clamp((0.85-zoom)/0.60,0.0,1.0);
             target=mix({0.03*physical::metresPerSceneUnit(),0.0,0.0},world(pose.position),focus);
             eye=target+V3{distance*std::sin(yaw)*std::cos(pitch),distance*std::sin(pitch),distance*std::cos(yaw)*std::cos(pitch)};
+        }else if(mode==CameraMode::Tv){
+            // Fixed tower; a long lens keeps about 22 m of track in shot at the car (zoom scales it).
+            static const double lapLength=cp3::makePath().back().distance;
+            const auto& tower=tvCameraFor(pose.distance/lapLength);
+            eye=tower.lens;target=world(pose.position,physical::roadHeight+0.55);
+            const double range=std::max(length(target-eye),1.0);
+            fov=std::clamp(2*std::atan(11.0*zoom/range)*180/std::numbers::pi,4.0,60.0);
         }else{
             const auto origin=world(pose.position,physical::roadHeight);
             const auto forward=rotateY({1,0,0},pose.headingRadians),right=rotateY({0,0,1},pose.headingRadians);
@@ -543,7 +551,7 @@ struct CameraRig {
         // (5 mm above the asphalt), so it flickered when the chase camera pulled
         // back. Scaling the near plane with camera distance keeps the car unclipped.
         const double distance=length(smoothEye-smoothTarget);
-        const double nearPlane=overview?std::max(.1,distance*.01):mode==CameraMode::Chase?std::max(.05,distance*.02):0.05;
+        const double nearPlane=overview?std::max(.1,distance*.01):mode==CameraMode::Chase||mode==CameraMode::Tv?std::max(.05,distance*.02):0.05;
         return {perspective(fov*std::numbers::pi/180,aspect,nearPlane,15000.0)*lookAt(eyeOut,targetOut),
             eyeOut,targetOut,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360)};
     }
