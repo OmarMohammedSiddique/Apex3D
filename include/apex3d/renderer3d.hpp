@@ -17,10 +17,23 @@ out vec3 worldPosition;
 out vec3 worldNormal;
 out vec3 color;
 out vec4 lightPosition;
+// Terrain height under a world point: the same clamped bilinear lookup as
+// Terrain::height in terrain.hpp, so CPU cameras and GPU geometry agree.
+uniform sampler2D terrainMap;
+uniform vec3 terrainFrame; // min x, min z, 1/cell
+float terrainHeight(vec2 p){
+    ivec2 size=textureSize(terrainMap,0);
+    vec2 u=clamp((p-terrainFrame.xy)*terrainFrame.z,vec2(0.0),vec2(size-1));
+    ivec2 i=min(ivec2(u),size-2);vec2 f=u-vec2(i);
+    float a=texelFetch(terrainMap,i,0).r,b=texelFetch(terrainMap,i+ivec2(1,0),0).r;
+    float c=texelFetch(terrainMap,i+ivec2(0,1),0).r,d=texelFetch(terrainMap,i+ivec2(1,1),0).r;
+    return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+}
 void main(){
-    worldPosition=position;worldNormal=normal;color=vertexColor;
-    lightPosition=lightMatrix*vec4(position,1.0);
-    gl_Position=viewProjection*vec4(position,1.0);
+    vec3 p=position+vec3(0.0,terrainHeight(position.xz),0.0);
+    worldPosition=p;worldNormal=normal;color=vertexColor;
+    lightPosition=lightMatrix*vec4(p,1.0);
+    gl_Position=viewProjection*vec4(p,1.0);
 })";
 inline constexpr char litFragment[] = R"(
 #version 330 core
@@ -31,6 +44,7 @@ in vec4 lightPosition;
 uniform vec3 eyePosition;
 uniform sampler2D shadowMap;
 uniform bool shadowsEnabled;
+uniform vec3 sunDirection;
 out vec4 fragmentColor;
 float shade(vec3 n,vec3 sun){
     if(!shadowsEnabled)return 0.0;
@@ -44,7 +58,7 @@ float shade(vec3 n,vec3 sun){
     return blocked/9.0;
 }
 void main(){
-    vec3 n=normalize(worldNormal),sun=normalize(vec3(-3.5,6.0,3.0));
+    vec3 n=normalize(worldNormal),sun=sunDirection;
     float diffuse=max(dot(n,sun),0.0),shadow=shade(n,sun);
     vec3 view=normalize(eyePosition-worldPosition);
     float spec=pow(max(dot(n,normalize(sun+view)),0.0),48.0)*0.16;
@@ -60,7 +74,19 @@ inline constexpr char depthVertex[] = R"(
 #version 330 core
 layout(location=0) in vec3 position;
 uniform mat4 lightMatrix;
-void main(){gl_Position=lightMatrix*vec4(position,1.0);}
+// Terrain height under a world point: the same clamped bilinear lookup as
+// Terrain::height in terrain.hpp, so CPU cameras and GPU geometry agree.
+uniform sampler2D terrainMap;
+uniform vec3 terrainFrame; // min x, min z, 1/cell
+float terrainHeight(vec2 p){
+    ivec2 size=textureSize(terrainMap,0);
+    vec2 u=clamp((p-terrainFrame.xy)*terrainFrame.z,vec2(0.0),vec2(size-1));
+    ivec2 i=min(ivec2(u),size-2);vec2 f=u-vec2(i);
+    float a=texelFetch(terrainMap,i,0).r,b=texelFetch(terrainMap,i+ivec2(1,0),0).r;
+    float c=texelFetch(terrainMap,i+ivec2(0,1),0).r,d=texelFetch(terrainMap,i+ivec2(1,1),0).r;
+    return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+}
+void main(){gl_Position=lightMatrix*vec4(position+vec3(0.0,terrainHeight(position.xz),0.0),1.0);}
 )";
 inline constexpr char depthFragment[] = R"(
 #version 330 core
@@ -102,6 +128,13 @@ public:
         lit_=program(litVertex,litFragment);depth_=program(depthVertex,depthFragment);
         sky_=program(skyVertex,skyFragment);glGenVertexArrays(1,&skyVao_);
         if(!lit_||!depth_||!sky_)return false;
+        // Terrain heights as a single-channel float texture, read with texelFetch.
+        const auto& ground=terrain();
+        glGenTextures(1,&terrainTexture_);glBindTexture(GL_TEXTURE_2D,terrainTexture_);
+        glPixelStorei(GL_UNPACK_ALIGNMENT,4);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_R32F,ground.columns,ground.rows,0,GL_RED,GL_FLOAT,ground.heights.data());
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
         world_.create();heat_.create();car_.create();lights_.create();crew_.create();anchors_.create();
         glGenFramebuffers(1,&shadowFbo_);glGenTextures(1,&shadowTexture_);glBindTexture(GL_TEXTURE_2D,shadowTexture_);
         glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,shadowSize,shadowSize,0,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
@@ -118,20 +151,27 @@ public:
     void setWorld(const Mesh& mesh,const Mesh& anchors){world_.update(mesh,GL_STATIC_DRAW);anchors_.update(anchors,GL_STATIC_DRAW);}
     void setHeatmap(const Mesh& mesh){heat_.update(mesh,GL_STATIC_DRAW);}
     void update(const Mesh& car,const Mesh& lights,const Mesh& crew){car_.update(car);lights_.update(lights);crew_.update(crew);}
-    void draw(const CameraFrame& camera,int width,int height,int sceneWidth,bool points) {
+    // `sun` points towards the sun (sunDirection in sun_position.hpp).
+    void draw(const CameraFrame& camera,int width,int height,int sceneWidth,bool points,V3 sun) {
         glEnable(GL_DEPTH_TEST);glDepthFunc(GL_LEQUAL);glDepthMask(GL_TRUE);glDisable(GL_BLEND);glDisable(GL_CULL_FACE);
         const double extent=camera.shadowExtent;
         // Follow the car at metre precision; overview uses a whole-circuit map.
-        const auto sun=unit(V3{-3.5,6,3.0});
         const auto centre=camera.target;
+        const auto& ground=terrain();
+        const auto bindTerrain=[&](GLuint id){
+            glActiveTexture(GL_TEXTURE1);glBindTexture(GL_TEXTURE_2D,terrainTexture_);glUniform1i(glGetUniformLocation(id,"terrainMap"),1);
+            glUniform3f(glGetUniformLocation(id,"terrainFrame"),float(ground.minX),float(ground.minZ),float(1.0/ground.cell));
+            glActiveTexture(GL_TEXTURE0);
+        };
         lightMatrix_=orthographic(-extent,extent,-extent,extent,0.5,extent*5)*
             lookAt(centre+sun*(extent*2),centre);
         if(shadows_) {
             glBindFramebuffer(GL_FRAMEBUFFER,shadowFbo_);glViewport(0,0,shadowSize,shadowSize);glClear(GL_DEPTH_BUFFER_BIT);
             glUseProgram(depth_);glUniformMatrix4fv(glGetUniformLocation(depth_,"lightMatrix"),1,GL_FALSE,lightMatrix_.values.data());
+            bindTerrain(depth_);
             glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(1.1F,2.0F);
-            // The flat ground receives shadows but cannot cast one; exclude its first six vertices to avoid self-shadow precision artifacts.
-            world_.draw(6);car_.draw();crew_.draw();glDisable(GL_POLYGON_OFFSET_FILL);
+            // The ground receives shadows but cannot cast one; skip it to avoid self-shadow precision artifacts.
+            world_.draw(groundVertexCount());car_.draw();crew_.draw();glDisable(GL_POLYGON_OFFSET_FILL);
             glBindFramebuffer(GL_FRAMEBUFFER,0);
         }
         glViewport(0,0,width,height);glClearColor(0.025F,0.045F,0.055F,1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -144,12 +184,16 @@ public:
         glUniform3f(glGetUniformLocation(sky_,"upDirection"),float(up.x),float(up.y),float(up.z));
         glUniform1f(glGetUniformLocation(sky_,"aspectRatio"),float(sceneWidth)/height);
         glUniform1f(glGetUniformLocation(sky_,"tanHalfFov"),float(camera.tanHalfFov));
-        glUniform3f(glGetUniformLocation(sky_,"eyePosition"),float(camera.eye.x),float(camera.eye.y),float(camera.eye.z));
+        // The sky pass draws the ground beyond the meshes analytically, so it needs height above the terrain.
+        glUniform3f(glGetUniformLocation(sky_,"eyePosition"),float(camera.eye.x),float(camera.eye.y-ground.height(camera.eye.x,camera.eye.z)),float(camera.eye.z));
+        glUniform3f(glGetUniformLocation(sky_,"sunDirection"),float(sun.x),float(sun.y),float(sun.z));
         glDrawArrays(GL_TRIANGLES,0,3);glDepthMask(GL_TRUE);glEnable(GL_DEPTH_TEST);
         glUseProgram(lit_);glUniformMatrix4fv(glGetUniformLocation(lit_,"viewProjection"),1,GL_FALSE,camera.viewProjection.values.data());
         glUniformMatrix4fv(glGetUniformLocation(lit_,"lightMatrix"),1,GL_FALSE,lightMatrix_.values.data());
         glUniform3f(glGetUniformLocation(lit_,"eyePosition"),static_cast<float>(camera.eye.x),static_cast<float>(camera.eye.y),static_cast<float>(camera.eye.z));
         glUniform1i(glGetUniformLocation(lit_,"shadowsEnabled"),shadows_?1:0);
+        glUniform3f(glGetUniformLocation(lit_,"sunDirection"),float(sun.x),float(sun.y),float(sun.z));
+        bindTerrain(lit_);
         glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,shadowTexture_);glUniform1i(glGetUniformLocation(lit_,"shadowMap"),0);
         world_.draw();
         // Pull the flat overlay slightly towards the camera so the asphalt never shows through.
@@ -161,12 +205,12 @@ public:
     }
     void destroy() {
         world_.destroy();heat_.destroy();car_.destroy();lights_.destroy();crew_.destroy();anchors_.destroy();
-        glDeleteFramebuffers(1,&shadowFbo_);glDeleteTextures(1,&shadowTexture_);glDeleteProgram(lit_);glDeleteProgram(depth_);glDeleteProgram(sky_);glDeleteVertexArrays(1,&skyVao_);
+        glDeleteFramebuffers(1,&shadowFbo_);glDeleteTextures(1,&shadowTexture_);glDeleteTextures(1,&terrainTexture_);glDeleteProgram(lit_);glDeleteProgram(depth_);glDeleteProgram(sky_);glDeleteVertexArrays(1,&skyVao_);
     }
 private:
     GLuint sky_{},skyVao_{};
     static constexpr int shadowSize=4096;
-    GLuint lit_{},depth_{},shadowFbo_{},shadowTexture_{};bool shadows_{};
+    GLuint lit_{},depth_{},shadowFbo_{},shadowTexture_{},terrainTexture_{};bool shadows_{};
     M4 lightMatrix_{};Buffer world_,heat_,car_,lights_,crew_,anchors_;
 };
 } // namespace apex3d::three

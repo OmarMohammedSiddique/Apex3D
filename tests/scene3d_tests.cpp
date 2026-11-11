@@ -87,7 +87,7 @@ int main(){
         const auto frame=camera.frame(sample.pose,1.3,0,true);
         const auto target=frame.viewProjection.transform(frame.target);
         CHECK(target[3]>0&&near(target[0]/target[3],0)&&near(target[1]/target[3],0));
-        CHECK(frame.eye.y>0);
+        CHECK(frame.eye.y>terrainHeight(frame.eye.x,frame.eye.z)+0.5);
         for(auto value:frame.viewProjection.values)CHECK(std::isfinite(value));
     }
     CameraRig following;following.mode=CameraMode::Chase;following.reset();
@@ -97,7 +97,7 @@ int main(){
     CHECK(near(f1.eye.x-f0.eye.x,100));CHECK(near(f1.target.x-f0.target.x,100));
     CameraRig camera;camera.orbit(500,-5000);CHECK(camera.pitch>=0.18);camera.dolly(10000);CHECK(camera.zoom>=0.008&&camera.zoom<0.01);
     const auto zoomFocus=camera.frame(race.sample(120).pose,1.3,0,true);
-    CHECK(length(zoomFocus.target-world(race.sample(120).pose.position))<0.01);
+    CHECK(length(zoomFocus.target-onTerrain(world(race.sample(120).pose.position)))<0.01);
     CameraRig cockpit;cockpit.mode=CameraMode::Cockpit;cockpit.reset();
     const auto wide=cockpit.frame(straight,1.3,0,true).viewProjection;
     cockpit.dolly(3);
@@ -154,7 +154,7 @@ int main(){
         playback.seek(t);const auto sample=cp3::focusedSample(driver.focus,race.sample(t),norris.sample(t),piastri.sample(t));
         CameraRig selected;selected.mode=CameraMode::Chase;selected.reset();
         const auto frame=selected.frame(sample.pose,1.3,0,true);
-        CHECK(length(frame.target-world(sample.pose.position))<3.0);
+        CHECK(length(frame.target-onTerrain(world(sample.pose.position)))<3.0);
         for(double aspect:{0.8,16.0/9.0,3.2}) {
             const auto mesh=overlay(playback,sample,path.back().distance,aspect,true,CameraMode::Chase,true,cp3::HudAction::None,driver.focus);
             for(const auto& v:mesh){CHECK(std::isfinite(v.x)&&std::isfinite(v.y));CHECK(std::abs(v.x)<=1&&std::abs(v.y)<=1);}

@@ -88,10 +88,41 @@ checked in CI) turns the CSV into `include/apex3d/generated/monza_track_2025.hpp
   the measured track using the 14 recorded corner landmarks as a
   distance-along-the-lap mapping (`legacy_to_fraction`). The grandstand CSV
   was migrated once with `python3 tools/generate_track_assets.py --migrate-stands`.
-- **Elevation** is generated (`measuredMonzaElevation`) but not drawn yet.
-  The track is still flat in 3D.
+- **Elevation** is now drawn; see the next section.
+
+## Elevation
+
+The recorded OpenF1 `z` values give the lap's height profile: about 12 m of
+relief. From the finish line the road climbs about 10 m to its high point
+approaching the Lesmos, dips through Ascari, and reaches its lowest point at
+Parabolica, 2.9 m below the line.
+
+`include/apex3d/terrain.hpp` turns the 576 control-point heights into a 16 m
+height map covering the circuit plus 900 m around it:
+
+- On the track the height is the measured elevation. The test checks every
+  control point is within 0.25 m. Across the 12 m road it varies by under
+  0.1 m, so no banking is invented.
+- Off the track there is no survey. The height comes from nearby track heights
+  (a Gaussian average whose width grows with distance) and fades to the lap's
+  mean height between 80 m and 450 m from the road. Slopes stay below 6%.
+  This is a smooth fill, not the park's real terrain.
+
+The scene is still built flat. The renderer's vertex shaders lift every vertex
+by the height under it, using the same bilinear lookup as the CPU copy. That
+covers the road, ground, cars, buildings, birds and the shadow pass, so
+everything follows one surface and cars pitch with the slope. The ground is one
+quad per height texel so it matches the map exactly. Cameras and the overview
+marker use the CPU copy, so the camera rides over crests and the cockpit view
+pitches with the road. Heights are real, not exaggerated, so at 12 m over
+5.8 km the effect is subtle, as it is at Monza.
+
+![Back straight with the recorded rise and fall](evidence/apex3d-elevation-back-straight.png)
 
 ## What is still estimated
+
+- Terrain away from the road (see Elevation above) is a smooth fill from the
+  track heights, not a survey.
 
 - Track width is still a uniform 12 m. Kerbs and Armco follow the line at
   fixed offsets.

@@ -53,9 +53,13 @@ are built from the same pit model. Procedural crouched crew figures appear
 during stationary service. Loaded tyre deformation and differential wheel
 speeds are not simulated.
 
-The road's course elevation is intentionally planar. Raised surfaces and buildings
-are model geometry, not a surveyed Monza elevation/architecture dataset. No new
-external model, texture or rendering dependency is required.
+The scene is built flat. The lit and shadow vertex shaders then lift every vertex
+by a height map made from the recorded track elevation (`terrain.hpp`), so the
+road and everything on it follow the measured rise and fall. Cameras use the same
+map on the CPU. Raised surfaces and buildings are model geometry, not a surveyed
+Monza architecture dataset. No new external model, texture or rendering dependency
+is required. The sun direction is the real solar position for the race time
+(`sun_position.hpp`).
 
 ## Perspective, depth, light and shadows
 
