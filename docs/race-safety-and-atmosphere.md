@@ -75,7 +75,15 @@ post-race scenes. Lighting, shadows, the sky glow and the far ground all use it.
 True north comes from the measured track's map transform. A hand calculation
 checks the result: declination 5.85 degrees (from the 22 September equinox) and
 spherical trigonometry give 44.45 / 217.1 degrees at the start. Refraction
-(about one arcminute) is ignored, and brightness doesn't change with elevation.
+(about one arcminute) is ignored.
+
+Direct sunlight also warms slightly as the sun sinks. Its light crosses more air:
+the air mass goes from 1.43 at the start to 1.75 at the flag (Kasten–Young
+formula). Rayleigh scattering removes blue faster than red (clear-sky optical
+depths 0.044, 0.097 and 0.22 at 680, 550 and 450 nm). `sunlightTint` scales the
+sun's diffuse light, highlights and glow by that change, normalised to the race
+start. By the flag direct light is about 1% less red, 3% less green and 7% less
+blue. Ambient sky light, aerosols and clouds are not modelled.
 
 ![Shadows from the race-start sun](evidence/apex3d-sun-shadows.png)
 
