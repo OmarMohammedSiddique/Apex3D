@@ -3,6 +3,7 @@
 import json
 import hashlib
 from pathlib import Path
+from generate_track_assets import to_scene
 ROOT=Path(__file__).resolve().parents[1]
 def build():
  text='#pragma once\n#include <array>\n#include <string_view>\nnamespace apex3d::three {\n'
@@ -27,7 +28,8 @@ def build():
  text+='inline constexpr std::array<TeamLogo,10> teamLogos{{\n'+''.join('    {"'+a+'", '+', '.join(map(str,[b,c,d,e]))+'},\n'for a,b,c,d,e in specs)+'}};\n'
  features=json.loads((ROOT/'data/monza-scenery.json').read_text())['features'];points=[];polys=[]
  for f in features:
-  p=f['points'];p=p[:-1]if p[0]==p[-1]else p
+  # OSM longitude/latitude -> scene units with the measured track's own transform (no warping).
+  p=f['source_points'];p=p[:-1]if p[0]==p[-1]else p;p=[tuple(round(v,6)for v in to_scene(lon,lat))for lon,lat in p]
   polys.append((f['kind'],f['name'],f['height_m'],f['roof']!='flat',len(points),len(p)));points+=p
  text+='struct MapPoint {double x,y;};\n'
  text+=f'inline constexpr std::array<MapPoint,{len(points)}> mapPoints{{{{\n'+''.join(f'    {{{x}, {y}}},\n'for x,y in points)+'}};\n'

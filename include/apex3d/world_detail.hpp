@@ -71,12 +71,19 @@ struct TreePlacement {V3 p;double height,radius;int kind;};
 inline std::vector<TreePlacement> woodlandTrees(const std::vector<cp3::PathSample>& path){
     std::vector<TreePlacement> trees;const double scale=physical::metresPerSceneUnit();
     const auto random=[](std::uint32_t v){v^=v>>16;v*=0x7feb352dU;v^=v>>15;v*=0x846ca68bU;v^=v>>16;return v/4294967296.0;};
-    for(int i=0;i<20000;++i){const double x=-1.96+4.0*random(i*2+105),y=-1.23+2.46*random(i*2+106);
+    // Scatter candidates over the mapped woodland's bounding box.
+    double minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+    for(const auto& f:mapFootprints)if(f.wood)for(int j=0;j<f.count;++j){const auto q=mapPoints[f.first+j];
+        minX=std::min(minX,q.x);maxX=std::max(maxX,q.x);minY=std::min(minY,q.y);maxY=std::max(maxY,q.y);}
+    // The pit/paddock apron runs along the main straight from the finish line to Turn 1.
+    const auto turn1=cp3::monzaControls[static_cast<std::size_t>(cp3::turn1Fraction*cp3::monzaControls.size())];
+    const double straightY=cp3::monzaControls[0].y;
+    for(int i=0;i<20000;++i){const double x=minX+(maxX-minX)*random(i*2+105),y=minY+(maxY-minY)*random(i*2+106);
         bool woods=false,blocked=false;
         for(const auto& f:mapFootprints){if(f.wood){if(insideFootprint(x,y,f))woods=true;}
             else if(insideFootprint(x,y,f))blocked=true;}
         // Preserve the pit/paddock apron and spectator facilities.
-        if(!woods||blocked||(y<-.87&&x>-.55))continue;
+        if(!woods||blocked||(y<straightY&&x>turn1.x-.05))continue;
         bool runoff=false;
         for(const auto& f:cp3::gravelPatches){bool inside=false;for(int a=0,b=f.count-1;a<f.count;b=a++){const auto u=cp3::gravelPoints[f.first+a],v=cp3::gravelPoints[f.first+b];if((u.y>y)!=(v.y>y)&&x<(v.x-u.x)*(y-u.y)/(v.y-u.y)+u.x)inside=!inside;}if(inside)runoff=true;}
         if(runoff)continue;

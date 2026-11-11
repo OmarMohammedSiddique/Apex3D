@@ -18,17 +18,12 @@ class OpponentMotion {
 public:
     OpponentMotion(const std::vector<PathSample>& path,const RaceMotion& geometry,OpponentSpec spec)
         :path_(path),geometry_(geometry),spec_(spec),profile_(spec.number) {
-        const auto nearest=[&](Vec2 target){
-            const auto i=std::min_element(path.begin(),path.end(),[&](const auto& a,const auto& b){
-                return std::hypot(a.point.x-target.x,a.point.y-target.y)<std::hypot(b.point.x-target.x,b.point.y-target.y);});
-            return i->distance/path.back().distance;
-        };
         keys_.push_back({0,gridOffset-spec.gridBehindMetres/circuitMetres});
         double time=0;
         for(std::size_t i=0;i<spec.laps->size();++i) {
             const auto& lap=(*spec.laps)[i];
-            keys_.push_back({time+lap.s1/1000.0,i+nearest({-1.33,-0.12})});
-            keys_.push_back({time+(lap.s1+lap.s2)/1000.0,i+nearest({-0.02,-0.14})});
+            keys_.push_back({time+lap.s1/1000.0,i+sector1Fraction});
+            keys_.push_back({time+(lap.s1+lap.s2)/1000.0,i+sector2Fraction});
             time+=lap.milliseconds()/1000.0;keys_.push_back({time,double(i+1)});
         }
         // Gate durations are archived; arrival is bracketed by stationary speed samples.

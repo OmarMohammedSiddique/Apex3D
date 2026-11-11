@@ -242,6 +242,7 @@ Each milestone also has its own README with individual build and run commands:
 ## Evidence and documentation
 
 - [Monza race research and assumptions](docs/monza-race-research.md)
+- [Measured track geometry](docs/real-track-geometry.md)
 - [CP3 progress and remaining work](docs/checkpoint3-progress.md)
 - [CP3 demo and explanation guide](docs/checkpoint3-demo-guide.md)
 - [CP3 OpenGL screenshot](docs/evidence/cp3-opengl-prototype.png)
@@ -256,8 +257,10 @@ Each milestone also has its own README with individual build and run commands:
 - The track is a flat-height 3D reconstruction with raised surfaces and
   buildings. No surveyed Monza elevation model is supplied. Cars, scenery and
   crew are procedural low-poly models rather than detailed licensed assets.
-- Geometry is simplified and hand-authored. The replay uses one driver's
-  timing results; it does not reproduce the full field or GPS/speed telemetry.
+- The track shape is measured from recorded OpenF1 car positions (see
+  [measured track geometry](docs/real-track-geometry.md)), but its width is a
+  uniform 12 m and the pit lane is a reconstructed offset. Between timing gates,
+  cars are placed by recorded speed, not by their recorded positions.
 - Intra-sector speed, pit geometry and service-box arrival are reconstructed.
   Exact lap times do not imply exact corner-by-corner motion.
 - Race wheel RPM uses reconstructed travel in metres and the nominal 720 mm
