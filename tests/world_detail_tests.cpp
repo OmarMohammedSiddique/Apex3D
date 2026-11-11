@@ -44,7 +44,7 @@ int main(){using namespace apex3d;using namespace cp3;using namespace three;
     Playback p;p.seek(raceTotalSeconds-.5);p.playing=true;p.advance(1,path.back().distance);
     CHECK(p.finished()&&p.playing&&p.elapsed==raceTotalSeconds&&std::abs(p.postRaceElapsed-.5)<1e-6);
     p.togglePlaying();p.advance(100,path.back().distance);CHECK(p.postRaceElapsed==.5);
-    p.togglePlaying();p.advance(500,path.back().distance);CHECK(!p.playing&&p.postRaceElapsed==postRaceDuration&&p.elapsed==raceTotalSeconds);
+    p.togglePlaying();p.advance(postRaceDuration+50,path.back().distance);CHECK(!p.playing&&p.postRaceElapsed==postRaceDuration&&p.elapsed==raceTotalSeconds);
     p.togglePlaying();CHECK(p.elapsed==0&&p.postRaceElapsed==0&&p.starting());
     std::cout<<"Live positions, ten team marks, observed DRS, "<<trees.size()<<" broadleaf trees, mapped scenery and post-race parking passed\n";
 }

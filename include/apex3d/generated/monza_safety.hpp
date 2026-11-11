@@ -578,6 +578,17 @@ inline constexpr std::array<IntroRun,558> introLogo{{
     {82, 23, 1},
     {83, 23, 1},
 }};
+struct IncidentMessage {int raceMs;std::string_view title,detail;};
+inline constexpr std::array<IncidentMessage,4> incidentMessages{{
+    {3339900, "CONTACT AT TURN 5", "BEARMAN AND SAINZ / BOTH CARS STOP"},
+    {3417793, "INCIDENT NOTED", "TURN 5 / CARS 55 SAI AND 87 BEA"},
+    {3493793, "UNDER INVESTIGATION", "CAR 87 BEA / CAUSING A COLLISION"},
+    {3816793, "10 SECOND PENALTY", "CAR 87 BEA / CAUSING A COLLISION"},
+}};
+struct IncidentSpin {int driver,startMs,endMs;double turns;};
+inline constexpr std::array<IncidentSpin,1> incidentSpins{{
+    {55, 3339700, 3341900, 1.0},
+}};
 struct GravelPoint {double x,y;};
 struct GravelPatch {int first,count;};
 inline constexpr std::array<GravelPoint,194> gravelPoints{{

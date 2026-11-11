@@ -153,7 +153,9 @@ public:
         glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,shadowTexture_);glUniform1i(glGetUniformLocation(lit_,"shadowMap"),0);
         world_.draw();
         // Pull the flat overlay slightly towards the camera so the asphalt never shows through.
-        glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(-1.0F,-4.0F);heat_.draw();glDisable(GL_POLYGON_OFFSET_FILL);
+        // A stronger pull (slope -2, 8 depth steps) keeps the 5 mm overlay ahead of the
+        // asphalt; the depth test stays LEQUAL so exact ties go to the overlay.
+        glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(-2.0F,-8.0F);heat_.draw();glDisable(GL_POLYGON_OFFSET_FILL);
         car_.draw();lights_.draw();crew_.draw();if(points)anchors_.draw();
         glDisable(GL_DEPTH_TEST);glViewport(0,0,width,height);
     }
