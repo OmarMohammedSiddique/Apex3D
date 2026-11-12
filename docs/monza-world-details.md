@@ -8,8 +8,9 @@ These are team identifiers on a representative car, not an exact reproduction
 of every team's Monza livery or proprietary bodywork.
 
 Position changes come from OpenF1 session 9912, rather than an estimate from the
-schematic car positions. The paged list continues to show final classification;
-it is intentionally separate from the live label. DNS and retired drivers get
+schematic car positions. The paged list is now a live timing tower that uses the
+same feed, so it agrees with the live label; after the race it shows the final
+classification (see [Full field](full-field.md#live-timing-tower)). DNS and retired drivers get
 explicit DNS/DNF labels. The final parking labels use the official classification.
 
 ## DRS

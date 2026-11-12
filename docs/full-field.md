@@ -6,10 +6,37 @@ three drivers, then click a row to focus that driver. Scrolling over the driver
 list also changes pages. Selection preserves race time, playback speed, camera
 mode and zoom. Only the selected active car has an overview pointer.
 
-The list is the **final classification**, not a live leaderboard. Result gaps
-include penalties; motion follows the on-track elapsed time. Antonelli's five
-seconds and Bearman's ten seconds do not artificially slow their cars. Both
-retired/DNS entries are labelled NC rather than assigned classified positions.
+## Live timing tower
+
+During the race the list is a **live timing tower**: the running order and each
+car's gap to the leader at the current race time. The page holding the selected
+driver opens first.
+
+- **Order** comes from the recorded OpenF1 position feed, the same source as the
+  live label (such as **LEC P3**), so the two always agree. Position numbers are
+  the feed's own: for the first 16 seconds the feed still holds Hülkenberg's P12
+  grid slot, so P12 is skipped until it drops him to the back.
+- **Gaps** come from the recorded sector times, the way official timing measures
+  them. Each car's gap is taken at the last timing line it crossed (the end of
+  sector 1, 2 or 3) against the first car across that line on that lap, so gaps
+  update three times a lap rather than continuously. A car the leader has already
+  passed that line again before it arrives shows **+1 LAP**. The first sector-1
+  crossing uses the derived first-lap sector described below.
+- **PIT** (amber) shows between a car's pit entry and exit timing lines, which are
+  estimates. Retired cars move to the bottom as **NC / OUT**, Hülkenberg stays at
+  the bottom as **DNS**. Before the start the panel shows the grid.
+- Order and gaps come from different recorded sources that update at different
+  moments, so around pit stops a car can briefly show a smaller gap than the car
+  listed ahead of it. Live timing towers show the same effect.
+
+Once everyone has taken the flag, the gaps are the recorded finishing gaps (for
+example Norris +19.207 s). From 1:15:00 race time, during the post-race scenes,
+the list returns to the **final classification**. Result gaps there include
+penalties; motion follows the on-track elapsed time. Antonelli's five seconds
+and Bearman's ten seconds do not artificially slow their cars. Both retired/DNS
+entries are labelled NC rather than assigned classified positions.
+
+![Live timing tower during Verstappen's pit stop](evidence/apex3d-live-timing.png)
 
 ## Official entries and special cases
 
