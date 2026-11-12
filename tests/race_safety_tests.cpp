@@ -14,6 +14,33 @@ int main(){using namespace apex3d;using namespace cp3;
     CHECK(raceFlagAt(3341).title=="CONTACT AT TURN 5"&&raceFlagAt(3341).severity==7);
     CHECK(raceFlagAt(3420).title=="INCIDENT NOTED");CHECK(raceFlagAt(3820).title=="10 SECOND PENALTY");
     CHECK(incidentYaw(55,3339.0)==0&&incidentYaw(55,3341.0)>1.0&&incidentYaw(55,3343.0)==0&&incidentYaw(87,3341.0)==0);CHECK(raceFlagAt(4404).title=="CHEQUERED FLAG");
+    {
+        // Position-change call-outs: stable one-place swaps from the recorded feed only.
+        const auto& changes=positionChanges();
+        CHECK(changes.size()==43);
+        int previous=0;
+        for(const auto& c:changes){
+            CHECK(c.raceMs>0&&c.raceMs>=previous);previous=c.raceMs;
+            CHECK(c.driver!=27&&c.passed!=27&&c.position>=1&&c.position<=19);
+            for(int car:{c.driver,c.passed}){
+                const auto& entry=*driverInfo(static_cast<DriverFocus>(car)).archive;CHECK(c.raceMs<entry.elapsed*1000);
+                for(const auto& pit:archivedPits)if(pit.driver==car)CHECK(c.raceMs<(pit.entry-30)*1000||c.raceMs>(pit.exit+30)*1000);
+            }
+            CHECK(feedPosition(c.driver,c.raceMs)==c.position&&feedPosition(c.passed,c.raceMs)==c.position+1);
+            CHECK(feedPosition(c.passed,c.raceMs-10000)<feedPosition(c.driver,c.raceMs-10000));
+        }
+        const auto has=[&](int ms,int driver,int passed,int position){
+            for(const auto& c:changes)if(std::abs(c.raceMs-ms)<200&&c.driver==driver&&c.passed==passed&&c.position==position)return true;return false;};
+        CHECK(has(95000,4,1,1));    // Verstappen hands the lead back early on lap 2
+        CHECK(has(266000,1,4,1));   // and passes Norris on lap 4
+        CHECK(has(4025400,4,81,2)); // Norris ahead of Piastri near the end
+        for(const auto& c:changes)CHECK(c.raceMs<raceTotalSeconds*1000); // e.g. the post-flag penalty swap (BOR/ANT) is not a pass
+        CHECK(positionCalloutAt(268).detail=="LAP 4 / VER UP TO P1 / AHEAD OF NOR");
+        CHECK(!positionCalloutAt(266+positionChangeShowSeconds+0.1).active&&!positionCalloutAt(265.9).active);
+        CHECK(raceBannerAt(268).severity==8&&raceBannerAt(268).title=="POSITION CHANGE");
+        // Flags and race-control messages always win over a call-out.
+        for(double t=0;t<raceTotalSeconds;t+=0.5){const auto flag=raceFlagAt(t);if(flag.severity)CHECK(raceBannerAt(t).title==flag.title);}
+    }
     const auto path=makePath();const RaceMotion geometry(path);TrafficReplay traffic(path,geometry);
     double maxAdjustment=0;int frames=0;
     for(double t=0;t<=raceTotalSeconds+postRaceDuration;t+=.073){auto samples=traffic.sample(t);++frames;

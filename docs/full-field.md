@@ -20,8 +20,10 @@ driver opens first.
   them. Each car's gap is taken at the last timing line it crossed (the end of
   sector 1, 2 or 3) against the first car across that line on that lap, so gaps
   update three times a lap rather than continuously. A car the leader has already
-  passed that line again before it arrives shows **+1 LAP**. The first sector-1
-  crossing uses the derived first-lap sector described below.
+  passed that line again before it arrives shows **+1 LAP**. Right after a lead
+  change the new P2 shows **-** until the next timing line measures the new order
+  (about 90 seconds in the whole race). The first sector-1 crossing uses the
+  derived first-lap sector described below.
 - **PIT** (amber) shows between a car's pit entry and exit timing lines, which are
   estimates. Retired cars move to the bottom as **NC / OUT**, Hülkenberg stays at
   the bottom as **DNS**. Before the start the panel shows the grid.
