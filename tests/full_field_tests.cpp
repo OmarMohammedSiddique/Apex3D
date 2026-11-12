@@ -66,5 +66,44 @@ int main(){
     CHECK(three::overlayAction(.875,-.79,true,3)==HudAction::FieldPrevious);
     CHECK(three::overlayAction(.93,-.79,true,3)==HudAction::FieldNext);
     CHECK(three::overlayAction(.7,three::driverRowTop(2)-.02,true,6)==HudAction::None);
-    std::cout<<"Full official field, timing gates, pit stops, retirement, DNS and all selector pages passed\n";
+    {
+        // Live timing tower: a full permutation of the field in recorded-position order, with
+        // gaps from the sector timing lines, and the official classification after the race.
+        for(double t=0;t<finalClassificationSeconds;t+=7.3){
+            const auto tower=timingTower(t);std::set<int> seen;int running=0,previous=0;
+            for(std::size_t row=0;row<tower.size();++row){
+                const auto& line=tower[row];CHECK(seen.insert(static_cast<int>(line.focus)).second);
+                if(driverActive(line.focus,t)){++running;CHECK(running==int(row)+1);
+                    const int position=currentPosition(line.focus,t);CHECK(position>previous&&position<=20);previous=position;
+                    CHECK(line.position==std::to_string(position)&&(t>=16.5?position==int(row)+1:position<=int(row)+2));
+                    CHECK(line.gap.empty()||line.gap=="LEADER"||line.gap=="PIT"||line.gap.starts_with("+"));}
+                else CHECK(line.position=="NC"&&(line.gap=="OUT"||line.gap=="DNS"));
+                const auto gap=timingGap(static_cast<std::size_t>(driverIndex(line.focus)),t);
+                CHECK(!gap.timed||(gap.seconds>=0&&gap.lapsDown>=0&&gap.lapsDown<=2));
+            }
+            CHECK(seen.size()==20&&running>=18);
+            // Clicking a row selects the driver shown on it.
+            for(int page=0;page<7;++page)for(int row=0;row<3&&page*3+row<20;++row)
+                CHECK(three::overlayAction(.7,three::driverRowTop(row)-.02,true,page,t)==three::focusAction(tower[static_cast<std::size_t>(page*3+row)].focus));
+        }
+        // On the grid: grid order, no gaps yet, the non-starter last.
+        const auto grid=timingTower(0);
+        for(std::size_t row=0;row<19;++row){CHECK(grid[row].position==std::to_string(driverInfo(grid[row].focus).archive->grid));CHECK(grid[row].gap.empty());}
+        CHECK(grid[19].focus==DriverFocus::Hulkenberg&&grid[19].gap=="DNS");
+        // Verstappen's stop, Alonso's retirement.
+        const auto stop=timingTower(3090);CHECK(stop[0].focus==DriverFocus::Norris&&stop[0].gap=="LEADER");
+        CHECK(stop[1].focus==DriverFocus::Verstappen&&stop[1].gap=="PIT"&&stop[1].pit);
+        const auto out=timingTower(2100);CHECK(out[18].focus==DriverFocus::Alonso&&out[18].gap=="OUT");
+        // After everyone has taken the flag the gaps are the recorded finishing gaps.
+        const auto flag=timingTower(4495);
+        for(const auto& line:flag){const auto& entry=*driverInfo(line.focus).archive;if(entry.dns||entry.dnf)continue;
+            if(line.focus==DriverFocus::Verstappen)CHECK(line.gap=="LEADER");
+            else if(entry.totalLaps==52)CHECK(line.gap=="+1 LAP");
+            else CHECK(line.gap==signedSeconds(entry.elapsed-raceTotalSeconds));}
+        const auto final=timingTower(finalClassificationSeconds);
+        for(std::size_t i=0;i<final.size();++i)CHECK(final[i].focus==raceDrivers[i].focus);
+        CHECK(final[0].gap=="WINNER"&&final[1].gap=="+19.207S"&&final[19].gap=="DNS");
+        CHECK(towerRow(DriverFocus::Sainz,2100)==8&&towerRow(DriverFocus::Sainz,finalClassificationSeconds)==int(driverIndex(DriverFocus::Sainz)));
+    }
+    std::cout<<"Full official field, timing gates, pit stops, retirement, DNS, live timing tower and all selector pages passed\n";
 }
