@@ -124,8 +124,8 @@ pitches with the road. Heights are real, not exaggerated, so at 12 m over
 - Terrain away from the road (see Elevation above) is a smooth fill from the
   track heights, not a survey.
 
-- Track width is still a uniform 12 m. Armco follows the line at a fixed
-  offset. Kerb positions come from curvature (below); their lengths are
+- Track width is measured (see Track width below), but Armco and the catch
+  fence still follow the line at a fixed offset. Kerb positions come from curvature (below); their lengths are
   representative.
 - The pit timing lines that the recorded pit durations span (86 m before the
   finish line and 332 m after it) are estimates; the lane itself is measured
@@ -167,6 +167,41 @@ gives a distance along the lap and a sideways offset for each node. It adds a
 
 ![The measured pit lane beside the garages](evidence/apex3d-pit-lane.png)
 
+## Track width
+
+The road's two edges come from Regione Lombardia's topographic survey (DBGT,
+comune di Monza, CC BY 4.0, surveyed 2015 at 1:2000). It maps the circuit's paved
+surface as "pista" polygons. Four of them cover the lap and are kept, unchanged in
+survey coordinates, in `data/monza-track-surface.json` with the download's SHA-256.
+`tools/track_surface.py` measures the distance from the measured line to each
+edge every 5 m, perpendicular to the line:
+
+- **Run-off:** the polygons include asphalt run-off. A side edge that jumps out by
+  more than 3 m between neighbouring points starts a run-off section. The section
+  ends where the edge is back within 1.5 m of its value before the jump, or where it
+  stops narrowing within 3 m of that value. Run-off sections are interpolated.
+- **Pit lane:** where the pit lane is walled off, the right edge stops 0.5 m short of
+  the pit wall. Beyond that the survey continues into the lane, which is drawn
+  separately.
+- **Gaps:** where the line leaves the surveyed surface (under the old banking, and
+  at Lesmo 2 where the survey and the timing-derived line differ by up to about
+  4 m), the edges are interpolated across the gap. The gap is widened until the
+  measured width next to it is back above 85% of the lap's median.
+- **Smoothing:** each edge then gets a 20 m moving average (40 m along the pit wall).
+- **Floor:** no edge comes closer than 1.5 m to the line, so a car on the line stays
+  on the asphalt.
+
+The result is a road that is not symmetric about the cars' line: the racing line
+runs close to the edges at apexes and corner exits. The median width is 10.0 m,
+which matches the circuit's published 10–12 m. The narrowest point is 8.1 m, on the
+straight between Lesmo 2 and Serraglio. The main straight is about 18 m wide at the
+line and up to 20.7 m beside the pit exit. The road, white lines, kerbs, heatmap,
+chequered line, start gantry and DRS markings all follow the measured edges. The
+survey predates the 2024 resurfacing, so later changes to the run-off and kerbs are
+not included.
+
+![Measured width through the first chicane](evidence/apex3d-measured-width-chicane.png)
+
 ## Kerbs
 
 Kerbs used to run along both edges of the whole lap. Real kerbs sit at corners,
@@ -203,6 +238,8 @@ must match `data/monza-scenery.json`). Generating headers needs only the
 checked-in CSV and JSON files.
 
 ## Sources
+
+- Regione Lombardia, Database Geo-Topografico (DBGT), comune di Monza, CC BY 4.0: track surface polygons (`data/monza-track-surface.json`).
 
 - [OpenF1 API: location, laps](https://openf1.org/docs/) (unofficial, non-commercial use)
 - [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL 1.0

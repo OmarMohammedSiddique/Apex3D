@@ -92,7 +92,7 @@ splits are interpolated. See [research and assumptions](docs/monza-race-research
 for primary sources and the distinction between qualifying, race-lap and
 full-race records. The Monza Bézier route remains a separate teaching demo.
 
-The 3D world now uses **1 unit = 1 metre**, with a 5,793 m centreline, a 12 m racing surface, and a representative 2025 F1 car with 720 mm tyres. Chase view opens by default. Dimensions, sources and estimated scenery sizes are documented in [Physical scale](docs/physical-scale.md).
+The 3D world now uses **1 unit = 1 metre**, with a 5,793 m centreline, a racing surface whose measured width (median 10 m) comes from Regione Lombardia's survey, and a representative 2025 F1 car with 720 mm tyres. Chase view opens by default. Dimensions, sources and estimated scenery sizes are documented in [Physical scale](docs/physical-scale.md).
 
 
 
@@ -267,8 +267,8 @@ Each milestone also has its own README with individual build and run commands:
   scenery and crew are procedural low-poly models rather than detailed
   licensed assets.
 - The track shape is measured from recorded OpenF1 car positions (see
-  [measured track geometry](docs/real-track-geometry.md)), but its width is a
-  uniform 12 m. The pit lane follows the mapped OSM lane, but its timing lines
+  [measured track geometry](docs/real-track-geometry.md)) and its width from
+  Regione Lombardia's survey (2015, before the 2024 resurfacing). The pit lane follows the mapped OSM lane, but its timing lines
   and garage positions are estimates. Between timing gates,
   cars are placed by recorded speed, not by their recorded positions.
 - Intra-sector speed, pit geometry and service-box arrival are reconstructed.

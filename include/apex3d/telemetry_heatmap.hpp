@@ -154,7 +154,7 @@ namespace apex3d::three {
 inline Mesh heatmapMesh(const std::vector<cp3::PathSample>& path,const std::vector<double>& values,cp3::HeatLayer layer) {
     Mesh mesh;
     if(layer==cp3::HeatLayer::Off||values.size()!=path.size()||path.size()<2)return mesh;
-    const double half=physical::trackWidth/2-0.15,height=physical::roadHeight+0.005;
+    const double height=physical::roadHeight+0.005;
     const V3 up{0,1,0};
     const auto edge=[&](const cp3::Pose& p,double offset){return world(p.position,height)+rotateY({0,0,offset},p.headingRadians);};
     for(std::size_t i=0;i+1<path.size();++i) {
@@ -164,7 +164,9 @@ inline Mesh heatmapMesh(const std::vector<cp3::PathSample>& path,const std::vect
         // Each end of the strip gets its own colour; the GPU blends between them.
         const auto ca=cp3::roadHeatColor(cp3::heatFraction(values[i],layer)),
                    cb=cp3::roadHeatColor(cp3::heatFraction(values[i+1],layer));
-        const auto al=edge(a,-half),ar=edge(a,half),bl=edge(b,-half),br=edge(b,half);
+        // Inside the white lines at the measured edges.
+        const auto ea=cp3::trackEdges(path[i].distance/path.back().distance),eb=cp3::trackEdges(path[i+1].distance/path.back().distance);
+        const auto al=edge(a,-(ea.left-0.15)),ar=edge(a,ea.right-0.15),bl=edge(b,-(eb.left-0.15)),br=edge(b,eb.right-0.15);
         vertex(mesh,al,up,ca);vertex(mesh,ar,up,ca);vertex(mesh,br,up,cb);
         vertex(mesh,al,up,ca);vertex(mesh,br,up,cb);vertex(mesh,bl,up,cb);
     }

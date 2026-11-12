@@ -3,6 +3,7 @@
 #include "cp3_race.hpp"
 #include "generated/monza_stands_2025.hpp"
 #include "generated/monza_entries_2025.hpp"
+#include "track_edges.hpp"
 #include "terrain.hpp"
 #include "sun_position.hpp"
 #include <vector>
@@ -84,6 +85,14 @@ inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
     if(left>right)std::swap(left,right);
     quad(mesh,edge(a,left,height),edge(a,right,height),edge(b,right,height),edge(b,left,height),color);
 }
+// A strip whose offsets differ at its two ends (offsets + to the right of travel).
+inline void roadStrip(Mesh& mesh,const cp3::Pose& a,const cp3::Pose& b,
+                      double leftA,double rightA,double leftB,double rightB,double height,Color color) {
+    const auto edge=[](const cp3::Pose& p,double offset,double h) {
+        return world(p.position,h)+rotateY({0,0,offset},p.headingRadians);
+    };
+    quad(mesh,edge(a,leftA,height),edge(a,rightA,height),edge(b,rightB,height),edge(b,leftB,height),color);
+}
 } // namespace apex3d::three
 #include "world_detail.hpp"
 #include "gravel_birds.hpp"
@@ -99,17 +108,22 @@ inline void drsZones(Mesh& mesh,const std::vector<cp3::PathSample>& path){
         // Bright cyan verge bands on both sides mark each DRS zone. They are a
         // visualization overlay; Monza's real verges are not painted cyan.
         constexpr Color cyan{.05F,.95F,.85F};
-        for(double p=zone.first;p<zone.second;p+=6/cp3::circuitMetres){const auto a=cp3::poseAtProgress(path,p),b=cp3::poseAtProgress(path,std::min(zone.second,p+6/cp3::circuitMetres));
-            for(double side:sides)roadStrip(mesh,a,b,side*7.4,side*8.6,.03,cyan);}
+        // The bands run 1.4-2.6 m beyond the measured road edge on each side.
+        const auto verge=[](double progress,double side){const auto e=cp3::trackEdges(progress);return (side<0?e.left:e.right);};
+        for(double p=zone.first;p<zone.second;p+=6/cp3::circuitMetres){const double q=std::min(zone.second,p+6/cp3::circuitMetres);
+            const auto a=cp3::poseAtProgress(path,p),b=cp3::poseAtProgress(path,q);
+            for(double side:sides)roadStrip(mesh,a,b,side*(verge(p,side)+1.4),side*(verge(p,side)+2.6),side*(verge(q,side)+1.4),side*(verge(q,side)+2.6),.03,cyan);}
         // Every 40 m a chevron on the verge points the way, readable from the chase camera.
         for(double p=zone.first+20/cp3::circuitMetres;p<zone.second;p+=40/cp3::circuitMetres){const auto pose=cp3::poseAtProgress(path,p);
             for(double side:sides){const auto start=mesh.size();
-                triangle(mesh,{1.6,.035,side*8.0},{-.8,.035,side*8.0-1.0},{-.8,.035,side*8.0+1.0},cyan);
+                const double z=side*(verge(p,side)+2.0);
+                triangle(mesh,{1.6,.035,z},{-.8,.035,z-1.0},{-.8,.035,z+1.0},cyan);
                 place(mesh,start,world(pose.position),pose.headingRadians);}}
         const auto pose=cp3::poseAtProgress(path,zone.first);const auto start=mesh.size();
         // Activation line across the track, as on the real circuit, plus a tall board each side.
-        box(mesh,{-.15,.111,-6},{.15,.116,6},{.95F,.97F,.97F});
-        for(double side:sides){const double z=side*11;
+        const auto lineEdges=cp3::trackEdges(zone.first);
+        box(mesh,{-.15,.111,-lineEdges.left},{.15,.116,lineEdges.right},{.95F,.97F,.97F});
+        for(double side:sides){const double z=side*std::max(11.0,verge(zone.first,side)+3.5);
             box(mesh,{-.10,0,z-.10},{.10,3.2,z+.10},{.48F,.51F,.51F});
             box(mesh,{-.08,2.0,z-1.5},{.08,3.6,z+1.5},{.025F,.045F,.055F});
             box(mesh,{-.09,2.08,z-1.42},{-.085,3.52,z+1.42},cyan);
@@ -224,8 +238,11 @@ inline Mesh gantry(const std::vector<cp3::PathSample>& path,int lights,bool fram
     Mesh mesh;const auto pose=cp3::poseAtProgress(path,cp3::gridOffset+20.0/cp3::circuitMetres);
     constexpr Color steel{0.26F,0.29F,0.31F};
     if(frame) {
-        for(double z:{-7.5,7.5})box(mesh,{-0.18,0,z-0.18},{0.18,6.5,z+0.18},steel);
-        box(mesh,{-0.25,5.5,-7.7},{0.25,6.5,7.7},steel);
+        // Legs 1 m beyond the measured edges, so they stand off the asphalt.
+        const auto edges=cp3::trackEdges(cp3::gridOffset+20.0/cp3::circuitMetres);
+        const double legLeft=-(edges.left+1.0),legRight=edges.right+1.0;
+        for(double z:{legLeft,legRight})box(mesh,{-0.18,0,z-0.18},{0.18,6.5,z+0.18},steel);
+        box(mesh,{-0.25,5.5,legLeft-0.2},{0.25,6.5,legRight+0.2},steel);
         box(mesh,{-0.32,5.45,-1.5},{-0.26,6.35,1.5},{0.06F,0.07F,0.08F});
     } else {
         for(int i=0;i<5;++i)for(double h:{5.70,6.10})
@@ -299,20 +316,22 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
     quad(mesh,{gx0,0,-far},{gx0,0,gz0},{gx1,0,gz0},{gx1,0,-far},grass);
     quad(mesh,{gx0,0,gz1},{gx0,0,far},{gx1,0,far},{gx1,0,gz1},grass);
     constexpr Color asphalt{0.17F,0.195F,0.225F},white{0.88F,0.91F,0.91F};
-    const double half=physical::trackWidth/2;
     const auto kerbs=kerbLayout(path);
     for(std::size_t i=0;i+1<path.size();++i) {
-        const auto a=cp3::poseAtProgress(path,path[i].distance/path.back().distance),
-                   b=cp3::poseAtProgress(path,path[i+1].distance/path.back().distance);
-        roadStrip(mesh,a,b,-half,half,physical::roadHeight,asphalt);
+        const double pa0=path[i].distance/path.back().distance,pb0=path[i+1].distance/path.back().distance;
+        const auto a=cp3::poseAtProgress(path,pa0),b=cp3::poseAtProgress(path,pb0);
+        // Measured edges (track_edges.hpp): the road is not symmetric about the line.
+        const auto ea=cp3::trackEdges(pa0),eb=cp3::trackEdges(pb0);
+        roadStrip(mesh,a,b,-ea.left,ea.right,-eb.left,eb.right,physical::roadHeight,asphalt);
         // roadStrip offsets are + to the right of travel; cp3::offset is + to the left.
         for(double side:{-1.0,1.0}) {
-            roadStrip(mesh,a,b,side*(half-0.15),side*half,physical::roadHeight+0.01,white);
+            const double ha=side<0?ea.left:ea.right,hb=side<0?eb.left:eb.right;
+            roadStrip(mesh,a,b,side*(ha-0.15),side*ha,side*(hb-0.15),side*hb,physical::roadHeight+0.01,white);
             if(!(side<0?kerbs[i].left:kerbs[i].right))continue;
             const auto color=(static_cast<int>(path[i].distance*scale/2)%2)==0?Color{0.78F,0.12F,0.17F}:white;
-            roadStrip(mesh,a,b,side*half,side*(half+physical::kerbWidth),physical::kerbHeight,color);
-            const auto pa=world(cp3::offset(path[i],physical::sceneUnits(-side*(half+physical::kerbWidth)))),
-                       pb=world(cp3::offset(path[i+1],physical::sceneUnits(-side*(half+physical::kerbWidth))));
+            roadStrip(mesh,a,b,side*ha,side*(ha+physical::kerbWidth),side*hb,side*(hb+physical::kerbWidth),physical::kerbHeight,color);
+            const auto pa=world(cp3::offset(path[i],physical::sceneUnits(-side*(ha+physical::kerbWidth)))),
+                       pb=world(cp3::offset(path[i+1],physical::sceneUnits(-side*(hb+physical::kerbWidth))));
             // Outer face, wound so its normal faces away from the track on either side.
             const V3 up{0,physical::kerbHeight,0};
             if(side>0)quad(mesh,pa,pb,pb+up,pa+up,color);else quad(mesh,pb,pa,pa+up,pb+up,color);
@@ -321,10 +340,13 @@ inline Mesh makeWorld(const std::vector<cp3::PathSample>& path,const cp3::RaceMo
     // A 1 m deep chequered timing line, rather than a scene-sized marking.
     const auto start=cp3::poseAtProgress(path,0);
     const auto origin=world(start.position,physical::roadHeight+0.012);
-    for(int row=0;row<2;++row)for(int col=0;col<24;++col) {
+    const auto lineEdges=cp3::trackEdges(0);
+    const int columns=static_cast<int>(std::floor((lineEdges.left+lineEdges.right)/0.5));
+    const double from=-lineEdges.left+(lineEdges.left+lineEdges.right-columns*0.5)/2;
+    for(int row=0;row<2;++row)for(int col=0;col<columns;++col) {
         const auto begin=mesh.size();
-        quad(mesh,{row*0.5,0,-half+col*0.5},{row*0.5,0,-half+(col+1)*0.5},
-             {(row+1)*0.5,0,-half+(col+1)*0.5},{(row+1)*0.5,0,-half+col*0.5},
+        quad(mesh,{row*0.5,0,from+col*0.5},{row*0.5,0,from+(col+1)*0.5},
+             {(row+1)*0.5,0,from+(col+1)*0.5},{(row+1)*0.5,0,from+col*0.5},
              (row+col)%2?Color{0.04F,0.04F,0.04F}:white);
         place(mesh,begin,origin,start.headingRadians);
     }
