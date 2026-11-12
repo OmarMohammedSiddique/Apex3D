@@ -100,6 +100,32 @@ phase. The earlier two birds at 45–65 m were too small and high to notice. The
 is no random spawning. Birds pause with the replay and are decorative, not a
 claim about wildlife recorded during the race.
 
+## Race weather
+
+The side panel shows the recorded trackside weather in a column right of the
+clocks: air and track temperature, humidity, and wind speed with the compass
+direction it blows from. The data is OpenF1's weather feed for session 9912
+(`data/monza-2025-weather.json`, with the response's SHA-256), 144 readings about
+a minute apart from an hour before the start until after the post-race scenes.
+The panel shows the latest reading at or before the race time, not an
+interpolation, so every number on screen was recorded.
+
+| During the race | Range |
+| --- | --- |
+| Air | 26.6–27.4 °C |
+| Track | 40.3–44.7 °C |
+| Humidity | 40–44 % |
+| Wind | 0.6–4.0 m/s, mostly from the south and south-west |
+| Rain | none |
+
+Open-Meteo's historical archive for the same point (a reanalysis averaged over a
+grid cell several kilometres across) agrees: dry, light south-westerly wind, and
+25.2–25.4 °C between 13:00 and 14:00 UTC. The trackside sensor reads about two
+degrees warmer, as expected beside a sunlit circuit. The wind is light air to a
+gentle breeze, so nothing in the scene is animated by it.
+
+![Recorded weather beside the race clock](evidence/apex3d-race-weather.png)
+
 ## The Bearman/Sainz collision (lap 41)
 
 There were no race-ending crashes in the 2025 Italian Grand Prix: no safety car,
@@ -128,6 +154,8 @@ priority over incident banners when both apply.
 
 - [FIA Monza race-control report, 7 September 2025](https://www.fia.com/sites/default/files/2025_16_ita_f1_r0_timing_raceracecontrolmessages_v01.pdf)
 - [OpenF1 race-control observations, session 9912](https://api.openf1.org/v1/race_control?session_key=9912)
+- [OpenF1 weather, session 9912](https://api.openf1.org/v1/weather?session_key=9912)
+- [Open-Meteo historical weather archive](https://open-meteo.com/en/docs/historical-weather-api) (cross-check only)
 - [FIA 2025 circuit and pit-lane maps](https://www.fia.com/system/files/decision-document/2025_italian_grand_prix_-_event_notes_-_circuit_map_pit_lane_emergency_exit_map_quarantine_zone_and_red_zones.pdf)
 - [FIA 2025 race director's event notes](https://www.fia.com/system/files/decision-document/2025_italian_grand_prix_-_race_directors_event_notes_.pdf)
 - [OpenStreetMap attribution](https://www.openstreetmap.org/copyright), footprint coordinates and extraction source in `data/monza-gravel.json`.

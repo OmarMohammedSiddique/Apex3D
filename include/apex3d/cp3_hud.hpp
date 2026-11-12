@@ -7,6 +7,7 @@
 #include "cp3_playback.hpp"
 #include "driver_focus.hpp"
 #include "tyre_state.hpp"
+#include "race_weather.hpp"
 #include "../../checkpoint2/animation/wheels/include/wheel_animation.hpp"
 
 #include <algorithm>
@@ -199,7 +200,8 @@ enum class HudAction { None, Play, Mute, FieldPrevious, FieldNext, FocusVerstapp
     hudText(mesh, 0.21, 0.88, 0.008, "APEX3D", white);
     hudText(mesh, 0.21, 0.77, 0.0038, std::string("MONZA 2025 / ")+info.name, secondary);
     hudText(mesh, 0.21, 0.71, 0.0036, "TIMING-BASED RACE REPLAY", secondary);
-    hudText(mesh, 0.21, 0.63, 0.0065, info.archive->dns ? "DID NOT START" : "LAP " + std::to_string(clock.lap) + " OF 53", white);
+    // The longer DNS heading is drawn smaller so it stays clear of the weather column.
+    hudText(mesh, 0.21, 0.63, info.archive->dns ? 0.0048 : 0.0065, info.archive->dns ? "DID NOT START" : "LAP " + std::to_string(clock.lap) + " OF 53", white);
     hudText(mesh, 0.21, 0.53, 0.0038, "RACE TIME", secondary);
     hudText(mesh, 0.21, 0.47, 0.006, clockText(playback.elapsed, true), white);
     hudText(mesh, 0.21, 0.37, 0.0042, info.archive->dns ? "LAP  --:--.---" : "LAP  " + clockText(clock.lapElapsed), cyan);
@@ -209,6 +211,17 @@ enum class HudAction { None, Play, Mute, FieldPrevious, FieldNext, FocusVerstapp
     rate << std::fixed << std::setprecision(2) << playback.speed << "X  "
         << (playback.speed == 1.0 ? "REAL TIME" : "FAST/SLOW PLAYBACK");
     hudText(mesh, 0.21, 0.25, 0.0035, rate.str(), secondary);
+    // Recorded trackside weather, in the column right of the clocks.
+    {
+        const auto weather=weatherLines(playback.simulationSeconds());
+        hudRectangle(mesh, 0.695, 0.33, 0.698, 0.63, {0.12F, 0.21F, 0.26F});
+        hudText(mesh, 0.715, 0.63, 0.0029, weather.title, secondary);
+        hudText(mesh, 0.715, 0.565, 0.0029, weather.air, white);
+        hudText(mesh, 0.715, 0.51, 0.0029, weather.track, white);
+        hudText(mesh, 0.715, 0.455, 0.0029, weather.humidity, white);
+        hudText(mesh, 0.715, 0.40, 0.0029, weather.wind, white);
+        hudText(mesh, 0.715, 0.345, 0.0029, weather.from, secondary);
+    }
     const char* state = sample.dns ? "DNS / NO RACE RUNNING" : sample.retired ? "RETIRED / 24 COMPLETED LAPS" : sample.parked ? "PARKED / PARC FERME" : sample.cooldown ? "POST RACE / RETURNING TO PITS" : playback.finished()&&!clock.finished ? "WINNER FINISHED / FIELD ACTIVE" : clock.finished ? "CHEQUERED FLAG / FINISHED" : !playback.started ? "READY TO START" :
         playback.starting() ? (playback.playing ? "START SEQUENCE" : "START / PAUSED") :
         sample.servicing ? (playback.playing ? "PIT BOX / TYRE CHANGE" : "PIT BOX / PAUSED") :
