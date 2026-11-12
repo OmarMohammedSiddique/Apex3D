@@ -100,6 +100,33 @@ phase. The earlier two birds at 45–65 m were too small and high to notice. The
 is no random spawning. Birds pause with the replay and are decorative, not a
 claim about wildlife recorded during the race.
 
+## Position changes
+
+A cyan banner with two chevrons calls out each place gained on track, for six
+seconds: for example "LAP 4 / VER UP TO P1 / AHEAD OF NOR". It comes from the
+recorded OpenF1 position feed, the same source as the live timing tower. The feed
+also moves cars for reasons that are not passes, so a one-place swap is called out
+only when all of these hold:
+
+- it happens after the start and before either car has finished, which rules out
+  penalties applied after the flag;
+- neither car is Hülkenberg (the feed drops his empty grid slot to the back) and
+  neither is within 30 seconds of its own pit entry or exit;
+- the car that lost the place was ahead 10 seconds earlier, and the car that gained
+  it stays ahead for the next 10 seconds, which rules out the feed briefly flicking
+  between two cars.
+
+That leaves 43 of the feed's 173 one-place swaps. They include the Leclerc/Piastri
+battle over the opening laps, Verstappen handing the lead back to Norris early on lap 2
+and passing him on lap 4, the cars passing Alonso as his suspension failed, and
+Norris moving ahead of Piastri on lap 49. The wording is neutral ("up to P3, ahead
+of") because the feed records the order, not how it changed: some swaps are passes,
+others are places handed back. The time is when the feed updated, which can be a
+little after the pass itself. Flags and race-control messages always take priority
+over a call-out.
+
+![Position-change call-out for Verstappen's lap-4 pass](evidence/apex3d-position-change.png)
+
 ## Race weather
 
 The side panel shows the recorded trackside weather in a column right of the

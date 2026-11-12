@@ -76,7 +76,8 @@ int main(){
                 if(driverActive(line.focus,t)){++running;CHECK(running==int(row)+1);
                     const int position=currentPosition(line.focus,t);CHECK(position>previous&&position<=20);previous=position;
                     CHECK(line.position==std::to_string(position)&&(t>=16.5?position==int(row)+1:position<=int(row)+2));
-                    CHECK(line.gap.empty()||line.gap=="LEADER"||line.gap=="PIT"||line.gap.starts_with("+"));}
+                    CHECK(line.gap.empty()||line.gap=="LEADER"||line.gap=="PIT"||line.gap=="-"||line.gap.starts_with("+"));
+                    if(row>0)CHECK(line.gap!="+0.000S");}
                 else CHECK(line.position=="NC"&&(line.gap=="OUT"||line.gap=="DNS"));
                 const auto gap=timingGap(static_cast<std::size_t>(driverIndex(line.focus)),t);
                 CHECK(!gap.timed||(gap.seconds>=0&&gap.lapsDown>=0&&gap.lapsDown<=2));
@@ -93,6 +94,7 @@ int main(){
         // Verstappen's stop, Alonso's retirement.
         const auto stop=timingTower(3090);CHECK(stop[0].focus==DriverFocus::Norris&&stop[0].gap=="LEADER");
         CHECK(stop[1].focus==DriverFocus::Verstappen&&stop[1].gap=="PIT"&&stop[1].pit);
+        CHECK(timingTower(268)[1].focus==DriverFocus::Norris&&timingTower(268)[1].gap=="-"); // lap-4 lead change
         const auto out=timingTower(2100);CHECK(out[18].focus==DriverFocus::Alonso&&out[18].gap=="OUT");
         // After everyone has taken the flag the gaps are the recorded finishing gaps.
         const auto flag=timingTower(4495);
