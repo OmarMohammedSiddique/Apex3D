@@ -298,6 +298,17 @@ def header():
     for i in range(0, len(lateral), 8):
         text += '    ' + ', '.join(f'{v:.6f}' for v in lateral[i:i + 8]) + ',\n'
     text += '}};\n'
+    import track_surface
+    left, right, _ = track_surface.edge_profile()
+    text += '// Measured track edges: distance in metres from the measured line to the left and right\n'
+    text += '// edge of the paved surface at each centreline point (lap fraction i / count), from\n'
+    text += '// Regione Lombardia DBGT survey polygons (CC BY 4.0, data/monza-track-surface.json),\n'
+    text += '// with run-off and the pit lane excluded as described in tools/track_surface.py.\n'
+    for name, values in (('measuredTrackEdgeLeft', left), ('measuredTrackEdgeRight', right)):
+        text += f'inline constexpr std::array<double, {len(values)}> {name}{{{{\n'
+        for i in range(0, len(values), 12):
+            text += '    ' + ', '.join(f'{v:.2f}' for v in values[i:i + 12]) + ',\n'
+        text += '}};\n'
     text += '} // namespace apex3d::cp3\n'
     return text
 
