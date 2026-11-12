@@ -38,8 +38,9 @@ integrated speed after crossing the timing line: roughly 75 m for Red Bull and
 These estimates are not surveyed pit-box coordinates.
 
 Replay still stops at Verstappen's exact 53-lap finish. The McLarens are shown
-where their timelines put them at that instant; their displayed final gaps are
-explicitly labelled as final classification, not live gaps or current order.
+where their timelines put them at that instant. The driver list is now a live
+timing tower during the race and the final classification afterwards; see
+[Full field](full-field.md#live-timing-tower).
 Norris can legitimately be ahead of Verstappen early in the race.
 
 ## Speed, gear and engine RPM: recorded channels

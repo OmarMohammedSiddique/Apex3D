@@ -2,10 +2,12 @@
 #include "driver_focus.hpp"
 #include "generated/monza_events_2025.hpp"
 namespace apex3d::cp3 {
+// Race time after which positions are the official classification (penalties applied).
+inline constexpr double finalClassificationSeconds=4500;
 inline int currentPosition(DriverFocus focus,double seconds){
     const auto& entry=*driverInfo(focus).archive;
     if(entry.dns)return 0;
-    if(seconds>=4500)return entry.dnf?0:entry.rank;
+    if(seconds>=finalClassificationSeconds)return entry.dnf?0:entry.rank;
     int result=entry.grid;
     for(const auto& event:recordedPositions)if(event.driver==entry.number&&event.raceMs<=seconds*1000+1e-6)result=event.position;
     return result;
