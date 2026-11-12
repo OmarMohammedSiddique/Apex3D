@@ -13,7 +13,7 @@ the car, road, pit facilities and scenery have instead been dimensioned separate
 | Element | Rendered dimension | Basis |
 | --- | --- | --- |
 | Monza centreline | 5,793 m per lap | [Circuit operator](https://www.monzanet.it/en/circuit/) |
-| Racing surface | 12 m wide | Operator publishes 10–12 m; uniform 12 m chosen because no surveyed width profile is supplied |
+| Racing surface | 8.1–20.7 m wide, median 10.0 m | Measured edges from Regione Lombardia's DBGT survey (see real-track-geometry.md); 12 m remains the nominal width for scenery clearance |
 | Car body/wing envelope | 2 m wide, 3.6 m wheelbase | Representative 2025 envelope using FIA Article 3.4 limits; these are not measured RB21 dimensions |
 | Slick tyres | 720 mm diameter; 305 mm front / 405 mm rear nominal width | FIA 2025–27 tyre technical targets |
 | Rims | 18 inch diameter | FIA tyre specification |
@@ -60,7 +60,7 @@ This provides consistent physical proportions, not a surveyed digital twin.
 The route's shape comes from averaged OpenF1 car positions and matches the
 OSM-mapped circuit within a few metres. Its length is calibrated to 5,793 m (a 0.6%
 uniform stretch of the driven line), its elevation follows the recorded profile, and its width
-is a uniform 12 m rather than a surveyed profile.
+follows Regione Lombardia's surveyed track surface.
 Scenery and proprietary car details remain simplified procedural geometry.
 The 53 historical lap/sector timings and exact finish time are preserved.
 
