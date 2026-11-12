@@ -98,7 +98,7 @@ int main(){
     CameraRig camera;camera.orbit(500,-5000);CHECK(camera.pitch>=0.18);camera.dolly(10000);CHECK(camera.zoom>=0.008&&camera.zoom<0.01);
     const auto zoomFocus=camera.frame(race.sample(120).pose,1.3,0,true);
     CHECK(length(zoomFocus.target-onTerrain(world(race.sample(120).pose.position)))<0.01);
-    // Regression: the chase eye sits metres above the 100 km ground quad. With a 5 cm near plane the
+    // Regression: the chase eye sits metres above the ground mesh. With a 5 cm near plane the
     // ground won the depth test over the 10 cm-higher road. Keep road and ground separable in a
     // 24-bit depth buffer down the straight, without the near plane cutting into the car.
     double tightestSteps=1e9;
@@ -107,7 +107,7 @@ int main(){
         const auto frame=chase.frame(straight,1.3,0,true);
         CHECK(frame.nearPlane>=chaseNearPlane&&frame.nearPlane<0.25*length(frame.target-frame.eye));
         const auto depth=[&](V3 p){const auto c=frame.viewProjection.transform(p);CHECK(c[3]>0);return 0.5*(c[2]/c[3]+1.0);};
-        for(double ahead:{50.0,150.0,250.0}){const V3 ground{frame.target.x+ahead,0,frame.target.z};
+        for(double ahead:{50.0,150.0,250.0}){const double x=frame.target.x+ahead,z=frame.target.z;const V3 ground{x,terrainHeight(x,z),z};
             const double steps=(depth(ground)-depth(ground+V3{0,physical::roadHeight,0}))*16777216.0;
             tightestSteps=std::min(tightestSteps,steps);}
     }

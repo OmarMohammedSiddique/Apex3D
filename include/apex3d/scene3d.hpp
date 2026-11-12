@@ -548,8 +548,8 @@ struct CameraRig {
         // cockpit view pitch with the road.
         const V3 eyeOut=onTerrain(smoothEye),targetOut=onTerrain(smoothTarget);
         // Depth precision is set by the far/near ratio. The chase eye sits metres above the
-        // 100 km ground quad, and a 5 cm near plane let that ground win the depth test over the
-        // road 10 cm above it (and made the 5 mm heatmap strip flicker). The chase plane is at
+        // ground, and a 5 cm near plane let the ground win the depth test over the road 10 cm
+        // above it (and made the 5 mm heatmap strip flicker). The chase plane is at
         // least 0.5 m, still closer than the car at minimum chase zoom (about 2 m), and grows
         // with camera distance. The TV camera (always 5 m+ from the car) shares that rule.
         // The cockpit eye sits inside the car and keeps 5 cm.
