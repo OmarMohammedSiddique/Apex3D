@@ -105,5 +105,30 @@ int main(){
         CHECK(final[0].gap=="WINNER"&&final[1].gap=="+19.207S"&&final[19].gap=="DNS");
         CHECK(towerRow(DriverFocus::Sainz,2100)==8&&towerRow(DriverFocus::Sainz,finalClassificationSeconds)==int(driverIndex(DriverFocus::Sainz)));
     }
-    std::cout<<"Full official field, timing gates, pit stops, retirement, DNS, live timing tower and all selector pages passed\n";
+    {
+        // Recorded weather: sorted, covers the race and post-race, plausible, and the panel shows
+        // the latest reading at or before the race time.
+        CHECK(recordedWeather.front().raceMs<=0&&recordedWeather.back().raceMs>=(raceTotalSeconds+600)*1000);
+        for(std::size_t i=1;i<recordedWeather.size();++i){
+            const auto& a=recordedWeather[i-1];const auto& b=recordedWeather[i];
+            CHECK(a.raceMs<b.raceMs&&b.raceMs-a.raceMs<=90000);
+        }
+        for(const auto& w:recordedWeather){
+            CHECK(w.airC>20&&w.airC<35&&w.trackC>30&&w.trackC<55&&w.humidity>=0&&w.humidity<=100);
+            CHECK(w.windMs>=0&&w.windMs<15&&w.windFromDegrees>=0&&w.windFromDegrees<360&&w.pressureHpa>980&&w.pressureHpa<1030);
+            CHECK(!w.rain); // a dry race
+        }
+        for(double t=-5;t<raceTotalSeconds+900;t+=13.7){
+            const auto& w=weatherAt(t);
+            if(t*1000>=recordedWeather.front().raceMs)CHECK(w.raceMs<=t*1000+1e-6);
+            if(&w!=&recordedWeather.back())CHECK((&w+1)->raceMs>t*1000);
+        }
+        CHECK(&weatherAt(std::numeric_limits<double>::quiet_NaN())==&weatherAt(0));
+        CHECK(std::string(compassPoint(0))=="N"&&std::string(compassPoint(45))=="NE"&&std::string(compassPoint(263))=="W");
+        CHECK(std::string(compassPoint(166))=="S"&&std::string(compassPoint(337))=="NW"&&std::string(compassPoint(338))=="N"&&std::string(compassPoint(-90))=="W");
+        const auto lines=weatherLines(3090);
+        CHECK(lines.title=="WEATHER  DRY"&&lines.air=="AIR   26.9C"&&lines.track=="TRACK 41.2C"&&lines.humidity=="HUMIDITY 42%");
+        CHECK(lines.wind=="WIND 2.5M/S"&&lines.from=="FROM S");
+    }
+    std::cout<<"Full official field, timing gates, pit stops, retirement, DNS, live timing tower, weather and all selector pages passed\n";
 }
