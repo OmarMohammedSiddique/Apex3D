@@ -493,7 +493,8 @@ inline const char* cameraName(CameraMode mode) {
     switch(mode){case CameraMode::Overview:return "OVERVIEW";case CameraMode::Chase:return "CHASE";case CameraMode::Cockpit:return "COCKPIT";case CameraMode::Tv:return "TV";}
     return "OVERVIEW";
 }
-struct CameraFrame { M4 viewProjection; V3 eye; V3 target; double shadowExtent{55.0}; double tanHalfFov{0.62}; };
+struct CameraFrame { M4 viewProjection; V3 eye; V3 target; double shadowExtent{55.0}; double tanHalfFov{0.62}; double nearPlane{0.05}; };
+inline constexpr double chaseNearPlane=0.5;
 struct CameraRig {
     CameraMode mode{CameraMode::Overview};
     double yaw{0.35},pitch{0.82},zoom{1.0};
@@ -546,14 +547,16 @@ struct CameraRig {
         // Lifting eye and target separately keeps their ground clearance and lets the
         // cockpit view pitch with the road.
         const V3 eyeOut=onTerrain(smoothEye),targetOut=onTerrain(smoothTarget);
-        // Depth precision falls with distance/near. A fixed 5 cm near plane left
-        // too few depth steps far down the road to separate the heatmap strip
-        // (5 mm above the asphalt), so it flickered when the chase camera pulled
-        // back. Scaling the near plane with camera distance keeps the car unclipped.
+        // Depth precision is set by the far/near ratio. The chase eye sits metres above the
+        // ground, and a 5 cm near plane let the ground win the depth test over the road 10 cm
+        // above it (and made the 5 mm heatmap strip flicker). The chase plane is at
+        // least 0.5 m, still closer than the car at minimum chase zoom (about 2 m), and grows
+        // with camera distance. The TV camera (always 5 m+ from the car) shares that rule.
+        // The cockpit eye sits inside the car and keeps 5 cm.
         const double distance=length(smoothEye-smoothTarget);
-        const double nearPlane=overview?std::max(.1,distance*.01):mode==CameraMode::Chase||mode==CameraMode::Tv?std::max(.05,distance*.02):0.05;
+        const double nearPlane=overview?std::max(.1,distance*.01):mode==CameraMode::Chase||mode==CameraMode::Tv?std::max(chaseNearPlane,distance*.02):0.05;
         return {perspective(fov*std::numbers::pi/180,aspect,nearPlane,15000.0)*lookAt(eyeOut,targetOut),
-            eyeOut,targetOut,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360)};
+            eyeOut,targetOut,overview?3.0*physical::metresPerSceneUnit():55.0,std::tan(fov*std::numbers::pi/360),nearPlane};
     }
 };
 } // namespace apex3d::three
