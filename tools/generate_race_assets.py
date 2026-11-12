@@ -5,6 +5,7 @@ import generate_safety_assets
 import generate_world_assets
 import generate_race_events
 import generate_weather_assets
+import generate_terrain_assets
 import argparse
 import csv
 import json
@@ -175,10 +176,11 @@ def cue_header():
 
 
 def main():
+    terrain = generate_terrain_assets.build()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='verify generated headers without writing')
     options = parser.parse_args()
-    for filename, content in [('monza_track_2025.hpp', generate_track_assets.header()), ('monza_safety.hpp', generate_safety_assets.build()), ('monza_world.hpp', generate_world_assets.build()), ('monza_events_2025.hpp', generate_race_events.build()), ('monza_weather_2025.hpp', generate_weather_assets.build()), ('monza_2025.hpp', race_header()), ('start_cues.hpp', cue_header()), ('monza_field_2025.hpp', field_header()), ('monza_telemetry_2025.hpp', telemetry_header()), ('monza_stands_2025.hpp', stands_header()), ('monza_tyres_2025.hpp', tyre_header()), ('monza_entries_2025.hpp', full_field_header()), ('../../../src/generated/monza_telemetry_2025.cpp', telemetry_source())]:
+    for filename, content in [('monza_track_2025.hpp', generate_track_assets.header()), ('monza_safety.hpp', generate_safety_assets.build()), ('monza_world.hpp', generate_world_assets.build()), ('monza_events_2025.hpp', generate_race_events.build()), ('monza_weather_2025.hpp', generate_weather_assets.build()), ('monza_2025.hpp', race_header()), ('start_cues.hpp', cue_header()), ('monza_field_2025.hpp', field_header()), ('monza_telemetry_2025.hpp', telemetry_header()), ('monza_stands_2025.hpp', stands_header()), ('monza_tyres_2025.hpp', tyre_header()), ('monza_entries_2025.hpp', full_field_header()), ('../../../src/generated/monza_telemetry_2025.cpp', telemetry_source()), ('monza_terrain_2025.hpp', terrain[0]), ('../../../src/generated/monza_terrain_2025.cpp', terrain[1])]:
         output = ROOT / 'include/apex3d/generated' / filename
         if options.check:
             if not output.exists() or output.read_text() != content:
