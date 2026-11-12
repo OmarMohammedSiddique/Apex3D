@@ -17,6 +17,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -153,6 +154,7 @@ struct WindowInput {
     bool dragging{false},hudVisible{true};
     bool scrubbing{false},raceMode{true};
     int fieldPage{};
+    double raceSeconds{}; // orders the timing-tower rows for hit testing
     apex3d::cp3::HeatLayer heat{apex3d::cp3::HeatLayer::Speed};
     apex3d::three::BarTarget pendingBar{};
     apex3d::three::CameraRig camera;
@@ -170,7 +172,7 @@ apex3d::cp3::HudAction hoveredAction(GLFWwindow* window)
     glfwGetWindowSize(window, &width, &height);
     if (width <= 0 || height <= 0) return apex3d::cp3::HudAction::None;
     const auto* state=static_cast<WindowInput*>(glfwGetWindowUserPointer(window));
-    return apex3d::three::overlayAction(2.0*x/width-1.0, 1.0-2.0*y/height, state->hudVisible,state->fieldPage);
+    return apex3d::three::overlayAction(2.0*x/width-1.0, 1.0-2.0*y/height, state->hudVisible,state->fieldPage,state->raceSeconds);
 }
 
 void processInput(GLFWwindow* window, Playback& playback, bool audioAvailable)
@@ -409,7 +411,7 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
     WindowInput input;
-    input.focus=initialFocus;input.heat=initialHeat;input.fieldPage=apex3d::cp3::driverIndex(initialFocus)/3;
+    input.focus=initialFocus;input.heat=initialHeat;
     input.camera.mode=initialCamera;input.camera.reset();
     input.camera.zoom=std::clamp(initialZoom,initialCamera==apex3d::three::CameraMode::Overview?0.008:0.18,3.0);
     glfwGetCursorPos(window, &input.x, &input.y);
@@ -438,7 +440,7 @@ int main(int argc, char** argv)
             }
         }
         if(action==GLFW_PRESS&&w>0&&h>0)
-            state->pendingAction=apex3d::three::overlayAction(2.0*state->x/w-1.0,1.0-2.0*state->y/h,state->hudVisible,state->fieldPage);
+            state->pendingAction=apex3d::three::overlayAction(2.0*state->x/w-1.0,1.0-2.0*state->y/h,state->hudVisible,state->fieldPage,state->raceSeconds);
         state->dragging=action==GLFW_PRESS && w>0 &&
             (!state->hudVisible || state->x<0.715*w);
     });
@@ -504,6 +506,8 @@ int main(int argc, char** argv)
         playback.startElapsed = initialStartTime;
     }
     if(initialPostTime>=0)playback.postRaceElapsed=initialPostTime;
+    input.raceSeconds=playback.simulationSeconds();
+    input.fieldPage=apex3d::cp3::towerRow(initialFocus,input.raceSeconds)/3;
     if (capture) playback.playing = false;
     apex3d::audio::StartAudio audio;
     const bool audioAvailable = !capture && audio.start();
@@ -532,6 +536,8 @@ int main(int argc, char** argv)
         }
         playback.advance(deltaSeconds, activePath.back().distance);
         input.raceMode=playback.isRace();
+        // The frame drawn below uses this time, so clicks on the timing tower hit the rows shown.
+        input.raceSeconds=playback.isRace()?playback.simulationSeconds():std::numeric_limits<double>::infinity();
         {
             // Rebuild the coloured road only when the driver, lap or layer changes.
             const int lap=playback.isRace()?apex3d::cp3::heatmapLap(input.focus,playback.simulationSeconds()):0;

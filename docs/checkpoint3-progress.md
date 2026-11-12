@@ -52,3 +52,11 @@ remain reconstructed. Driver selection and graphic telemetry have been verified 
 Recorded medium/hard/soft stints and reused-set ages drive the selected driver's inspector and sidewall markers. Completed lap age includes prior use and resets
 when the fitted set changes. Tests cover pit transitions, lap boundaries and rewind.
 See `tyre-inspector.md` for sources and counting conventions.
+
+## Live timing tower
+
+The driver list under the telemetry is a live timing tower during the race: the
+recorded position feed sets the order and the recorded sector times give each car's
+gap to the leader at the last timing line it crossed, with PIT, +1 LAP, OUT and DNS
+states. It returns to the final classification after the race. Clicking a row
+always selects the driver shown on it. See `full-field.md#live-timing-tower`.
