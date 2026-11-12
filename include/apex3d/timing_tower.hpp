@@ -42,7 +42,7 @@ inline int timingPointsCrossed(std::size_t driver,double milliseconds){
     const auto& lines=timingLines();const auto& times=lines.crossed[driver];
     return static_cast<int>(std::upper_bound(times.begin(),times.begin()+lines.count[driver],milliseconds+1e-6)-times.begin());
 }
-struct TimingGap { bool timed{false}; int lapsDown{0}; double seconds{0}; };
+struct TimingGap { bool timed{false}; int lapsDown{0}; double seconds{0}; bool firstAcross{false}; };
 inline TimingGap timingGap(std::size_t driver,double seconds){
     const auto& lines=timingLines();
     const double ms=seconds*1000;
@@ -54,7 +54,7 @@ inline TimingGap timingGap(std::size_t driver,double seconds){
         if(lines.count[other]>=n)first=std::min(first,lines.crossed[other][static_cast<std::size_t>(n-1)]);
         leaderPoints=std::max(leaderPoints,timingPointsCrossed(other,at));
     }
-    return {true,(leaderPoints-n)/timingPointsPerLap,(at-first)/1000.0};
+    return {true,(leaderPoints-n)/timingPointsPerLap,(at-first)/1000.0,at==first};
 }
 inline bool liveTiming(double seconds){return seconds<finalClassificationSeconds;}
 struct TowerRow { DriverFocus focus; std::string position; std::string gap; bool pit{false}; };
@@ -96,7 +96,9 @@ inline std::array<TowerRow,20> timingTower(double seconds){
         else if(info.pitEntry>=0&&seconds>=info.pitEntry&&seconds<info.pitExit){result.gap="PIT";result.pit=true;}
         else if(row==0)result.gap=seconds>0?"LEADER":"";
         else if(const auto gap=timingGap(d,seconds);gap.timed)
-            result.gap=gap.lapsDown>0?"+"+std::to_string(gap.lapsDown)+(gap.lapsDown==1?" LAP":" LAPS"):signedSeconds(gap.seconds);
+            // A car behind the leader that was itself first across its last timing line has just
+            // lost the lead between lines: "-" until the next line times the new order.
+            result.gap=gap.lapsDown>0?"+"+std::to_string(gap.lapsDown)+(gap.lapsDown==1?" LAP":" LAPS"):gap.firstAcross?"-":signedSeconds(gap.seconds);
         rows[row]=result;
     }
     return rows;

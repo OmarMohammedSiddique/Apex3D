@@ -13,7 +13,8 @@ and 37 grandstand sections placed by the official 2025 map's corner areas and
 sides. Beneath the telemetry a live timing tower shows the running order and gap to the
 leader, taken from the recorded position feed and sector times; it becomes the final
 classification after the race. Page through it and click a driver to follow them; only the selected active car shows a pointer.
-The panel also shows the recorded trackside weather (air and track temperature, humidity
+A banner calls out each place gained on track, filtered from the recorded position
+feed so pit stops and feed glitches are ignored. The panel also shows the recorded trackside weather (air and track temperature, humidity
 and wind), updated from OpenF1's minute-by-minute readings.
 The telemetry panel has a speed dial, gear tile and segmented RPM bar. Scenery footprints and racing lines
 are reconstructed. Sources and accuracy limits are in

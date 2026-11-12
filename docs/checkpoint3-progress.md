@@ -68,3 +68,11 @@ temperature, humidity, wind speed and direction), using the latest minute-by-min
 reading at the current race time. `tools/generate_weather_assets.py --extract` turns
 the downloaded feed into `data/monza-2025-weather.json`. See
 `race-safety-and-atmosphere.md#race-weather`.
+
+## Position-change call-outs
+
+A banner calls out the 43 stable on-track position changes in the recorded feed. Swaps
+caused by pit stops, the non-starter, post-flag penalties and short feed flickers are
+filtered out. Flags and race-control messages take priority. The timing tower also now
+shows "-" for a new P2 whose gap has not been timed since a lead change. See
+`race-safety-and-atmosphere.md#position-changes`.
