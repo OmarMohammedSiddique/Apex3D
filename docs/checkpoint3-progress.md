@@ -60,3 +60,11 @@ recorded position feed sets the order and the recorded sector times give each ca
 gap to the leader at the last timing line it crossed, with PIT, +1 LAP, OUT and DNS
 states. It returns to the final classification after the race. Clicking a row
 always selects the driver shown on it. See `full-field.md#live-timing-tower`.
+
+## Race weather
+
+The side panel shows OpenF1's recorded trackside weather for the race (air and track
+temperature, humidity, wind speed and direction), using the latest minute-by-minute
+reading at the current race time. `tools/generate_weather_assets.py --extract` turns
+the downloaded feed into `data/monza-2025-weather.json`. See
+`race-safety-and-atmosphere.md#race-weather`.
