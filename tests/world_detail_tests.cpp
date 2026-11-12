@@ -59,5 +59,21 @@ int main(){using namespace apex3d;using namespace cp3;using namespace three;
     p.togglePlaying();p.advance(100,path.back().distance);CHECK(p.postRaceElapsed==.5);
     p.togglePlaying();p.advance(postRaceDuration+50,path.back().distance);CHECK(!p.playing&&p.postRaceElapsed==postRaceDuration&&p.elapsed==raceTotalSeconds);
     p.togglePlaying();CHECK(p.elapsed==0&&p.postRaceElapsed==0&&p.starting());
+    {
+        // Measured track width (DBGT survey): plausible edges everywhere, the published 10-12 m
+        // typical width, the wide main straight, and trackside boards/Armco clear of the road.
+        std::vector<double> widths;
+        for(std::size_t i=0;i<cp3::measuredTrackEdgeLeft.size();++i){
+            const double l=cp3::measuredTrackEdgeLeft[i],r=cp3::measuredTrackEdgeRight[i];
+            CHECK(l>=1.5&&r>=1.5&&l<12&&r<16.5);widths.push_back(l+r);
+        }
+        std::sort(widths.begin(),widths.end());const double median=widths[widths.size()/2];
+        CHECK(median>9.5&&median<10.5&&widths.front()>8.0);
+        const auto line=cp3::trackEdges(0);CHECK(line.left+line.right>16&&line.left+line.right<21);
+        CHECK(cp3::trackEdges(1000.0/cp3::circuitMetres).left+cp3::trackEdges(1000.0/cp3::circuitMetres).right<12); // inside the first chicane
+        for(double p=0;p<1;p+=0.0005){const auto e=cp3::trackEdges(p);
+            if(p>=0.13&&p<=0.94)CHECK(std::max(e.left,e.right)+physical::kerbWidth<11.35);} // boards 11.35 m, Armco 12 m
+        CHECK(std::abs(cp3::trackEdges(1.25).left-cp3::trackEdges(0.25).left)<1e-12);
+    }
     std::cout<<"Live positions, ten team marks, observed DRS, "<<trees.size()<<" broadleaf trees, mapped scenery and post-race parking passed\n";
 }

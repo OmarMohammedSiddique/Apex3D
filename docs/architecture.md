@@ -125,6 +125,7 @@ Switching back to Monza restarts its lights and documented race schedule.
 | `include/apex3d/scene3d.hpp` | World/car/crew/gantry meshes, normals and camera rig |
 | `include/apex3d/renderer3d.hpp` | Lit/depth shaders, mesh buffers, shadow framebuffer and rendering passes |
 | `include/apex3d/hud3d.hpp` | Sidebar transform, inverse hit testing, camera hints and compact start overlay |
+| `include/apex3d/track_edges.hpp` | Measured left/right track edges at a lap position (from the DBGT survey) |
 | `include/apex3d/race_overtakes.hpp` | Position-change call-outs filtered from the recorded feed, and the banner priority |
 | `include/apex3d/race_weather.hpp` | Recorded trackside weather reading at a race time and its panel text |
 | `include/apex3d/timing_tower.hpp` | Live running order and gaps from the position feed and sector timing lines; final classification after the race |

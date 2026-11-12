@@ -11,7 +11,7 @@ inline double metresPerSceneUnit() {
     return scale;
 }
 inline double sceneUnits(double metres) { return metres / metresPerSceneUnit(); }
-inline constexpr double trackWidth = 12.0; // published Monza range: 10-12 m
+inline constexpr double trackWidth = 12.0; // nominal, for scenery clearance checks; the road uses measured edges (track_edges.hpp)
 inline constexpr double roadHeight = 0.10;
 inline constexpr double kerbWidth = 0.80;
 inline constexpr double kerbHeight = 0.16;
