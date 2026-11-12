@@ -160,7 +160,7 @@ inline std::vector<cp3::Vertex> overlay(const cp3::Playback& p,const cp3::RaceSa
             cp3::hudText(result,-.72,.86,.0026,flag.detail,{.91F,.94F,.94F});
         }
     }
-    cp3::hudText(result,-.95,-.970,.0017,"MAP DATA: OPENSTREETMAP CONTRIBUTORS / ODBL",{.55F,.68F,.72F});
+    cp3::hudText(result,-.95,-.970,.0017,"MAP DATA: OPENSTREETMAP CONTRIBUTORS / ODBL   SURVEY: REGIONE LOMBARDIA / CC BY 4.0",{.55F,.68F,.72F});
     return result;
 }
 struct MarkerPosition {double x,y;bool onScreen;};

@@ -30,12 +30,24 @@ try{
     CHECK(terrainHeight(-40000,30000)==double(float(ground.mean))&&terrainHeight(40000,-30000)==double(float(ground.mean)));
     for(int c=0;c<ground.columns;++c)CHECK(ground.texel(c,0)==float(ground.mean)&&ground.texel(c,ground.rows-1)==float(ground.mean));
     for(int r=0;r<ground.rows;++r)CHECK(ground.texel(0,r)==float(ground.mean)&&ground.texel(ground.columns-1,r)==float(ground.mean));
-    // Smooth, gently rolling ground: no step over 6 % between neighbouring texels.
-    double steepest=0;
-    for(int r=0;r+1<ground.rows;++r)for(int c=0;c+1<ground.columns;++c){
-        steepest=std::max({steepest,std::abs(ground.texel(c+1,r)-ground.texel(c,r)),std::abs(ground.texel(c,r+1)-ground.texel(c,r))});
+    // Away from the road and the map's edge the ground is the surveyed terrain itself
+    // (Regione Lombardia DTM, shifted to meet the road), not a fill.
+    int surveyed=0;double surveyLow=1e9,surveyHigh=-1e9;
+    for(int r=0;r<ground.rows;++r)for(int c=0;c<ground.columns;++c){
+        const double border=std::min({c,r,ground.columns-1-c,ground.rows-1-r})*ground.cell;
+        const double x=ground.minX+c*ground.cell,z=ground.minZ+r*ground.cell;
+        double nearest=1e18;
+        for(const auto& p:controls)nearest=std::min(nearest,std::hypot(x-p.x*scale,z+p.y*scale));
+        if(border<terrainBorderFade||nearest<terrainRoadBlend)continue;
+        CHECK(ground.texel(c,r)==float(surveyedTexel(c,r)));++surveyed;
+        surveyLow=std::min(surveyLow,surveyedTexel(c,r));surveyHigh=std::max(surveyHigh,surveyedTexel(c,r));
     }
-    CHECK(steepest/ground.cell<0.06);
+    CHECK(surveyed>ground.columns*ground.rows/2);
+    // Real relief: the Lambro valley east of the park and the terrace to the west span over 40 m.
+    CHECK(surveyHigh-surveyLow>40);
+    // The survey sits 5.4 m below the OpenF1 elevation along the lap; the shift puts the
+    // finish line's surveyed height (181.3 m) level with the road, within that scatter.
+    CHECK(near(cp3::surveyedTerrainZeroMetres,181.778,0.001));
     // Bilinear lookup reproduces texels exactly and interpolates between them.
     CHECK(near(ground.height(ground.minX+5*ground.cell,ground.minZ+7*ground.cell),ground.texel(5,7),1e-6));
     CHECK(near(ground.height(ground.minX+5.5*ground.cell,ground.minZ+7*ground.cell),(ground.texel(5,7)+ground.texel(6,7))/2,1e-6));
@@ -84,6 +96,6 @@ try{
     CHECK(near(airMass(90),1.0,0.001)&&near(airMass(30),1.995,0.01)); // Kasten-Young reference values
     const auto flag=sunlightTint(74*60);
     CHECK(flag.z<flag.y&&flag.y<flag.x&&flag.x<1.0&&flag.z>0.9); // bluer light is lost first; a subtle change
-    std::cout<<"Terrain and sun: measured elevation, smooth ground, camera lift, solar position: PASS\n";
+    std::cout<<"Terrain and sun: measured elevation, surveyed ground, camera lift, solar position: PASS\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}
 }

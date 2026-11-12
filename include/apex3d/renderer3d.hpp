@@ -31,7 +31,12 @@ float terrainHeight(vec2 p){
 }
 void main(){
     vec3 p=position+vec3(0.0,terrainHeight(position.xz),0.0);
-    worldPosition=p;worldNormal=normal;color=vertexColor;
+    // Raising by h(x,z) is a shear, so normals take its inverse transpose:
+    // n' = (nx - ny*dh/dx, ny, nz - ny*dh/dz). Slopes then catch the sun.
+    float e=1.0/terrainFrame.z;
+    vec2 slope=vec2(terrainHeight(position.xz+vec2(e,0.0))-terrainHeight(position.xz-vec2(e,0.0)),
+                    terrainHeight(position.xz+vec2(0.0,e))-terrainHeight(position.xz-vec2(0.0,e)))/(2.0*e);
+    worldPosition=p;worldNormal=vec3(normal.x-normal.y*slope.x,normal.y,normal.z-normal.y*slope.y);color=vertexColor;
     lightPosition=lightMatrix*vec4(p,1.0);
     gl_Position=viewProjection*vec4(p,1.0);
 })";
