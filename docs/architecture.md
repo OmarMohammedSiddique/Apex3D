@@ -54,8 +54,9 @@ during stationary service. Loaded tyre deformation and differential wheel
 speeds are not simulated.
 
 The scene is built flat. The lit and shadow vertex shaders then lift every vertex
-by a height map made from the recorded track elevation (`terrain.hpp`), so the
-road and everything on it follow the measured rise and fall. Cameras use the same
+by a height map (`terrain.hpp`): the recorded track elevation on the road and
+Regione Lombardia's terrain survey around it, so the road and everything on it
+follow the measured rise and fall. Cameras use the same
 map on the CPU. Raised surfaces and buildings are model geometry, not a surveyed
 Monza architecture dataset. No new external model, texture or rendering dependency
 is required. The sun direction is the real solar position for the race time

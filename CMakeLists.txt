@@ -35,7 +35,7 @@ add_library(glad_gl_core_33 STATIC
 target_include_directories(glad_gl_core_33 PUBLIC third_party/glad/include)
 
 # Compile the full-field telemetry table once instead of parsing it in every UI/test unit.
-add_library(apex3d_race_data STATIC src/generated/monza_telemetry_2025.cpp)
+add_library(apex3d_race_data STATIC src/generated/monza_telemetry_2025.cpp src/generated/monza_terrain_2025.cpp)
 
 add_executable(Apex3D
     src/main.cpp

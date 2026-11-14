@@ -97,16 +97,49 @@ relief. From the finish line the road climbs about 10 m to its high point
 approaching the Lesmos, dips through Ascari, and reaches its lowest point at
 Parabolica, 2.9 m below the line.
 
-`include/apex3d/terrain.hpp` turns the 576 control-point heights into a 16 m
-height map covering the circuit plus 900 m around it:
+`include/apex3d/terrain.hpp` combines the measured road heights with a terrain
+survey into a 16 m height map covering the circuit plus 1.2 km around it.
 
-- On the track the height is the measured elevation. The test checks every
-  control point is within 0.25 m. Across the 12 m road it varies by under
-  0.1 m, so no banking is invented.
-- Off the track there is no survey. The height comes from nearby track heights
-  (a Gaussian average whose width grows with distance) and fades to the lap's
-  mean height between 80 m and 450 m from the road. Slopes stay below 6%.
-  This is a smooth fill, not the park's real terrain.
+- **On the track** the height is the measured elevation. The test checks every
+  control point is within 0.25 m. Across the road it varies by under 0.1 m, so
+  no banking is invented. This holds within 30 m of the line.
+- **Away from the track** the ground is Regione Lombardia's 5 m terrain model,
+  "DTM 5x5 (ed. 2015)" (CC BY 4.0, metadata
+  `r_lombar:dfc98d60-5f02-4a2b-8113-5ad24cc53a9c`). It is bare earth, without
+  trees or buildings, built from the regional topographic database with LiDAR along
+  rivers. It shows the real Lambro valley east of the park and the terrace edge to
+  the west, about 50 m of relief across the map.
+- **Between 30 m and 100 m** from the line the road heights blend into the survey.
+- **The outer 400 m** of the map fade to the mean height of its edge, so the flat
+  ground beyond meets it without a step.
+
+`tools/generate_terrain_assets.py --extract` samples the survey on the scene grid
+and writes `data/monza-terrain.json` (sources, checksums, grid and heights in
+centimetres). The 3.1 GB regional download is not kept. The tool works from a
+byte-exact clip of it whose SHA-256 is recorded. Each grid point goes from scene
+units to longitude/latitude (the inverse of `to_scene`), then to UTM 32N, and the
+DTM is interpolated there. The generated table is
+`src/generated/monza_terrain_2025.cpp`.
+
+The OpenF1 heights have their own vertical origin. Along the lap the survey is
+5.4 m below them (median over 1,152 points), with 1.0 m RMS scatter once that
+offset is removed, so the survey is shifted up by 5.4 m to meet the road. Three
+stretches differ by more and are covered by the 30 m road zone:
+
+- **About 400 m after the line**, for 15 m, the survey is up to 4.6 m lower.
+- **From 3.44 km to 3.69 km** on the back straight, the survey is 2.5–5 m higher.
+  This is where the road dips under the old oval, so the survey probably records the
+  oval's approach embankments as ground.
+- **At 3.54 km** a 9 m spike marks the oval's bridge over the track.
+
+The ground is lit by its slope. Raising each vertex by the height map is a shear,
+so the vertex shader transforms normals by its inverse transpose, computed from the
+height map's gradient. The terrace edge and the valley sides catch the sun the same
+way the geometry tilts.
+
+![Overview with the surveyed ground: the terrace edge to the west and the Lambro valley to the east](evidence/apex3d-surveyed-terrain.png)
+
+![Chase view: the ground rises towards the terrace beyond the trees](evidence/apex3d-surveyed-terrain-chase.png)
 
 The scene is still built flat. The renderer's vertex shaders lift every vertex
 by the height under it, using the same bilinear lookup as the CPU copy. That
@@ -121,8 +154,10 @@ pitches with the road. Heights are real, not exaggerated, so at 12 m over
 
 ## What is still estimated
 
-- Terrain away from the road (see Elevation above) is a smooth fill from the
-  track heights, not a survey.
+- Terrain away from the road (see Elevation above) is the 2015 regional survey
+  sampled every 16 m, so features smaller than that (ditches, embankments,
+  underpasses) are softened. Buildings and trees stand on it, but their footprints
+  are not cut into it.
 
 - Track width is measured (see Track width below), but Armco and the catch
   fence still follow the line at a fixed offset. Kerb positions come from curvature (below); their lengths are

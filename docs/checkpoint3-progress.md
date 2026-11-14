@@ -26,8 +26,8 @@ The detailed source trail and every reconstruction assumption are in
 `monza-race-research.md`. Data-backed timings must not be described as a GPS,
 continuous telemetry, vehicle-physics or full-field race simulation.
 
-The road follows the recorded OpenF1 elevation; terrain off the road is a smooth
-fill, and no continuous GPS telemetry is provided. The car, scenery and pit crew are procedural low-poly
+The road follows the recorded OpenF1 elevation; terrain off the road is Regione
+Lombardia's 5 m survey, and no continuous GPS telemetry is provided. The car, scenery and pit crew are procedural low-poly
 models. Lecturer-specific acceptance and any telemetry requirement remain
 separate from local rendering and timing verification.
 
