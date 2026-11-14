@@ -248,6 +248,8 @@ Each milestone also has its own README with individual build and run commands:
 
 ## Evidence and documentation
 
+- [Documentation index](docs/README.md)
+- [Semi-final technical showcase](docs/guides/semi-final-showcase.md)
 - [Monza race research and assumptions](docs/monza-race-research.md)
 - [Measured track geometry](docs/real-track-geometry.md)
 - [CP3 progress and remaining work](docs/checkpoint3-progress.md)
