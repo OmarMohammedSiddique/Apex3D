@@ -208,7 +208,7 @@ library. The programs rasterise their own PPM evidence images on the CPU.
 ## Technologies and tools
 
 - C++20 standard library
-- Handwritten CPU rasterisation and graphics algorithms
+- CPU rasterisation and graphics algorithms implemented in C++, without a graphics library
 - 3 × 3 homogeneous transformation matrices
 - PPM and PNG evidence outputs
 - CMake, GLFW, GLAD and OpenGL 3.3 for the integrated prototype

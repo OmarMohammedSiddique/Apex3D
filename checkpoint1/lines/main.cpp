@@ -1,7 +1,7 @@
 // Apex3D - Checkpoint 1: Pure C++ line algorithms.
 //
 // Rasterizes Monza circuit geometry into an in-memory RGB canvas using
-// hand-written DDA, Bresenham and Cohen-Sutherland routines, then saves the
+// its own DDA, Bresenham and Cohen-Sutherland routines, then saves the
 // result as a binary PPM image. No graphics library is used: every pixel is
 // written through Canvas::setPixel.
 

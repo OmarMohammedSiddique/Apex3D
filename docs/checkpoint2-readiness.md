@@ -16,7 +16,7 @@ intentionally reserved for Checkpoint 3.
 | Project-related polygon animation | Complete | `checkpoint2/animation/car/` animates a simplified Formula 1 car through translation, rotation, scaling and combined keyframes. |
 | Spline path animation | Complete | `checkpoint2/animation/splines/` moves and orients a car around a closed Catmull–Rom circuit. |
 | Bézier path animation | Complete | `checkpoint2/animation/bezier/` moves and orients a car along chained cubic Bézier curves using approximate arc-length sampling. |
-| Pure C++ implementation | Complete | Every CP2 demonstration uses C++20 and handwritten CPU rasterisation without a graphics library. |
+| Pure C++ implementation | Complete | Every CP2 demonstration uses C++20 and its own CPU rasterisation, without a graphics library. |
 | Automated verification | Complete | `checkpoint2/verify_all.sh` builds all modules with strict warnings and runs all deterministic tests and demonstrations. |
 | Graphical evidence | Complete | Each module contains generated PPM/PNG output; the combined submission evidence is in `output/pdf/Apex3D_Checkpoint2_Evidence.pdf`. |
 | Repository documentation | Complete | The root README and `checkpoint2/README.md` describe responsibilities, techniques, build instructions, progress and limitations. |

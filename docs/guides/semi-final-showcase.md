@@ -42,9 +42,9 @@ Show the app already open in chase view, paused a few laps in.
 > Apex3D is an interactive 3D visualisation of the 2025 Italian Grand Prix at Monza.
 > It rebuilds the circuit from surveyed geometry, replays all 20 cars from the
 > recorded timing and telemetry, and paints that telemetry straight onto the track
-> surface. It is written in C++20 with OpenGL 3.3, and every graphics algorithm
-> from the course is implemented by hand, from Bresenham lines in Checkpoint 1 to
-> shadow mapping in the 3D app.
+> surface. It is written in C++20 with OpenGL 3.3, and it uses the course's
+> algorithms throughout, from Bresenham lines in Checkpoint 1 to shadow mapping in
+> the 3D app.
 
 ---
 
@@ -77,7 +77,7 @@ models, physics, realistic environments and live telemetry.
 
 **Why it changed.**
 - Checkpoints 1 and 2 asked for 2D algorithms first, so each member built one
-  algorithm family by hand. Those became the foundation of the 3D app rather than
+  algorithm family. Those became the foundation of the 3D app rather than
   being thrown away (the race route still runs on the Checkpoint 2 Catmull-Rom code).
 - Real open data (OpenF1, FIA timing, Lombardy's survey) was available, so the
   track, timing and telemetry are measured rather than approximated.
@@ -251,7 +251,7 @@ achieves, and the demonstration.
 Briefly recap, since section 2 covered the detail: DDA and Bresenham lines,
 Cohen-Sutherland clipping, midpoint circles and ellipses, scanline fill, Bézier
 and Catmull-Rom curves. Show the CP1 output PNGs side by side. Point out that the
-2D algorithms ran on a hand-written CPU rasteriser; the 3D app moves rasterisation
+2D algorithms ran on our own CPU rasteriser, with no graphics library; the 3D app moves rasterisation
 to the GPU but reuses the curve, transformation and animation code.
 
 ### 2D homogeneous transformations (Omar)
