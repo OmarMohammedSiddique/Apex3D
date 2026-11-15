@@ -1,6 +1,6 @@
 # Checkpoint 1 — Pure C++ line algorithms
 
-A self-contained C++20 program that draws Apex3D's Monza circuit and a set of test segments into an in-memory RGB canvas, using only hand-written algorithms. It does not use OpenGL, GLFW or any other drawing library. Every pixel goes through `Canvas::setPixel`, and the finished canvas is saved as `output/lines_demo.ppm`.
+A self-contained C++20 program that draws Apex3D's Monza circuit and a set of test segments into an in-memory RGB canvas, with the algorithms implemented directly in C++. It does not use OpenGL, GLFW or any other drawing library. Every pixel goes through `Canvas::setPixel`, and the finished canvas is saved as `output/lines_demo.ppm`.
 
 ![Line algorithms demo](output/lines_demo.png)
 

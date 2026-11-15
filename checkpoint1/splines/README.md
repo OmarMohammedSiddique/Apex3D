@@ -63,7 +63,7 @@ unsmoothed input polylines.
 ## Sampling and rasterisation
 
 Each segment is evaluated at 120 uniformly spaced values of `t`. Consecutive
-samples are rounded to pixels and joined using a handwritten all-octant
+samples are rounded to pixels and joined using its own all-octant
 Bresenham line rasteriser. Uniform parameter sampling is easy to explain, but
 does not produce constant physical speed along the curve.
 

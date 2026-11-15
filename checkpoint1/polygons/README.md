@@ -8,7 +8,7 @@ This is a standalone C++20 program. It draws polygons into an RGB pixel buffer i
 
 1. Creates a 900 × 520 RGB `Canvas` in memory.
 2. Writes pixels with `Canvas::setPixel`, which ignores any coordinate outside the canvas.
-3. Draws polygon edges with a hand-written Bresenham line rasteriser (`drawLine`).
+3. Draws polygon edges with its own Bresenham line rasteriser (`drawLine`).
 4. Fills polygons with an even-odd scanline algorithm (`scanlineFill`).
 5. Clips a concave polygon against an axis-aligned rectangle using Sutherland–Hodgman (`sutherlandHodgmanClip`).
 6. Draws a simplified top-down Formula 1 car on a section of Monza track, built entirely from filled polygons.
