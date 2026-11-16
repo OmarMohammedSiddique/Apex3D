@@ -3,6 +3,7 @@
 ## Guides
 
 - [Semi-final technical showcase](guides/semi-final-showcase.md): script, techniques and demo run sheet
+- [Peer-reviewed presentation](guides/peer-review-presentation.md): in-person run sheet, likely questions and how to review other groups
 - [Checkpoint 3 demonstration guide](checkpoint3-demo-guide.md)
 
 ## How it works
