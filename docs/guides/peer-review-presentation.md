@@ -5,6 +5,9 @@ room and marked mostly by classmates, so it differs from the
 [semi-final showcase video](semi-final-showcase.md): shorter, more visual, plainer
 language, and the app does most of the talking.
 
+For the full word-for-word version with a part for every member, see the
+[presentation script](presentation-script.md).
+
 ## What we know
 
 - In person, at the usual venue. Sessions on Tuesday 17 November (from 8:45) and

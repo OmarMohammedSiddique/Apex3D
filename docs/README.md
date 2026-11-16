@@ -4,6 +4,7 @@
 
 - [Semi-final technical showcase](guides/semi-final-showcase.md): script, techniques and demo run sheet
 - [Peer-reviewed presentation](guides/peer-review-presentation.md): in-person run sheet, likely questions and how to review other groups
+- [Presentation script](guides/presentation-script.md): word-for-word script with a part for every member and the code to point at
 - [Checkpoint 3 demonstration guide](checkpoint3-demo-guide.md)
 
 ## How it works

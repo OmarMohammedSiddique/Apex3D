@@ -1,0 +1,544 @@
+# Presentation script
+
+Word-for-word script for the in-person, peer-reviewed presentation. Every member
+speaks about the code they wrote. Read it twice tonight, then say it in your own
+words tomorrow: the lines in quotes are a guide, not something to recite.
+
+The shorter run sheet, checklists and the guide to reviewing other groups are in
+[Peer-reviewed presentation](peer-review-presentation.md).
+
+## How to read this script
+
+Each step has up to three parts:
+
+- **DO** is an action: a key press, a click or a switch of window.
+- **SHOW** is what should be on the projector at that moment.
+- **SAY** is what the speaker says. Lines in quotes are suggested wording.
+
+The line numbers point at the real code on `main` as of 16 November 2026, so what
+you point at on screen matches what you say.
+
+## Roles
+
+| Role | Who | Job |
+| --- | --- | --- |
+| Driver | Omar | At the laptop the whole time: presses keys and switches windows on cue. |
+| Speakers | Everyone, in turn | Stand beside the screen, face the room, point at the screen. |
+| Timekeeper | Whoever is not speaking next | Holds up a hand at 1 minute left. |
+
+One person driving means nobody fumbles with a laptop they don't know. If a
+speaker would rather press their own keys, they swap in for their section and
+swap back.
+
+When it's your turn, say **"Omar, can you show..."** for each switch. It sounds
+rehearsed, it gives Omar the cue, and it buys you a breath.
+
+## Running order (about 14 minutes)
+
+| # | Section | Speaker | Time |
+| --- | --- | --- | --- |
+| 1 | Opening and what Apex3D is | Omar | 1:15 |
+| 2 | Lines and clipping | Azhar | 1:30 |
+| 3 | Polygon fill and the animated car | Hetvi | 1:30 |
+| 4 | Circles, ellipses and wheels | Nyariki | 1:30 |
+| 5 | The spline racing line | Shadrack | 1:30 |
+| 6 | Bézier curves and the timeline | Casper | 1:30 |
+| 7 | The transformation engine and the 3D app | Omar | 4:00 |
+| 8 | Planned vs built, what's next, close | Casper, then Omar | 1:00 |
+
+**If we only get 10 minutes:** each member section drops to 1 minute (skip the
+"If you have time" part), and Omar's demo drops steps 7.7 to 7.9 (and skips the restart).
+**If we only get 5 minutes:** Omar does sections 1 and 7 alone, then each member
+says one sentence on what they built while their image is on screen.
+
+---
+
+## Before the slot
+
+**DO** (Omar, before the previous group finishes):
+
+1. Plug in, mirror the display, Do Not Disturb on.
+2. In the code editor, open these files as tabs **in this order**, each scrolled to
+   the line given, and set the font size large (at least 20 pt) so the back row can
+   read it:
+
+   | Tab | File | Line |
+   | --- | --- | --- |
+   | 1 | `checkpoint1/lines/main.cpp` | 145 |
+   | 2 | `checkpoint1/polygons/main.cpp` | 159 |
+   | 3 | `checkpoint2/animation/car/include/car_animation.hpp` | 299 |
+   | 4 | `checkpoint1/circles/main.cpp` | 127 |
+   | 5 | `checkpoint2/animation/wheels/include/wheel_animation.hpp` | 120 |
+   | 6 | `checkpoint2/animation/splines/include/spline_motion.hpp` | 14 |
+   | 7 | `include/apex3d/cp3_scene.hpp` | 91 |
+   | 8 | `checkpoint2/animation/bezier/include/bezier_motion.hpp` | 75 |
+   | 9 | `checkpoint2/animation/timeline/timeline.hpp` | 122 |
+   | 10 | `checkpoint2/transformations/include/transform2d.hpp` | 86 |
+   | 11 | `include/apex3d/renderer3d.hpp` | 55 |
+
+3. In Preview, open the output images in this order (one window, use the arrow
+   keys to move through them):
+   `checkpoint1/lines/output/lines_demo.png`,
+   `checkpoint1/polygons/output/polygons_demo.ppm`,
+   `checkpoint2/animation/car/output/car_contact_sheet.png`,
+   `checkpoint1/circles/output/circles_ellipses_demo.png`,
+   `checkpoint2/animation/wheels/output/wheel_contact_sheet.png`,
+   `checkpoint2/animation/splines/output/spline_contact_sheet.png`,
+   `checkpoint1/bezier/output/bezier_demo.png`,
+   `checkpoint2/animation/timeline/output/contact_sheet.png`,
+   `checkpoint2/transformations/output/transformations_demo.png`.
+4. Run `./build/Apex3D`, press `Space` to start the race, `+` twice for 4x, `C`
+   until you reach the TV camera. Leave it running full screen.
+
+Use `Cmd+Tab` to move between the app, the editor and Preview.
+
+---
+
+## 1. Opening (Omar, 1:15)
+
+**SHOW:** the app in TV view, race running at 4x.
+
+**DO:** nothing yet. Let the room watch for three seconds before speaking.
+
+**SAY:**
+
+> "Good morning. We're Apex3D: Azhar, Hetvi, Nyariki, Shadrack, Casper and me,
+> Omar. What you're watching is the 2025 Italian Grand Prix at Monza. All 20 cars,
+> replayed from the real timing data."
+
+**DO:** press `C` until the overview camera. Drag slowly to orbit the circuit.
+
+**SAY:**
+
+> "The track is built from Monza's surveyed road edges, the hills come from the
+> regional terrain survey, and the cars move from the recorded sector times. There's
+> no game engine and there are no downloaded 3D models: the track, the cars and the
+> scenery are all generated by C++ we wrote."
+
+> "The brief had three checkpoints. Checkpoint 1: graphics algorithms in pure C++.
+> Checkpoint 2: transformations and animation, still pure C++. Checkpoint 3: bring
+> it into OpenGL as a prototype. The key point is that we didn't throw the
+> checkpoint code away. The cars you're watching still run on the Checkpoint 2
+> spline code. So each of us will show what we wrote, and where it lives in this
+> app. Azhar starts with the most basic thing in graphics: drawing a line."
+
+**DO:** `Cmd+Tab` to Preview, `lines_demo.png`.
+
+---
+
+## 2. Lines and clipping (Azhar, 1:30)
+
+**SHOW:** `checkpoint1/lines/output/lines_demo.png`.
+
+**SAY:**
+
+> "A screen is a grid of pixels, so a line from A to B is really a question: which
+> pixels do I light? I implemented two answers, DDA and Bresenham, plus
+> Cohen-Sutherland clipping, in pure C++ on our own pixel buffer. No graphics
+> library: we write the pixels ourselves and save the result as an image."
+
+> "DDA works out how far to step in x and y with decimals and rounds each point.
+> It's simple but it uses floating point on every pixel."
+
+**DO:** "Omar, can you show the Bresenham function?" (Editor, tab 1, line 145.)
+
+**SHOW:** `drawLineBresenham` in `checkpoint1/lines/main.cpp`.
+
+**SAY** (point at each line as you mention it):
+
+> "Bresenham does the same job with integers only. Here, line 151, `err` is the
+> error term: how far the real line is from the pixel we're on. Line 159, each
+> step we double it into `e2`."
+
+> "Line 160: if `e2` is at least `dy`, we step in x. Line 164: if it's at most
+> `dx`, we step in y. If both are true, we step diagonally."
+
+> "`sx` and `sy` on lines 149 and 150 are the direction, plus or minus one. Because
+> of those, and because `dy` is stored negative, this one loop works for every
+> direction and every slope. We don't need a separate case for steep lines."
+
+**DO:** "Back to the image, please."
+
+**SAY:**
+
+> "The window in the image shows clipping. Each end of a line gets a four-bit
+> outcode: left, right, top, bottom. If both codes are zero, the line is inside and
+> we keep it. If the two codes share a bit, both ends are off the same side, so we
+> throw it away without any maths. Otherwise we cut the line at the window edge and
+> test again. That's `clipCohenSutherland`, from line 210."
+
+**If you have time:**
+
+> "The hard part was the partly-inside case: you have to keep clipping until both
+> ends are accepted, because one cut can leave the other end still outside."
+
+**Hand over:**
+
+> "Lines give us outlines. Hetvi fills them in."
+
+---
+
+## 3. Polygon fill and the animated car (Hetvi, 1:30)
+
+**DO:** Preview, the polygons image.
+
+**SAY:**
+
+> "I did polygons: representing a shape as a list of corner points, and filling it
+> with the scanline algorithm."
+
+**DO:** "Omar, can you show the scanline fill?" (Editor, tab 2, line 159.)
+
+**SAY:**
+
+> "The idea: go down the shape one row of pixels at a time. Line 177, for each row
+> we take the centre of the row, `scanY`. Line 183, for every edge we ask: does
+> this edge cross the row?"
+
+> "Line 188, if it does, we use the inverse slope to work out exactly where it
+> crosses. That gives a list of crossing points."
+
+> "Line 192, we sort them, and line 194, we fill between pairs: first to second,
+> third to fourth. That's how it handles shapes with dents in them: between the
+> second and third crossing you're outside, so nothing is filled."
+
+**DO:** "Now the car, please." (Preview, `car_contact_sheet.png`.)
+
+**SAY:**
+
+> "For Checkpoint 2, I built an F1 car from 13 polygons and animated it with
+> keyframes: it slides, does a full turn and stretches."
+
+**DO:** editor, tab 3, line 299.
+
+**SAY:**
+
+> "This is the transform for each frame, line 302. Read it from the bottom up: move
+> the car's centre to the origin, scale, rotate, then move it to its position on
+> screen. The challenge I had was that without that first step, the car rotated
+> around the corner of the screen instead of around itself. Moving it to the origin
+> first fixed it."
+
+> "Between keyframes, the position, angle and scale are blended with linear
+> interpolation, the `lerp` on line 360."
+
+**If you have time:**
+
+> "In the 3D app I added the steering, rolling wheels and a camera that follows the
+> car. You'll see that in Omar's demo."
+
+**Hand over:**
+
+> "A car needs wheels. Nyariki."
+
+---
+
+## 4. Circles, ellipses and wheels (Nyariki, 1:30)
+
+**DO:** Preview, `circles_ellipses_demo.png`.
+
+**SAY:**
+
+> "I did the midpoint circle and midpoint ellipse algorithms, in integers, like
+> Bresenham."
+
+**DO:** "Omar, can you show `drawCircle`?" (Editor, tab 4, line 127.)
+
+**SAY:**
+
+> "A circle is symmetrical, so I only calculate one eighth of it. Line 131, start
+> at the top, x is zero and y is the radius. Line 133, the decision starts at one
+> minus the radius."
+
+> "Each step, x goes up by one. Line 137, the decision tells us whether the next
+> pixel stays on the same row or drops down one. Then `plotCircle8`, line 116,
+> mirrors that one pixel into all eight octants. So I calculate one eighth and draw
+> eight times as much."
+
+**DO:** scroll down to `drawEllipse`, line 182.
+
+**SAY:**
+
+> "An ellipse only has four-way symmetry, and it needs two regions. Line 182,
+> region 1 runs while the curve is flatter than 45 degrees, so we step in x. Line
+> 201, region 2 is the steep part, so we step in y. The switch happens where
+> `2 ry² x` meets `2 rx² y`. That was my biggest challenge: get the switch wrong
+> and you get gaps or doubled pixels at the sides."
+
+**DO:** Preview, `wheel_contact_sheet.png`, then editor tab 5, line 120.
+
+**SAY:**
+
+> "For Checkpoint 2, I used those circles for wheels and animated them with a
+> hierarchy. The comment on line 120 says it: the wheel spins about its own mount
+> first, then the body moves it. Line 125 is that in code: body times rotation
+> around the wheel's centre. If you skip the pivot, the wheel orbits the car
+> instead of spinning."
+
+> "And line 72: distance travelled equals radius times angle, so the wheels roll
+> without slipping."
+
+**Hand over:**
+
+> "Shadrack makes the car go round a whole track."
+
+---
+
+## 5. The spline racing line (Shadrack, 1:30)
+
+**DO:** Preview, `spline_contact_sheet.png`.
+
+**SAY:**
+
+> "I built the closed path the car follows: a Catmull-Rom spline. You give it a
+> handful of control points and it draws a smooth curve that passes through every
+> one of them, which is what you want for a racing line."
+
+**DO:** "Omar, can you show the spline?" (Editor, tab 6, line 14.)
+
+**SAY:**
+
+> "Line 14 is the formula. Each piece of the curve uses four points: the two it
+> runs between, and one either side to set the direction. `t` goes from 0 to 1
+> along that piece."
+
+> "Line 26 is its derivative, the tangent: the direction the curve is heading. Line
+> 76, `atan2` of the tangent gives the angle the car should face. That's why the
+> car always points along the track."
+
+> "Line 46 makes the loop closed: the index wraps round with modulo, so after the
+> last point it uses the first one again and the lap joins up smoothly."
+
+**DO:** editor, tab 7, line 91.
+
+**SAY:**
+
+> "And this is the important bit. This is the 3D app, not the checkpoint. Line 95,
+> `pathTangent` calls my `catmullRomTangent`. Every one of the 20 cars at Monza is
+> placed with my Checkpoint 2 code."
+
+> "Line 100, `stableTangent`: if the tangent is almost zero, the heading would jump,
+> so we fall back to the difference between two nearby points. That was the
+> challenge: keeping the heading stable."
+
+**Hand over:**
+
+> "Catmull-Rom passes through the points. Casper did the other kind of curve,
+> Bézier, and the timeline that drives the animation."
+
+---
+
+## 6. Bézier curves and the timeline (Casper, 1:30)
+
+**DO:** Preview, `bezier_demo.png`.
+
+**SAY:**
+
+> "A Bézier curve is controlled by points it doesn't pass through. The end points
+> are on the curve; the handles in between pull it, like magnets. I did the
+> Checkpoint 1 Bézier work and the Checkpoint 2 timeline."
+
+**DO:** "Omar, can you show the circuit code?" (Editor, tab 8, line 75.)
+
+**SAY:**
+
+> "To join Bézier pieces into a lap without a kink, the join has to be smooth. Line
+> 87 and 88: each handle is a sixth of the line between the neighbouring points.
+> That makes the handles either side of a join line up, so the curve is C1
+> continuous: no sudden change in direction."
+
+**DO:** editor, tab 9, line 122.
+
+**SAY:**
+
+> "This is the timeline's angle interpolation. If a car goes from 350 degrees to 10
+> degrees, a plain blend would spin it the long way round, 340 degrees backwards.
+> Lines 129 and 130 wrap the difference into minus 180 to plus 180, so it turns the
+> short way: 20 degrees."
+
+**If you have time:**
+
+> "The challenge in the 3D version was that the car jumped at every join, because
+> progress restarted on each piece. We fixed it by measuring the whole lap's length
+> and moving by distance instead. You'll see the Bézier route in 3D in a moment."
+
+**Hand over:**
+
+> "Omar puts all of this together."
+
+---
+
+## 7. The transformation engine and the 3D app (Omar, 4:00)
+
+### 7.1 The matrix engine (40 s)
+
+**DO:** editor, tab 10, line 86.
+
+**SAY:**
+
+> "For Checkpoint 2, I wrote the transformation engine everyone's animation uses:
+> translation, rotation and scaling as 3 by 3 matrices on homogeneous coordinates.
+> The third coordinate is what lets a translation be a matrix multiplication too."
+
+> "This is `aroundPivot`, line 87: move the pivot to the origin, apply the
+> transformation, move it back. Hetvi's car and Nyariki's wheels are both built on
+> this function."
+
+### 7.2 The viewing pipeline (30 s)
+
+**DO:** `Cmd+Tab` to the app. Press `C` once to chase view.
+
+**SAY:**
+
+> "In 3D, the same idea becomes 4 by 4 matrices. Every camera is a look-at matrix,
+> built from where the eye is and what it's looking at, and a perspective matrix,
+> which makes far things smaller. That's `lookAt` and `perspective` in
+> `math3d.hpp`."
+
+**DO:** press `C` through cockpit and TV view, then back to chase.
+
+**SAY:**
+
+> "Chase, cockpit, TV. Same scene, different view matrix."
+
+### 7.3 Clicking a driver (20 s)
+
+**DO:** click a driver in the timing tower on the left.
+
+**SAY:**
+
+> "The timing tower is clickable. The sidebar is scaled to fit the window, so to
+> know which row you clicked, we apply the inverse of that transform to the mouse
+> position. Same matrix engine, run backwards."
+
+### 7.4 The heatmap (40 s)
+
+**DO:** press `V`. Pause between each press.
+
+**SAY:**
+
+> "This was in our proposal: telemetry painted onto the track. Speed first: red is
+> slow and braking, green is fast."
+
+**DO:** `V` again (throttle), `V` again (brake).
+
+> "Throttle. Brake. Each value is turned into a colour by linear interpolation
+> between four colour stops, `heatColor` in `telemetry_heatmap.hpp`. The colour is
+> stored on the track's vertices and the GPU blends it across each triangle."
+
+**DO:** click a different driver.
+
+> "Pick another driver and the road repaints with their data."
+
+### 7.5 Lighting and shadows (40 s)
+
+**DO:** in chase view, scroll to zoom in close to the car.
+
+**SAY:**
+
+> "The light is the real position of the sun over Monza at race time. Each surface
+> gets ambient light, diffuse light from the angle to the sun, and a specular
+> highlight."
+
+**DO:** editor, tab 11, line 55.
+
+> "Shadows take two passes. First we render the scene from the sun and keep only
+> the depth. Then, for each pixel, this `shade` function on line 55 asks: is something
+> nearer the sun than me? Line 62 checks nine neighbouring samples and averages them, which is
+> why the shadow edges are soft. Line 59 is a small bias; without it, surfaces
+> shadow themselves in stripes, which is called shadow acne."
+
+### 7.6 Wheels in 3D (20 s)
+
+**DO:** back to the app, press `W`.
+
+> "Nyariki's and Hetvi's wheels, in 3D: each tyre spins about its own axle and
+> steers, then the car carries it. Same hierarchy."
+
+**DO:** press `W` again to close.
+
+### 7.7 Seeking and scrubbing (20 s)
+
+**DO:** press `N`, then drag the timeline at the bottom.
+
+> "We can jump to the next lap and read the lap time, or scrub anywhere in the
+> race. The cars are always where the timing data says they should be."
+
+### 7.8 Terrain (20 s)
+
+**DO:** `C` to the overview, orbit low along the back straight.
+
+> "The ground isn't flat. The vertex shader looks up the survey height at each
+> point and lifts it. The cameras use the exact same lookup on the CPU, otherwise
+> they'd sink into the hills."
+
+### 7.9 Casper's Bézier route in 3D (20 s)
+
+This step comes last on purpose: switching back from the Bézier route restarts the
+race from the grid.
+
+**DO:** press `B`.
+
+> "And this is Casper's Bézier route from Checkpoint 2, running in 3D, moving by
+> distance along the curve so there's no jump at the joins."
+
+**DO:** press `B` again to go back to Monza. The race restarts at the start lights;
+press `C` to the overview and `Space` to pause if it's running.
+
+**Hand over:**
+
+> "Casper, what did we change from the proposal?"
+
+---
+
+## 8. Planned vs built, what's next, close (Casper, then Omar, 1:00)
+
+**SHOW:** the app in the overview, with the race paused at the start.
+
+**Casper SAYS:**
+
+> "We proposed one wedge-shaped car on a simple track ribbon. We ended up with the
+> measured circuit, the whole field and real scenery, because the real data was
+> available and our checkpoint code scaled up to it."
+
+> "What we haven't built yet is lap comparison: two drivers side by side, with the
+> time gap painted on the track. That, textures for the road and grass, and a free
+> camera are what we're working on for the final."
+
+**Omar SAYS:**
+
+> "That's Apex3D. The code and documentation are on GitHub. We'd really like your
+> honest feedback, especially anything that was hard to follow. Thank you."
+
+**DO:** press `H` to hide the HUD, `Space` to start the race and `+` twice, so a
+clean race is running during questions.
+
+---
+
+## Questions
+
+Whoever's code the question is about answers it. If that person isn't sure, Omar
+picks it up. These are the likely ones:
+
+| Question | Who | Answer |
+| --- | --- | --- |
+| Is the data real? | Omar | Yes: FIA timing, OpenF1 positions and telemetry, and the regional survey for the ground. What we reconstructed is documented in `docs/monza-race-research.md`. |
+| Did you use a game engine or Three.js? | Omar | No. C++20, OpenGL 3.3 for drawing and GLFW only to open the window. The matrices, meshes, shaders and cameras are ours. |
+| Were CP1 and CP2 really pure C++? | Azhar | Yes, our own pixel buffer saved as PNG. No library touched a pixel. |
+| Why Bresenham if DDA works? | Azhar | DDA uses floating point and rounding on every pixel; Bresenham only adds and compares integers, so it's faster and exact. |
+| What happens with a concave polygon? | Hetvi | Crossings are sorted and filled in pairs, so the gaps between pairs, where the dents are, stay empty. |
+| Why two regions in the ellipse? | Nyariki | The slope changes. Where it's flatter than 45 degrees you step in x, where it's steeper you step in y; one region would leave gaps. |
+| Why Catmull-Rom rather than Bézier for the race? | Shadrack | Catmull-Rom passes through every control point, so the racing line goes through every point we give it and stays on the measured track. Bézier only passes through its end points. |
+| What is C1 continuity? | Casper | At each join the curve has the same direction and speed on both sides, so there's no kink. |
+| How do the cars know where to be? | Omar | The race clock gives each car's progress from its sector times, the spline turns progress into a position, and the tangent gives the direction. |
+| What was hardest overall? | Omar | Scale. The car was drawn far bigger than the road until we made 1 unit equal 1 metre everywhere. |
+| What doesn't work yet? | Casper | Lap comparison isn't built, there are no textures, and there's no free camera. |
+
+If nobody knows: "Good question, we'll check and come back to you." Don't guess.
+
+## Rehearsal tonight
+
+1. Each member reads their section aloud once with a timer. Over 1:45 means cut
+   the "If you have time" part.
+2. Each member opens their own file and finds the lines they will point at.
+3. One full run in a call, with Omar sharing the screen and doing the switches.
